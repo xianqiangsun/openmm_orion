@@ -1,0 +1,6 @@
+include README.md
+include manifest.json
+include requirements.txt
+recursive-include floes *.py
+recursive-include PlatformTestCubes *.py *.pdb
+recursive-include OpenMMCubes *.py *.pdb *.mol2
