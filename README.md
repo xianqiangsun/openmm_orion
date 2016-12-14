@@ -14,6 +14,6 @@
 ## Example
 
 Test setup of OpenMM complex:
-```python
+```bash
 python floes/openmm_complex_setup.py --complex_setup-receptor OpenMMCubes/tests/input/receptor.pdbfixer.pdb --ifs OpenMMCubes/tests/input/ligand.tripos.mol2
 ```
