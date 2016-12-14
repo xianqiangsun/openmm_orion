@@ -25,7 +25,8 @@ ofs = FileOutputCube("ofs")
 ifs.promote_parameter("data_in", promoted_name="ifs", description="docked ligands")
 
 # this is hardwiring the filename to the molecules coming out of ofs
-ofs.set_parameters(name="system.xml")
+# note: requires decompression with lzma.decompress or gunzip system.xml.xz
+ofs.set_parameters(name="system.xml.xz")
 
 # the name of the object has to match the string: this is the name of myself
 complex_setup = OpenMMComplexSetup("complex_setup")
