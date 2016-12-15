@@ -1,4 +1,5 @@
 import time
+import traceback
 import numpy as np
 from floe.api import OEMolComputeCube, parameter
 from floe.api.orion import in_orion, StreamingDataset
@@ -52,21 +53,21 @@ class OpenMMComplexSetup(OEMolComputeCube):
     )
 
     def begin(self):
-        # Read receptor into molecule
+        pdbfilename = 'receptor.pdb'
+
+        # Write the receptor to a PDB
         if in_orion():
-            stream = StreamingDataset(self.args.receptor)
-            mols = [ mol for mol in stream ]
-            receptor = mols[0]
+            stream = StreamingDataset(self.args.receptor, input_format=".pdb")
+            stream.download_to_file(pdbfilename)
         else:
             receptor = oechem.OEMol()
             with oechem.oemolistream(self.args.receptor) as ifs:
-                oechem.OEReadMolecule(ifs, receptor)
-
-        # Write the receptor to a PDB
-        pdbfilename = 'receptor.pdb'
-        ofs = oechem.oemolostream(pdbfilename)
-        oechem.OEWriteConstMolecule(ofs, receptor)
-        ofs.close()
+                if not oechem.OEReadMolecule(ifs, receptor):
+                    raise RuntimeError("Error reading molecule")
+                with oechem.oemolostream(pdbfilename) as ofs:
+                    res = oechem.OEWriteMolecule(ofs, receptor)
+                    if res != oechem.OEWriteMolReturnCode_Success:
+                        raise RuntimeError("Error writing receptor: {}".format(res))
 
         # Read the PDB file into an OpenMM PDBFile object
         self.pdbfile = app.PDBFile(pdbfilename)
@@ -106,6 +107,7 @@ class OpenMMComplexSetup(OEMolComputeCube):
             self.success.emit(system)
         except Exception as e:
             # Attach error message to the molecule that failed
+            self.log.error(traceback.format_exc())
             mol.SetData('error', str(e))
             # Return failed molecule
             self.failure.emit(mol)
