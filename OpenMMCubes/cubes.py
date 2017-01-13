@@ -10,8 +10,7 @@ from simtk import unit, openmm
 from simtk.openmm import app
 
 from openeye import oechem
-
-import openmoltools
+import os, smarty, parmed, pdbfixer
 from openmoltools import forcefield_generators
 
 # For parallel, import and inherit from ParallelOEMolComputeCube
@@ -34,9 +33,14 @@ class OpenMMComplexSetup(OEMolComputeCube):
         required=True,
         help_text='Single Receptor to Dock Against')
 
+    ligand = parameter.DataSetInputParameter(
+        'ligand',
+        required=True,
+        help_text='Docked ligands')
+
     pH = parameter.DecimalParameter(
         'pH',
-        default=7.4,
+        default=7.0,
         help_text="Solvent pH used to select appropriate receptor protonation state.",
     )
 
@@ -48,9 +52,21 @@ class OpenMMComplexSetup(OEMolComputeCube):
 
     salt_concentration = parameter.DecimalParameter(
         'salt_concentration',
-        default=500,
+        default=50,
         help_text="Salt concentration (millimolar)",
     )
+
+   # molecule_forcefield = parameter.DataSetInputParameter(
+   #     'molecule_forcefield',
+   #     required=True,
+   #     help_text='Forcefield parameters for molecule'
+   # )
+
+   # protein_forcefield = parameter.DataSetInputParameter(
+   #    'protein_forcefield',
+   #     required=True,
+   #     help_text='Forcefield parameters for protein'
+   # )
 
     def begin(self):
         pdbfilename = 'receptor.pdb'
@@ -74,37 +90,95 @@ class OpenMMComplexSetup(OEMolComputeCube):
 
     def process(self, mol, port):
         try:
-            # Create OpenMM Topology from OEMol
-            molecule_topology = forcefield_generators.generateTopologyFromOEMol(mol)
-            molecule_positions = unit.Quantity( np.zeros([mol.NumAtoms(),3], np.float64), unit.angstroms)
-            for (index, atom) in enumerate(mol.GetAtoms()):
-                [x,y,z] = mol.GetCoords(atom)
-                molecule_positions[index,0] = x*unit.angstroms
-                molecule_positions[index,1] = y*unit.angstroms
-                molecule_positions[index,2] = z*unit.angstroms
+            # Generature ligand structure
+            ifs = oechem.oemolistream(self.args.ligand)
+            flavor = oechem.OEIFlavor_Generic_Default | oechem.OEIFlavor_MOL2_Default | oechem.OEIFlavor_MOL2_Forcefield
+            ifs.SetFlavor( oechem.OEFormat_MOL2, flavor)
+            oechem.OEReadMolecule(ifs, mol)
+            oechem.OETriposAtomNames(mol)
 
-            # Initialize a forcefield
-            gaff_xml_filename = openmoltools.utils.get_data_filename("parameters/gaff.xml")
-            forcefield = app.ForceField('amber99sbildn.xml', 'tip3p.xml', gaff_xml_filename)
-            forcefield.registerTemplateGenerator(forcefield_generators.gaffTemplateGenerator)
+            from smarty.forcefield import ForceField
+            mol_ff = ForceField(smarty.forcefield_utils.get_data_filename('forcefield/Frosst_AlkEtOH.ffxml'))
+            mol_top, mol_sys, mol_pos = smarty.forcefield_utils.create_system_from_molecule(mol_ff, mol)
+            molecule_structure = parmed.openmm.load_topology(mol_top, mol_sys)
 
-            # Set up protein
-            modeller = app.Modeller(self.pdbfile.topology, self.pdbfile.positions)
-            modeller.add(molecule_topology, molecule_positions)
+            #Alter molecule residue name for easy selection
+            molecule_structure.residues[0].name = "MOL"
 
-            # Add missing hydrogens (if needed)
-            modeller.addHydrogens(forcefield, self.args.pH)
+            #Generate protein Structure object
+            forcefield = app.ForceField('amber99sbildn.xml', 'tip3p.xml')
+            system = forcefield.createSystem( self.pdbfile.topology )
+            protein_structure = parmed.openmm.load_topology( self.pdbfile.topology, system )
 
-            # Add solvent
-            modeller.addSolvent(forcefield, model='tip3p', padding=self.args.solvent_padding,
-                ionicStrength=unit.Quantity(self.args.salt_concentration, unit.millimolar)
-                )
+            # Merge structures
+            structure = protein_structure + molecule_structure
+            topology = structure.topology
 
-            # Generate System
-            system = forcefield.createSystem(modeller.getTopology(), nonbondedMethod=app.PME, nonbondedCutoff=10.0*unit.angstroms, constraints=app.HBonds)
+            #Concatenate positions arrays
+            positions_unit = unit.angstroms
+            positions0_dimensionless = np.array( self.pdbfile.positions / positions_unit )
+            positions1_dimensionless = np.array( mol_pos / positions_unit )
+
+            coordinates = np.vstack((positions0_dimensionless,positions1_dimensionless))
+            natoms = len(coordinates)
+            positions = np.zeros([natoms,3], np.float32)
+            for index in range(natoms):
+                (x,y,z) = coordinates[index]
+                positions[index,0] = x
+                positions[index,1] = y
+                positions[index,2] = z
+            positions = unit.Quantity(positions, positions_unit)
+
+            #Store in Structure object
+            structure.coordinates = coordinates
+
+            # Save to PDB
+            structure.save('tmp.pdb', overwrite=True)
+
+            # Solvate with PDBFixer
+            fixer = pdbfixer.PDBFixer('tmp.pdb')
+            #fixer.findMissingResidues()
+            #fixer.findMissingAtoms()
+            #fixer.addMissingAtoms()
+            fixer.addMissingHydrogens(self.args.pH)
+            fixer.addSolvent(padding=unit.Quantity(self.args.solvent_padding, unit.angstroms),
+                            ionicStrength=unit.Quantity(self.args.salt_concentration, unit.millimolar)
+                            )
+
+            # Load PDBFixer object back to Structure
+            struct = parmed.openmm.load_topology(fixer.topology, xyz=fixer.positions)
+
+            # Remove ligand from protein Structure by AmberMask selection
+            struct.strip(":MOL")
+
+            # Regenerate openMM System to parameterize solvent
+            system = forcefield.createSystem(struct.topology, rigidWater=False)
+
+            # Regenerate parameterized protein structure
+            protein_structure = parmed.openmm.load_topology( struct.topology, system=system,
+                                                            xyz=struct.positions, box=struct.box )
+
+            # Remerge with ligand structure
+            combined_structure = protein_structure + molecule_structure
+
+            # Restore initial positions and box dimensions
+            combined_structure.positions = fixer.positions
+            combined_structure.box = struct.box
+
+            # Remove temporary pdb
+            os.remove('tmp.pdb')
+            combined_structure.save('combined_structure.pdb', overwrite=True)
+
+            # Regenerate OpenMM system with parmed
+            system = combined_structure.createSystem(nonbondedMethod=app.PME,
+                                                    nonbondedCutoff=10.0*unit.angstroms,
+                                                    constraints=app.HBonds)
+
+
 
             # Emit the serialized system.
             self.success.emit(system)
+
         except Exception as e:
             # Attach error message to the molecule that failed
             self.log.error(traceback.format_exc())
