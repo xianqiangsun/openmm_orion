@@ -16,5 +16,5 @@
 Test setup of OpenMM complex:
 ```bash
 python setup.py develop or pip install -e ./
-python floes/openmm_complex_setup.py --receptor OpenMMCubes/tests/input/input.pdb --ligand OpenMMCubes/tests/input/molecules/AlkEthOH_c100.mol2
+python floes/openmm_complex_setup.py --protein OpenMMCubes/tests/input/input.pdb --ligand OpenMMCubes/tests/input/molecules/AlkEthOH_c100.mol2
 ```

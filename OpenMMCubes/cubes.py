@@ -28,10 +28,10 @@ class OpenMMComplexSetup(OEMolComputeCube):
 
     success = OpenMMSystemOutput("success")
 
-    receptor = parameter.DataSetInputParameter(
-        'receptor',
+    protein = parameter.DataSetInputParameter(
+        'protein',
         required=True,
-        help_text='Single Receptor to Dock Against')
+        help_text='Single protein to Dock Against')
 
     ligand = parameter.DataSetInputParameter(
         'ligand',
@@ -41,7 +41,7 @@ class OpenMMComplexSetup(OEMolComputeCube):
     pH = parameter.DecimalParameter(
         'pH',
         default=7.0,
-        help_text="Solvent pH used to select appropriate receptor protonation state.",
+        help_text="Solvent pH used to select appropriate protein protonation state.",
     )
 
     solvent_padding = parameter.DecimalParameter(
@@ -56,34 +56,34 @@ class OpenMMComplexSetup(OEMolComputeCube):
         help_text="Salt concentration (millimolar)",
     )
 
-   # molecule_forcefield = parameter.DataSetInputParameter(
-   #     'molecule_forcefield',
-   #     required=True,
-   #     help_text='Forcefield parameters for molecule'
-   # )
+    molecule_forcefield = parameter.DataSetInputParameter(
+        'molecule_forcefield',
+        required=True,
+        help_text='Forcefield parameters for molecule'
+    )
 
-   # protein_forcefield = parameter.DataSetInputParameter(
-   #    'protein_forcefield',
-   #     required=True,
-   #     help_text='Forcefield parameters for protein'
-   # )
+   protein_forcefield = parameter.DataSetInputParameter(
+       'protein_forcefield',
+        required=True,
+        help_text='Forcefield parameters for protein'
+    )
 
     def begin(self):
-        pdbfilename = 'receptor.pdb'
+        pdbfilename = 'protein.pdb'
 
-        # Write the receptor to a PDB
+        # Write the protein to a PDB
         if in_orion():
-            stream = StreamingDataset(self.args.receptor, input_format=".pdb")
+            stream = StreamingDataset(self.args.protein, input_format=".pdb")
             stream.download_to_file(pdbfilename)
         else:
-            receptor = oechem.OEMol()
-            with oechem.oemolistream(self.args.receptor) as ifs:
-                if not oechem.OEReadMolecule(ifs, receptor):
+            protein = oechem.OEMol()
+            with oechem.oemolistream(self.args.protein) as ifs:
+                if not oechem.OEReadMolecule(ifs, protein):
                     raise RuntimeError("Error reading molecule")
                 with oechem.oemolostream(pdbfilename) as ofs:
-                    res = oechem.OEWriteMolecule(ofs, receptor)
+                    res = oechem.OEWriteMolecule(ofs, protein)
                     if res != oechem.OEWriteMolReturnCode_Success:
-                        raise RuntimeError("Error writing receptor: {}".format(res))
+                        raise RuntimeError("Error writing protein: {}".format(res))
 
         # Read the PDB file into an OpenMM PDBFile object
         self.pdbfile = app.PDBFile(pdbfilename)
