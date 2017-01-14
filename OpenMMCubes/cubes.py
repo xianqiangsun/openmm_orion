@@ -62,11 +62,22 @@ class OpenMMComplexSetup(OEMolComputeCube):
         help_text='Forcefield parameters for molecule'
     )
 
-   protein_forcefield = parameter.DataSetInputParameter(
-       'protein_forcefield',
-        required=True,
-        help_text='Forcefield parameters for protein'
+    md_sim = parameter.Booleanparameter(
+        'md_sim',
+        default=False,
+        help_text='Switch to run short MD simulation.'
     )
+    #protein_forcefield = parameter.DataSetInputParameter(
+    #    'protein_forcefield',
+    #    required=True,
+    #    help_text='Forcefield parameters for protein'
+    #)
+
+    #solvent_forcefield = parameter.DataSetInputParameter(
+    #    'solvent_forcefield',
+    #    required=True,
+    #    help_text='Forcefield parameters for solvent'
+    #)
 
     def begin(self):
         pdbfilename = 'protein.pdb'
@@ -98,7 +109,8 @@ class OpenMMComplexSetup(OEMolComputeCube):
             oechem.OETriposAtomNames(mol)
 
             from smarty.forcefield import ForceField
-            mol_ff = ForceField(smarty.forcefield_utils.get_data_filename('forcefield/Frosst_AlkEtOH.ffxml'))
+            #mol_ff = ForceField(smarty.forcefield_utils.get_data_filename('forcefield/Frosst_AlkEtOH.ffxml'))
+            mol_ff = ForceField(self.args.molecule_forcefield)
             mol_top, mol_sys, mol_pos = smarty.forcefield_utils.create_system_from_molecule(mol_ff, mol)
             molecule_structure = parmed.openmm.load_topology(mol_top, mol_sys)
 
@@ -107,6 +119,7 @@ class OpenMMComplexSetup(OEMolComputeCube):
 
             #Generate protein Structure object
             forcefield = app.ForceField('amber99sbildn.xml', 'tip3p.xml')
+            #forcefield = app.ForceField(self.args.protein_forcefield, self.args.solvent_forcefield)
             system = forcefield.createSystem( self.pdbfile.topology )
             protein_structure = parmed.openmm.load_topology( self.pdbfile.topology, system )
 
@@ -175,6 +188,16 @@ class OpenMMComplexSetup(OEMolComputeCube):
                                                     constraints=app.HBonds)
 
 
+            # Run OpenMM simulation
+            if self.args.md_sim == True:
+                integrator = openmm.LangevinIntegrator(300*unit.kelvin, 1/unit.picoseconds, 0.002*unit.picoseconds)
+                simulation = app.Simulation(combined_structure.topology, system, integrator)
+                simulation.context.setPositions(combined_structure.positions)
+                simulation.context.setVelocitiesToTemperature(300*unit.kelvin)
+                simulation.minimizeEnergy()
+                simulation.reporters.append(app.PDBReporter('output.pdb', 1000))
+                simulation.reporters.append(app.StateDataReporter('output.log', 1000, step=True, potentialEnergy=True, temperature=True))
+                simulation.step(10000)
 
             # Emit the serialized system.
             self.success.emit(system)
@@ -185,3 +208,47 @@ class OpenMMComplexSetup(OEMolComputeCube):
             mol.SetData('error', str(e))
             # Return failed molecule
             self.failure.emit(mol)
+
+class OpenMMSimulation(OEMolComputeCube):
+    title = "Run simulation in OpenMM"
+    description = """
+    *Longform Description*
+    Run simulation with OpenMM for protein:ligand complex.
+    """
+    classification = [
+        ["Testing", "OpenMM"],
+        ["Testing", "Simulation"],
+    ]
+    tags = [tag for lists in classification for tag in lists]
+
+    success = OpenMMSystemOutput("success")
+
+    temperature = parameter.DecimalParameter(
+        'temperature',
+        default=300,
+        help_text="Temperature (Kelvin)"
+    )
+
+    steps = parameter.IntegerParameter(
+        'steps',
+        default=10000,
+        help_text="Number of MD steps"
+    )
+
+    def begin(self):
+        pdbfilename = 'combined_structure.pdb'
+        # Read the PDB file into an OpenMM PDBFile object
+        self.pdbfile = app.PDBFile(pdbfilename)
+        self.topology = self.pdbfile.getTopology()
+    def process(self, system, port):
+
+        # Run OpenMM simulation
+        integrator = openmm.LangevinIntegrator(300*unit.kelvin, 1/unit.picoseconds, 0.002*unit.picoseconds)
+        simulation = app.Simulation(self.topology, system, integrator )
+        #simulation = app.Simulation(combined_structure.topology, system, integrator)
+        #simulation.context.setPositions(combined_structure.positions)
+        #simulation.context.setVelocitiesToTemperature(300*unit.kelvin)
+        #simulation.minimizeEnergy()
+        #simulation.reporters.append(app.PDBReporter('output.pdb', 1000))
+        #simulation.reporters.append(app.StateDataReporter('output.log', 1000, step=True, potentialEnergy=True, temperature=True))
+        #simulation.step(10000)

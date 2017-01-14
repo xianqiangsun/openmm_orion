@@ -3,7 +3,7 @@ from __future__ import unicode_literals
 Copyright (C) 2016 OpenEye Scientific Software
 """
 from floe.api import WorkFloe, OEMolIStreamCube, FileOutputCube, DataSetInputParameter
-from OpenMMCubes.cubes import OpenMMComplexSetup
+from OpenMMCubes.cubes import OpenMMComplexSetup, OpenMMSimulation
 
 job = WorkFloe("SetupOpenMMComplex")
 
@@ -27,6 +27,13 @@ ifs.promote_parameter("data_in", promoted_name="ligand", description="docked lig
 complex_setup = OpenMMComplexSetup("complex_setup")
 complex_setup.promote_parameter('protein', promoted_name='protein')
 complex_setup.promote_parameter('ligand', promoted_name='ligand')
+complex_setup.promote_parameter('molecule_forcefield', promoted_name='molecule_forcefield')
+complex_setup.promote_parameter('md_sim', promoted_name='md_sim')
+#complex_setup.promote_parameter('protein_forcefield', promoted_name='protein_forcefield')
+#complex_setup.promote_parameter('solvent_forcefield', promoted_name='solvent_forcefield')
+
+#md_sim =  OpenMMSimulation('md_sim')
+
 
 ofs = FileOutputCube("ofs")
 
@@ -38,6 +45,9 @@ job.add_cubes(ifs, complex_setup, ofs)
 
 ifs.success.connect(complex_setup.intake)
 complex_setup.success.connect(ofs.intake)
+
+
+
 
 if __name__ == "__main__":
     job.run()
