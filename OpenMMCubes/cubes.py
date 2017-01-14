@@ -62,7 +62,7 @@ class OpenMMComplexSetup(OEMolComputeCube):
         help_text='Forcefield parameters for molecule'
     )
 
-    md_sim = parameter.Booleanparameter(
+    md_sim = parameter.BooleanParameter(
         'md_sim',
         default=False,
         help_text='Switch to run short MD simulation.'
