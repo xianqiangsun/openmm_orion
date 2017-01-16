@@ -5,6 +5,7 @@
 * `PlatformTestCubes/` - simple example cube for testing available OpenMM PlatformTestCubes
 * `OpenMMCubes/` - OpenMM utility cubes
   * `OpenMMComplexSetup` - set up protein:ligand complex and emit OpenMM System
+  * `OpenMMSimulation` - run OpenMM simulation.
 
 ## Workfloes
 
