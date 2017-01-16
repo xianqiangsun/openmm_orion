@@ -12,6 +12,8 @@ from simtk.openmm import app
 from openeye import oechem
 import os, smarty, parmed, pdbfixer
 from openmoltools import forcefield_generators
+import lzma
+from simtk.openmm import XmlSerializer
 
 # For parallel, import and inherit from ParallelOEMolComputeCube
 class OpenMMComplexSetup(OEMolComputeCube):
@@ -62,11 +64,6 @@ class OpenMMComplexSetup(OEMolComputeCube):
         help_text='Forcefield parameters for molecule'
     )
 
-    md_sim = parameter.BooleanParameter(
-        'md_sim',
-        default=False,
-        help_text='Switch to run short MD simulation.'
-    )
     #protein_forcefield = parameter.DataSetInputParameter(
     #    'protein_forcefield',
     #    required=True,
@@ -187,18 +184,6 @@ class OpenMMComplexSetup(OEMolComputeCube):
                                                     nonbondedCutoff=10.0*unit.angstroms,
                                                     constraints=app.HBonds)
 
-
-            # Run OpenMM simulation
-            if self.args.md_sim == True:
-                integrator = openmm.LangevinIntegrator(300*unit.kelvin, 1/unit.picoseconds, 0.002*unit.picoseconds)
-                simulation = app.Simulation(combined_structure.topology, system, integrator)
-                simulation.context.setPositions(combined_structure.positions)
-                simulation.context.setVelocitiesToTemperature(300*unit.kelvin)
-                simulation.minimizeEnergy()
-                simulation.reporters.append(app.PDBReporter('output.pdb', 1000))
-                simulation.reporters.append(app.StateDataReporter('output.log', 1000, step=True, potentialEnergy=True, temperature=True))
-                simulation.step(10000)
-
             # Emit the serialized system.
             self.success.emit(system)
 
@@ -236,19 +221,25 @@ class OpenMMSimulation(OEMolComputeCube):
     )
 
     def begin(self):
-        pdbfilename = 'combined_structure.pdb'
         # Read the PDB file into an OpenMM PDBFile object
+        pdbfilename = 'combined_structure.pdb'
         self.pdbfile = app.PDBFile(pdbfilename)
         self.topology = self.pdbfile.getTopology()
-    def process(self, system, port):
+        self.positions = self.pdbfile.getPositions()
+
+    def process(self, mol, port):
+        # Read in the compressed xml and restore object
+        xzfilename = 'system.xml.xz'
+        with lzma.open(xzfilename) as f:
+            file_contents = f.read().decode()
+            system = XmlSerializer.deserialize(file_contents)
 
         # Run OpenMM simulation
-        integrator = openmm.LangevinIntegrator(300*unit.kelvin, 1/unit.picoseconds, 0.002*unit.picoseconds)
-        simulation = app.Simulation(self.topology, system, integrator )
-        #simulation = app.Simulation(combined_structure.topology, system, integrator)
-        #simulation.context.setPositions(combined_structure.positions)
-        #simulation.context.setVelocitiesToTemperature(300*unit.kelvin)
-        #simulation.minimizeEnergy()
-        #simulation.reporters.append(app.PDBReporter('output.pdb', 1000))
-        #simulation.reporters.append(app.StateDataReporter('output.log', 1000, step=True, potentialEnergy=True, temperature=True))
-        #simulation.step(10000)
+        self.integrator = openmm.LangevinIntegrator(self.args.temperature*unit.kelvin, 1/unit.picoseconds, 0.002*unit.picoseconds)
+        simulation = app.Simulation(self.topology, system, self.integrator )
+        simulation.context.setPositions(self.positions)
+        simulation.context.setVelocitiesToTemperature(self.args.temperature*unit.kelvin)
+        simulation.minimizeEnergy()
+        simulation.reporters.append(app.PDBReporter('output.pdb', 1000))
+        simulation.reporters.append(app.StateDataReporter('output.log', 1000, step=True, potentialEnergy=True, temperature=True))
+        simulation.step(self.args.steps)
