@@ -16,5 +16,5 @@
 Test setup of OpenMM complex:
 ```bash
 python setup.py develop or pip install -e ./
-python floes/openmm_complex_setup.py --protein OpenMMCubes/tests/input/blues_system/T4-protein.pdb --ligand OpenMMCubes/tests/input/blues_system/toluene.pdb --molecule_forcefield OpenMMCubes/tests/input/forcefield/smirff99Frosst.ffxml
+python floes/openmm_complex_setup.py --protein OpenMMCubes/tests/input/T4-protein.pdb --ligand OpenMMCubes/tests/input/toluene.pdb --molecule_forcefield OpenMMCubes/tests/input/forcefield/smirff99Frosst.ffxml
 ```

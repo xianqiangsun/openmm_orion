@@ -32,8 +32,6 @@ complex_setup.promote_parameter('molecule_forcefield', promoted_name='molecule_f
 #complex_setup.promote_parameter('solvent_forcefield', promoted_name='solvent_forcefield')
 
 md_sim =  OpenMMSimulation('md_sim')
-
-
 compress_system = FileOutputCube("compress_system")
 
 # this is hardwiring the filename to the molecules coming out of ofs
