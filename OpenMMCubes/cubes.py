@@ -29,6 +29,7 @@ class OpenMMComplexSetup(OEMolComputeCube):
     tags = [tag for lists in classification for tag in lists]
 
     success = OpenMMSystemOutput("success")
+    failure = OpenMMSystemOutput("failure")
 
     protein = parameter.DataSetInputParameter(
         'protein',
@@ -208,6 +209,7 @@ class OpenMMSimulation(OEMolComputeCube):
 
     intake = OpenMMSystemInput("intake")
     success = OpenMMSystemOutput("success")
+    failure = OpenMMSystemOutput("failure")
 
     temperature = parameter.DecimalParameter(
         'temperature',
@@ -222,27 +224,40 @@ class OpenMMSimulation(OEMolComputeCube):
     )
 
     def process(self, system, port):
-        pdbfilename = 'combined_structure.pdb'
-        pdbfile = app.PDBFile(pdbfilename)
-        topology = pdbfile.getTopology()
-        positions = pdbfile.getPositions()
+        try:
+            # Get topology/positions from PDB
+            pdbfilename = 'combined_structure.pdb'
+            pdbfile = app.PDBFile(pdbfilename)
+            topology = pdbfile.getTopology()
+            positions = pdbfile.getPositions()
 
-        # Run OpenMM simulation
-        integrator = openmm.LangevinIntegrator(self.args.temperature*unit.kelvin, 1/unit.picoseconds, 0.002*unit.picoseconds)
-        simulation = app.Simulation(topology, system, integrator )
-        simulation.context.setPositions(positions)
-        simulation.context.setVelocitiesToTemperature(self.args.temperature*unit.kelvin)
-        simulation.minimizeEnergy()
-        #simulation.reporters.append(app.PDBReporter('output.pdb', 1000))
-        simulation.reporters.append(app.StateDataReporter('output.log', 1000, step=True, potentialEnergy=True, temperature=True))
-        simulation.step(self.args.steps)
+            # Initialize Simulation object
+            integrator = openmm.LangevinIntegrator(self.args.temperature*unit.kelvin, 1/unit.picoseconds, 0.002*unit.picoseconds)
+            simulation = app.Simulation(topology, system, integrator )
 
+            # Set initial positions and velocities then minimize
+            simulation.context.setPositions(positions)
+            simulation.context.setVelocitiesToTemperature(self.args.temperature*unit.kelvin)
+            simulation.minimizeEnergy()
 
-        state = simulation.context.getState( getPositions=True,
-                                             getVelocities=True,
-                                             getForces=True,
-                                             getEnergy=True,
-                                             getParameters=True,
-                                             enforcePeriodicBox=True
-                                           )
-        self.success.emit(state)
+            # Do MD simulation and report energies
+            #simulation.reporters.append(app.PDBReporter('output.pdb', 1000))
+            simulation.reporters.append(app.StateDataReporter('output.log', 1000, step=True, potentialEnergy=True, temperature=True))
+            simulation.step(self.args.steps)
+
+            # Store last state from simulation
+            state = simulation.context.getState( getPositions=True,
+                                                 getVelocities=True,
+                                                 getForces=True,
+                                                 getEnergy=True,
+                                                 getParameters=True,
+                                                 enforcePeriodicBox=True )
+            # Emit state XML for file output
+            self.success.emit(state)
+
+        except Exception as e:
+                # Attach error message to the molecule that failed
+                self.log.error(traceback.format_exc())
+                system.SetData('error', str(e))
+                # Return failed system
+                self.failure.emit(system)
