@@ -233,8 +233,16 @@ class OpenMMSimulation(OEMolComputeCube):
         simulation.context.setPositions(positions)
         simulation.context.setVelocitiesToTemperature(self.args.temperature*unit.kelvin)
         simulation.minimizeEnergy()
-        simulation.reporters.append(app.PDBReporter('output.pdb', 1000))
+        #simulation.reporters.append(app.PDBReporter('output.pdb', 1000))
         simulation.reporters.append(app.StateDataReporter('output.log', 1000, step=True, potentialEnergy=True, temperature=True))
         simulation.step(self.args.steps)
-        state = simulation.context.getState()
+
+
+        state = simulation.context.getState( getPositions=True,
+                                             getVelocities=True,
+                                             getForces=True,
+                                             getEnergy=True,
+                                             getParameters=True,
+                                             enforcePeriodicBox=True
+                                           )
         self.success.emit(state)
