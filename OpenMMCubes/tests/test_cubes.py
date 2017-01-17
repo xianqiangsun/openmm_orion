@@ -16,7 +16,9 @@ class SleepyCubeTester(unittest.TestCase):
 
     def setUp(self):
         self.cube = OpenMMComplexSetup("sleepy")
-        self.cube.args.receptor = 'OpenMMCubes/tests/input/receptor.pdbfixer.pdb'
+        self.cube.args.protein = 'input/T4-protein.pdb'
+        self.cube.args.ligand = 'input/toluene.pdb'
+        self.cube.args.molecule_forcefield = 'input/forcefield/smirff99Frosst.ffxml'
         self.runner = CubeTestRunner(self.cube)
         self.runner.start()
 
@@ -26,10 +28,11 @@ class SleepyCubeTester(unittest.TestCase):
     def test_success(self):
         # Read a molecule
         mol = oechem.OEMol()
-        mol2_filename = 'OpenMMCubes/tests/input/ligand.tripos.mol2'
-        ifs = oechem.oemolistream(mol2_filename)
+        pdbfilename = self.cube.args.protein
+        #pdbfilename = 'OpenMMCubes/tests/input/toluene.pdb'
+        ifs = oechem.oemolistream(pdbfilename)
         if not oechem.OEReadMolecule(ifs, mol):
-            raise Exception('Cannot read molecule from %s' % mol2_filename)
+            raise Exception('Cannot read molecule from %s' % pdbfilename)
         ifs.close()
 
         # Process the molecules
@@ -53,3 +56,6 @@ class SleepyCubeTester(unittest.TestCase):
         decoded = intake.decode(encoded)
 
         assert (decoded.getNumParticles() == 0)
+
+if __name__ == "__main__":
+        unittest.main()
