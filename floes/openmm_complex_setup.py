@@ -32,17 +32,16 @@ complex_setup.promote_parameter('molecule_forcefield', promoted_name='molecule_f
 #complex_setup.promote_parameter('solvent_forcefield', promoted_name='solvent_forcefield')
 
 md_sim =  OpenMMSimulation('md_sim')
-compress_system = FileOutputCube("compress_system")
 
 # this is hardwiring the filename to the molecules coming out of ofs
 # note: requires decompression with lzma.decompress or gunzip system.xml.xz
-compress_system.set_parameters(name="system.xml.xz")
+ofs = FileOutputCube('ofs')
+ofs.set_parameters(name="state.xml.xz")
 
-job.add_cubes(ifs, complex_setup, compress_system, md_sim)
-
+job.add_cubes(ifs, complex_setup, md_sim, ofs)
 ifs.success.connect(complex_setup.intake)
-complex_setup.success.connect(compress_system.intake)
 complex_setup.success.connect(md_sim.intake)
+md_sim.success.connect(ofs.intake)
 
 if __name__ == "__main__":
     job.run()

@@ -4,7 +4,7 @@ import numpy as np
 from floe.api import OEMolComputeCube, parameter
 from floe.api.orion import in_orion, StreamingDataset
 from floe.constants import BYTES
-from OpenMMCubes.ports import OpenMMSystemOutput
+from OpenMMCubes.ports import OpenMMSystemOutput, OpenMMSystemInput
 
 from simtk import unit, openmm
 from simtk.openmm import app
@@ -206,6 +206,7 @@ class OpenMMSimulation(OEMolComputeCube):
     ]
     tags = [tag for lists in classification for tag in lists]
 
+    intake = OpenMMSystemInput("intake")
     success = OpenMMSystemOutput("success")
 
     temperature = parameter.DecimalParameter(
@@ -220,26 +221,20 @@ class OpenMMSimulation(OEMolComputeCube):
         help_text="Number of MD steps"
     )
 
-    def begin(self):
-        # Read the PDB file into an OpenMM PDBFile object
+    def process(self, system, port):
         pdbfilename = 'combined_structure.pdb'
-        self.pdbfile = app.PDBFile(pdbfilename)
-        self.topology = self.pdbfile.getTopology()
-        self.positions = self.pdbfile.getPositions()
-
-    def process(self, mol, port):
-        # Read in the compressed xml and restore object
-        xzfilename = 'system.xml.xz'
-        with lzma.open(xzfilename) as f:
-            file_contents = f.read().decode()
-            system = XmlSerializer.deserialize(file_contents)
+        pdbfile = app.PDBFile(pdbfilename)
+        topology = pdbfile.getTopology()
+        positions = pdbfile.getPositions()
 
         # Run OpenMM simulation
-        self.integrator = openmm.LangevinIntegrator(self.args.temperature*unit.kelvin, 1/unit.picoseconds, 0.002*unit.picoseconds)
-        simulation = app.Simulation(self.topology, system, self.integrator )
-        simulation.context.setPositions(self.positions)
+        integrator = openmm.LangevinIntegrator(self.args.temperature*unit.kelvin, 1/unit.picoseconds, 0.002*unit.picoseconds)
+        simulation = app.Simulation(topology, system, integrator )
+        simulation.context.setPositions(positions)
         simulation.context.setVelocitiesToTemperature(self.args.temperature*unit.kelvin)
         simulation.minimizeEnergy()
         simulation.reporters.append(app.PDBReporter('output.pdb', 1000))
         simulation.reporters.append(app.StateDataReporter('output.log', 1000, step=True, potentialEnergy=True, temperature=True))
         simulation.step(self.args.steps)
+        state = simulation.context.getState()
+        self.success.emit(state)
