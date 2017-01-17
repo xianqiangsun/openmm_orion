@@ -5,3 +5,7 @@ openeye-floe
 # Dev Stack
 invoke
 pytest
+parmed
+smarty
+openmm
+pdbfixer
