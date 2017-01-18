@@ -2,7 +2,7 @@ from __future__ import unicode_literals
 """
 Copyright (C) 2016 OpenEye Scientific Software
 """
-from floe.api import WorkFloe, OEMolIStreamCube, FileOutputCube, DataSetInputParameter
+from floe.api import WorkFloe, OEMolIStreamCube, FileOutputCube, DataSetInputParameter, FileInputCube
 from OpenMMCubes.cubes import OpenMMComplexSetup, OpenMMSimulation
 
 job = WorkFloe("SetupOpenMMComplex")
@@ -31,17 +31,16 @@ complex_setup.promote_parameter('molecule_forcefield', promoted_name='molecule_f
 #complex_setup.promote_parameter('protein_forcefield', promoted_name='protein_forcefield')
 #complex_setup.promote_parameter('solvent_forcefield', promoted_name='solvent_forcefield')
 
-md_sim =  OpenMMSimulation('md_sim')
 
 # this is hardwiring the filename to the molecules coming out of ofs
 # note: requires decompression with lzma.decompress or gunzip system.xml.xz
-ofs = FileOutputCube('ofs')
-ofs.set_parameters(name="state.xml.xz")
+system_save = FileOutputCube('system_save')
+system_save.set_parameters(name="system.xml.xz")
 
-job.add_cubes(ifs, complex_setup, md_sim, ofs)
+
+job.add_cubes(ifs, complex_setup, system_save)
 ifs.success.connect(complex_setup.intake)
-complex_setup.success.connect(md_sim.intake)
-md_sim.success.connect(ofs.intake)
+complex_setup.success.connect(system_save.intake)
 
 if __name__ == "__main__":
     job.run()
