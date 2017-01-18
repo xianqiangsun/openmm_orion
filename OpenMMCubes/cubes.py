@@ -1,7 +1,7 @@
 import time
 import traceback
 import numpy as np
-from floe.api import OEMolComputeCube, parameter
+from floe.api import OEMolComputeCube, parameter, BinaryMoleculeInputPort, BinaryOutputPort
 from floe.api.orion import in_orion, StreamingDataset
 from floe.constants import BYTES
 from OpenMMCubes.ports import OpenMMSystemOutput, OpenMMSystemInput
@@ -207,9 +207,9 @@ class OpenMMSimulation(OEMolComputeCube):
     ]
     tags = [tag for lists in classification for tag in lists]
 
-    intake = OpenMMSystemInput("intake")
-    success = OpenMMSystemOutput("success")
-    failure = OpenMMSystemOutput("failure")
+    intake = BinaryMoleculeInputPort('intake')
+    #success = OpenMMSystemOutput("success")
+    success = BinaryOutputPort("success")
 
     temperature = parameter.DecimalParameter(
         'temperature',
@@ -222,42 +222,85 @@ class OpenMMSimulation(OEMolComputeCube):
         default=10000,
         help_text="Number of MD steps"
     )
+    system = parameter.DataSetInputParameter(
+        'system',
+        default=None,
+        help_text='system xml file',
+    )
 
-    def process(self, system, port):
+    state = parameter.DataSetInputParameter(
+        'state',
+        default=None,
+        help_text="saved state xml file"
+    )
+
+    complex_pdb = parameter.DataSetInputParameter(
+        'complex_pdb',
+        default='combined_structure.pdb',
+        help_text='complex pdb file')
+
+    def begin(self):
+        pdbfilename = 'combined_structure.pdb'        # Write the protein to a PDB
+        if in_orion():
+            stream = StreamingDataset(self.args.complex_pdb, input_format=".pdb")
+            stream.download_to_file(pdbfilename)
+        else:
+            mol = oechem.OEMol()
+            with oechem.oemolistream(self.args.complex_pdb) as ifs:
+                if not oechem.OEReadMolecule(ifs, mol):
+                    raise RuntimeError("Error reading molecule")
+                with oechem.oemolostream(pdbfilename) as ofs:
+                    res = oechem.OEWriteMolecule(ofs, mol)
+                    if res != oechem.OEWriteMolReturnCode_Success:
+                        raise RuntimeError("Error writing protein: {}".format(res))
+        # Initialize openmm integrator
+        self.integrator = openmm.LangevinIntegrator(self.args.temperature*unit.kelvin, 1/unit.picoseconds, 0.002*unit.picoseconds)
+        self.pdbfile = app.PDBFile(pdbfilename)
+
+    def process(self, mol, port):
         try:
-            # Get topology/positions from PDB
-            pdbfilename = 'combined_structure.pdb'
-            pdbfile = app.PDBFile(pdbfilename)
-            topology = pdbfile.getTopology()
-            positions = pdbfile.getPositions()
+            topology = self.pdbfile.getTopology()
+            positions = self.pdbfile.getPositions()
 
-            # Initialize Simulation object
-            integrator = openmm.LangevinIntegrator(self.args.temperature*unit.kelvin, 1/unit.picoseconds, 0.002*unit.picoseconds)
-            simulation = app.Simulation(topology, system, integrator )
+            # Decompress System xml
+            intake = OpenMMSystemInput("intake")
+            with open(self.args.system, 'rb') as sys_xz:
+                system = intake.decode(sys_xz.read())
+            # Decompress State xml
+            #with open(self.args.state, 'rb') as f:
+            #    state = lzma.decompress(f.read())
 
-            # Set initial positions and velocities then minimize
-            simulation.context.setPositions(positions)
-            simulation.context.setVelocitiesToTemperature(self.args.temperature*unit.kelvin)
-            simulation.minimizeEnergy()
+            # Initialize Simulation
+            simulation = app.Simulation(topology, system, self.integrator, state=self.args.state)
+
+            if self.args.state is None:
+                outfname = 'simulation'
+                # Set initial positions and velocities then minimize
+                simulation.context.setPositions(positions)
+                simulation.context.setVelocitiesToTemperature(self.args.temperature*unit.kelvin)
+                simulation.minimizeEnergy()
+            else:
+                outfname = 'checkpoint'
 
             # Do MD simulation and report energies
-            #simulation.reporters.append(app.PDBReporter('output.pdb', 1000))
-            simulation.reporters.append(app.StateDataReporter('output.log', 1000, step=True, potentialEnergy=True, temperature=True))
+            simulation.reporters.append(app.StateDataReporter(outfname+'.log', 1000, step=True, potentialEnergy=True, temperature=True))
             simulation.step(self.args.steps)
 
-            # Store last state from simulation
-            state = simulation.context.getState( getPositions=True,
-                                                 getVelocities=True,
-                                                 getForces=True,
-                                                 getEnergy=True,
-                                                 getParameters=True,
-                                                 enforcePeriodicBox=True )
-            # Emit state XML for file output
-            self.success.emit(state)
+            # Save serialized State object
+            simulation.saveState(outfname+'.xml')
+            # Compress the state xml
+            #with open(outfname+'.xml.xz', 'wb') as f:
+            #    with lzma.open(f, 'w') as lzf:
+            #        file_contents = open(outfname+'.xml', 'rb')
+            #        lzf.write(file_contents.read())
+
+            # Emit the output log file
+            with open(outfname+'.log', 'rb') as f:
+                self.success.emit(f.read())
 
         except Exception as e:
                 # Attach error message to the molecule that failed
                 self.log.error(traceback.format_exc())
-                system.SetData('error', str(e))
+                mol.SetData('error', str(e))
                 # Return failed system
-                self.failure.emit(system)
+                self.failure.emit(simulation.system)
