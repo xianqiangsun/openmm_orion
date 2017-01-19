@@ -28,8 +28,8 @@ complex_setup = OpenMMComplexSetup("complex_setup")
 complex_setup.promote_parameter('protein', promoted_name='protein')
 complex_setup.promote_parameter('ligand', promoted_name='ligand')
 complex_setup.promote_parameter('molecule_forcefield', promoted_name='molecule_forcefield')
-#complex_setup.promote_parameter('protein_forcefield', promoted_name='protein_forcefield')
-#complex_setup.promote_parameter('solvent_forcefield', promoted_name='solvent_forcefield')
+complex_setup.promote_parameter('protein_forcefield', promoted_name='protein_forcefield')
+complex_setup.promote_parameter('solvent_forcefield', promoted_name='solvent_forcefield')
 
 
 # this is hardwiring the filename to the molecules coming out of ofs

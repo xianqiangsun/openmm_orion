@@ -1,11 +1,10 @@
 import time
 import traceback
 import numpy as np
-from floe.api import OEMolComputeCube, parameter, BinaryMoleculeInputPort, BinaryOutputPort
+from floe.api import OEMolComputeCube, parameter, MoleculeInputPort, BinaryMoleculeInputPort, BinaryOutputPort
 from floe.api.orion import in_orion, StreamingDataset
 from floe.constants import BYTES
 from OpenMMCubes.ports import OpenMMSystemOutput, OpenMMSystemInput
-
 from simtk import unit, openmm
 from simtk.openmm import app
 
@@ -28,8 +27,9 @@ class OpenMMComplexSetup(OEMolComputeCube):
     ]
     tags = [tag for lists in classification for tag in lists]
 
-    success = OpenMMSystemOutput("success")
-    failure = OpenMMSystemOutput("failure")
+    #intake = MoleculeInputPort('intake')
+    success = OpenMMSystemOutput('success')
+    failure = OpenMMSystemOutput('failure')
 
     protein = parameter.DataSetInputParameter(
         'protein',
@@ -65,17 +65,19 @@ class OpenMMComplexSetup(OEMolComputeCube):
         help_text='Forcefield parameters for molecule'
     )
 
-    #protein_forcefield = parameter.DataSetInputParameter(
-    #    'protein_forcefield',
+    protein_forcefield = parameter.DataSetInputParameter(
+        'protein_forcefield',
     #    required=True,
-    #    help_text='Forcefield parameters for protein'
-    #)
+        default='amber99sbildn.xml',
+        help_text='Forcefield parameters for protein'
+    )
 
-    #solvent_forcefield = parameter.DataSetInputParameter(
-    #    'solvent_forcefield',
-    #    required=True,
-    #    help_text='Forcefield parameters for solvent'
-    #)
+    solvent_forcefield = parameter.DataSetInputParameter(
+        'solvent_forcefield',
+    #   required=True,
+        default='tip3p.xml',
+        help_text='Forcefield parameters for solvent'
+    )
 
     def begin(self):
         pdbfilename = 'protein.pdb'
@@ -107,7 +109,6 @@ class OpenMMComplexSetup(OEMolComputeCube):
             oechem.OETriposAtomNames(mol)
 
             from smarty.forcefield import ForceField
-            #mol_ff = ForceField(smarty.forcefield_utils.get_data_filename('forcefield/Frosst_AlkEtOH.ffxml'))
             mol_ff = ForceField(self.args.molecule_forcefield)
             mol_top, mol_sys, mol_pos = smarty.forcefield_utils.create_system_from_molecule(mol_ff, mol)
             molecule_structure = parmed.openmm.load_topology(mol_top, mol_sys)
@@ -116,8 +117,7 @@ class OpenMMComplexSetup(OEMolComputeCube):
             molecule_structure.residues[0].name = "MOL"
 
             #Generate protein Structure object
-            forcefield = app.ForceField('amber99sbildn.xml', 'tip3p.xml')
-            #forcefield = app.ForceField(self.args.protein_forcefield, self.args.solvent_forcefield)
+            forcefield = app.ForceField(self.args.protein_forcefield, self.args.solvent_forcefield)
             system = forcefield.createSystem( self.pdbfile.topology )
             protein_structure = parmed.openmm.load_topology( self.pdbfile.topology, system )
 
@@ -207,9 +207,10 @@ class OpenMMSimulation(OEMolComputeCube):
     ]
     tags = [tag for lists in classification for tag in lists]
 
-    intake = BinaryMoleculeInputPort('intake')
+    #intake = BinaryMoleculeInputPort('intake')
     #success = OpenMMSystemOutput("success")
     success = BinaryOutputPort("success")
+    checkpoint = OpenMMSystemOutput('checkpoint')
 
     temperature = parameter.DecimalParameter(
         'temperature',
@@ -240,7 +241,7 @@ class OpenMMSimulation(OEMolComputeCube):
         help_text='complex pdb file')
 
     def begin(self):
-        pdbfilename = 'combined_structure.pdb'        # Write the protein to a PDB
+        pdbfilename = 'complex.pdb'        # Write the protein to a PDB
         if in_orion():
             stream = StreamingDataset(self.args.complex_pdb, input_format=".pdb")
             stream.download_to_file(pdbfilename)
@@ -266,12 +267,10 @@ class OpenMMSimulation(OEMolComputeCube):
             intake = OpenMMSystemInput("intake")
             with open(self.args.system, 'rb') as sys_xz:
                 system = intake.decode(sys_xz.read())
-            # Decompress State xml
-            #with open(self.args.state, 'rb') as f:
-            #    state = lzma.decompress(f.read())
+
 
             # Initialize Simulation
-            simulation = app.Simulation(topology, system, self.integrator, state=self.args.state)
+            simulation = app.Simulation(topology, system, self.integrator)
 
             if self.args.state is None:
                 outfname = 'simulation'
@@ -280,20 +279,23 @@ class OpenMMSimulation(OEMolComputeCube):
                 simulation.context.setVelocitiesToTemperature(self.args.temperature*unit.kelvin)
                 simulation.minimizeEnergy()
             else:
-                outfname = 'checkpoint'
+                outfname = 'restart'
+                # Decompress State xml
+                with open(self.args.state, 'rb') as state_xz:
+                    state = intake.decode(state_xz.read())
+                simulation.context.setState(state)
 
             # Do MD simulation and report energies
-            simulation.reporters.append(app.StateDataReporter(outfname+'.log', 1000, step=True, potentialEnergy=True, temperature=True))
+            statereporter = app.StateDataReporter(outfname+'.log', 1000, step=True, potentialEnergy=True, temperature=True)
+            simulation.reporters.append(statereporter)
             simulation.step(self.args.steps)
 
             # Save serialized State object
-            simulation.saveState(outfname+'.xml')
-            # Compress the state xml
-            #with open(outfname+'.xml.xz', 'wb') as f:
-            #    with lzma.open(f, 'w') as lzf:
-            #        file_contents = open(outfname+'.xml', 'rb')
-            #        lzf.write(file_contents.read())
-
+            state = simulation.context.getState( getPositions=True,
+                                              getVelocities=True,
+                                              getParameters=True )
+            # Emit state object for restarting
+            self.checkpoint.emit(state)
             # Emit the output log file
             with open(outfname+'.log', 'rb') as f:
                 self.success.emit(f.read())

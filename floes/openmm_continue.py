@@ -27,15 +27,16 @@ md_sim.promote_parameter('state', promoted_name='state')
 md_sim.promote_parameter('system', promoted_name='system')
 md_sim.promote_parameter('complex_pdb', promoted_name='complex_pdb')
 
-#state_save = FileOutputCube('state_save')
-#state_save.set_parameters(name="state_cont.xml.xz")
+state_save = FileOutputCube('state_save')
+state_save.set_parameters(name="state_restart.xml.xz")
 
 ofs = FileOutputCube('ofs')
-ofs.set_parameters(name='chkpt_out.log')
+ofs.set_parameters(name='restart.log')
 
-job.add_cubes(ifs, md_sim, ofs)
+job.add_cubes(ifs, md_sim, ofs, state_save)
 ifs.success.connect(md_sim.intake)
 md_sim.success.connect(ofs.intake)
+md_sim.checkpoint.connect(state_save.intake)
 
 
 

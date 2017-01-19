@@ -2,7 +2,6 @@ from __future__ import unicode_literals
 from floe.api import OutputPort, InputPort
 from floe.constants import BYTES
 from simtk import openmm, unit
-import lzma
 from lzma import compress, decompress
 
 
