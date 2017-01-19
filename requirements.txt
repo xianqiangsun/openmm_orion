@@ -6,6 +6,6 @@ openeye-floe
 invoke
 pytest
 parmed
-smarty
-openmm
+smarty==0.1.4
+openmm==7.0.1
 pdbfixer

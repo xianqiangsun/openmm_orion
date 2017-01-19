@@ -102,18 +102,14 @@ class OpenMMComplexSetup(OEMolComputeCube):
     def process(self, mol, port):
         try:
             # Generature ligand structure
-            #ifs = oechem.oemolistream(self.args.ligand)
-            #flavor = oechem.OEIFlavor_Generic_Default | oechem.OEIFlavor_MOL2_Default | oechem.OEIFlavor_MOL2_Forcefield
-            #ifs.SetFlavor( oechem.OEFormat_MOL2, flavor)
-            #oechem.OEReadMolecule(ifs, mol)
-            #oechem.OETriposAtomNames(mol)
+            ffxml = mol.GetData(oechem.OEGetTag('forcefield')).encode()
+            with open('mol_parameters.ffxml', 'wb') as out:
+                out.write(ffxml)
 
             from smarty.forcefield import ForceField
-            #mol_ff = ForceField(self.args.molecule_forcefield)
-            molecule_forcefield = os.path.join('OpenMMCubes', 'tests', 'input', 'forcefield','smirff99Frosst.ffxml')
-            mol_ff = ForceField(molecule_forcefield)
+            mol_ff = ForceField(open('mol_parameters.ffxml'))
             mol_top, mol_sys, mol_pos = smarty.forcefield_utils.create_system_from_molecule(mol_ff, mol)
-            molecule_structure = parmed.openmm.load_topology(mol_top, mol_sys)
+            molecule_structure = parmed.openmm.load_topology(mol_top, mol_sys, xyz=mol_pos)
 
             #Alter molecule residue name for easy selection
             molecule_structure.residues[0].name = "MOL"
@@ -121,7 +117,7 @@ class OpenMMComplexSetup(OEMolComputeCube):
             #Generate protein Structure object
             forcefield = app.ForceField(self.args.protein_forcefield, self.args.solvent_forcefield)
             system = forcefield.createSystem( self.pdbfile.topology )
-            protein_structure = parmed.openmm.load_topology( self.pdbfile.topology, system )
+            protein_structure = parmed.openmm.load_topology( self.pdbfile.topology, system, xyz=self.pdbfile.positions )
 
             # Merge structures
             structure = protein_structure + molecule_structure
@@ -143,7 +139,7 @@ class OpenMMComplexSetup(OEMolComputeCube):
             positions = unit.Quantity(positions, positions_unit)
 
             #Store in Structure object
-            structure.coordinates = coordinates
+            structure.coordinates = positions
 
             # Save to PDB
             structure.save('tmp.pdb', overwrite=True)
@@ -229,22 +225,8 @@ class OpenMMSimulation(OEMolComputeCube):
     )
 
     def begin(self):
-        #pdbfilename = 'complex.pdb'        # Write the protein to a PDB
-        #if in_orion():
-        #    stream = StreamingDataset(self.args.complex_pdb, input_format=".pdb")
-        #    stream.download_to_file(pdbfilename)
-        #else:
-        #    mol = oechem.OEMol()
-        #    with oechem.oemolistream(self.args.complex_pdb) as ifs:
-        #        if not oechem.OEReadMolecule(ifs, mol):
-        #            raise RuntimeError("Error reading molecule")
-        #        with oechem.oemolostream(pdbfilename) as ofs:
-        #            res = oechem.OEWriteMolecule(ofs, mol)
-        #            if res != oechem.OEWriteMolReturnCode_Success:
-        #                raise RuntimeError("Error writing protein: {}".format(res))
         # Initialize openmm integrator
         self.integrator = openmm.LangevinIntegrator(self.args.temperature*unit.kelvin, 1/unit.picoseconds, 0.002*unit.picoseconds)
-        #self.pdbfile = app.PDBFile(pdbfilename)
 
     def process(self, mol, port):
         try:
@@ -269,8 +251,6 @@ class OpenMMSimulation(OEMolComputeCube):
                     state = openmm.XmlSerializer.deserialize( serialized_state )
                     simulation.context.setState(state)
                 except ValueError:
-                    pass
-                else:
                     outfname = 'simulation'
                     # Set initial positions and velocities then minimize
                     simulation.context.setPositions(pdbfile.getPositions())

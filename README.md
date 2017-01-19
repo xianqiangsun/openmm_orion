@@ -21,11 +21,9 @@ Test setup of OpenMM complex:
 python setup.py develop or pip install -e ./
 
 # Setup protein-ligand complex
-python floes/openmm_complex_setup.py --protein OpenMMCubes/tests/input/T4-protein.pdb --ligand OpenMMCubes/tests/input/toluene.pdb --molecule_forcefield OpenMMCubes/tests/input/forcefield/smirff99Frosst.ffxml
+python floes/openmm_complex_setup.py --protein OpenMMCubes/tests/input/T4-protein.pdb --ligand OpenMMCubes/tests/input/smirff_mol.oeb.gz
 
-# Run short MD simulation
-python floes/openmm_md.py --complex_pdb combined_structure.pdb --system system.xml.xz
+# Setup protein-ligand complex and Run short MD simulation
+python floes/openmm_setup_md.py --protein OpenMMCubes/tests/input/T4-protein.pdb --ligand OpenMMCubes/tests/input/smirff_mol.oeb.gz
 
-# Restart MD simulation from saved State
-python floes/openmm_continue.py --complex_pdb combined_structure.pdb --system system.xml.xz --state state.xml
 ```
