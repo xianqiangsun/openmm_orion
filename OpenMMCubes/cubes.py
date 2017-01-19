@@ -22,8 +22,7 @@ class OpenMMComplexSetup(OEMolComputeCube):
     Set up protein:ligand complex for simulation with OpenMM.
     """
     classification = [
-        ["Testing", "OpenMM"],
-        ["Testing", "Complex Setup"],
+        ["OpenMM", "ProtLigComplex Setup"],
     ]
     tags = [tag for lists in classification for tag in lists]
 
@@ -48,7 +47,7 @@ class OpenMMComplexSetup(OEMolComputeCube):
 
     salt_concentration = parameter.DecimalParameter(
         'salt_concentration',
-        default=500,
+        default=150,
         help_text="Salt concentration (millimolar)",
     )
 
@@ -96,12 +95,19 @@ class OpenMMComplexSetup(OEMolComputeCube):
             modeller.addHydrogens(forcefield, self.args.pH)
 
             # Add solvent
-            modeller.addSolvent(forcefield, model='tip3p', padding=self.args.solvent_padding,
+            modeller.addSolvent(forcefield, model='tip3p',
+                padding = unit.Quantity( self.args.solvent_padding, unit.angstroms),
                 ionicStrength=unit.Quantity(self.args.salt_concentration, unit.millimolar)
                 )
 
             # Generate System
-            system = forcefield.createSystem(modeller.getTopology(), nonbondedMethod=app.PME, nonbondedCutoff=10.0*unit.angstroms, constraints=app.HBonds)
+            system = forcefield.createSystem(modeller.getTopology(),
+                nonbondedMethod=app.PME,
+                nonbondedCutoff=10.0*unit.angstroms,
+                constraints=app.HBonds)
+
+            # write pdb of System
+            app.PDBFile.writeFile( modeller.getTopology(), modeller.getPositions(),  open('complexSolv.pdb', 'w'))
 
             # Emit the serialized system.
             self.success.emit(system)
