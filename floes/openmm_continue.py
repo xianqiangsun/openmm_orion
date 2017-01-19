@@ -2,14 +2,13 @@ from __future__ import unicode_literals
 """
 Copyright (C) 2016 OpenEye Scientific Software
 """
-from floe.api import WorkFloe, OEMolIStreamCube, FileOutputCube, DataSetInputParameter, FileInputCube
+from floe.api import WorkFloe, OEMolIStreamCube, OEMolOStreamCube, FileOutputCube, DataSetInputParameter, FileInputCube
 from OpenMMCubes.cubes import OpenMMComplexSetup, OpenMMSimulation
-from OpenMMCubes.ports import OpenMMSystemInput
 
-job = WorkFloe("simulation_resume")
+job = WorkFloe("RestartOpenMMSimulation")
 
 job.description = """
-**Set up OpenMM complex for simulation**
+**Restart a OpenMM Simulation**
 
 Check out the awesome stuff at the [OpenMM website](http://openmm.org)
 """
@@ -20,29 +19,16 @@ job.classification = [
 job.tags = [tag for lists in job.classification for tag in lists]
 
 ifs = OEMolIStreamCube("ifs")
-ifs.promote_parameter("data_in", promoted_name="complex_pdb", description="complex pdb file")
+ifs.promote_parameter("data_in", promoted_name="ifs", description="complex file")
 
 md_sim = OpenMMSimulation('md_sim')
-md_sim.promote_parameter('state', promoted_name='state')
-md_sim.promote_parameter('system', promoted_name='system')
-md_sim.promote_parameter('complex_pdb', promoted_name='complex_pdb')
 
-state_save = FileOutputCube('state_save')
-state_save.set_parameters(name="state_restart.xml.xz")
+ofs = OEMolOStreamCube('ofs')
+ofs.set_parameters(data_out="restart.oeb.gz")
 
-ofs = FileOutputCube('ofs')
-ofs.set_parameters(name='restart.log')
-
-job.add_cubes(ifs, md_sim, ofs, state_save)
+job.add_cubes(ifs, md_sim, ofs)
 ifs.success.connect(md_sim.intake)
 md_sim.success.connect(ofs.intake)
-md_sim.checkpoint.connect(state_save.intake)
-
-
-
-
-
-
 
 if __name__ == "__main__":
     job.run()

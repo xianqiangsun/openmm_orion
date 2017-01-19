@@ -2,7 +2,7 @@ from __future__ import unicode_literals
 """
 Copyright (C) 2016 OpenEye Scientific Software
 """
-from floe.api import WorkFloe, OEMolIStreamCube, FileOutputCube, DataSetInputParameter, FileInputCube
+from floe.api import WorkFloe, OEMolIStreamCube, OEMolOStreamCube, FileOutputCube, DataSetInputParameter, FileInputCube
 from OpenMMCubes.cubes import OpenMMComplexSetup, OpenMMSimulation
 
 job = WorkFloe("SetupOpenMMComplex")
@@ -19,27 +19,21 @@ job.classification = [
 job.tags = [tag for lists in job.classification for tag in lists]
 
 ifs = OEMolIStreamCube("ifs")
-# Promotes the parameter to something we can specify from the command line as "--ifs=..."
-# Temporarily have ifs parameter overlap with complex_setup parameter
-ifs.promote_parameter("data_in", promoted_name="ifs", description="docked ligands")
+ifs.promote_parameter("data_in", promoted_name="ligand", description="docked ligands")
 
 # the name of the object has to match the string: this is the name of myself
 complex_setup = OpenMMComplexSetup("complex_setup")
 complex_setup.promote_parameter('protein', promoted_name='protein')
-complex_setup.promote_parameter('ligand', promoted_name='ligand')
 complex_setup.promote_parameter('molecule_forcefield', promoted_name='molecule_forcefield')
 complex_setup.promote_parameter('protein_forcefield', promoted_name='protein_forcefield')
 complex_setup.promote_parameter('solvent_forcefield', promoted_name='solvent_forcefield')
 
+ofs = OEMolOStreamCube('ofs')
+ofs.set_parameters(data_out="setup.oeb.gz")
 
-# this is hardwiring the filename to the molecules coming out of ofs
-# note: requires decompression with lzma.decompress or gunzip system.xml.xz
-system_save = FileOutputCube('system_save')
-system_save.set_parameters(name="system.xml.xz")
-
-job.add_cubes(ifs, complex_setup, system_save)
+job.add_cubes(ifs, complex_setup, ofs)
 ifs.success.connect(complex_setup.intake)
-complex_setup.success.connect(system_save.intake)
+complex_setup.success.connect(ofs.intake)
 
 if __name__ == "__main__":
     job.run()

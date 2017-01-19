@@ -9,17 +9,12 @@ from lzma import compress, decompress
 class OpenMMSystemSerializationMixin(object):
 
     def encode(self, openmm_system):
-        serialized_system = openmm.XmlSerializer.serialize(openmm_system)
-        encoded = serialized_system.encode()
-        #return openmm.XmlSerializer.serialize(openmm_system).encode()
-        return compress( encoded )
+        #return compress( openmm.XmlSerializer.serialize(openmm_system).encode() )
+        return openmm.XmlSerializer.serialize(openmm_system).encode()
 
-    def decode(self, compressed_system):
-        decompresed = decompress(compressed_system)
-        decoded = decompresed.decode()
-        system = openmm.XmlSerializer.deserialize( decoded )
-        return system
-        #return decompress( openmm.XmlSerializer.deserialize(serialized_system).decode() )
+    def decode(self, serialized_system):
+        #return openmm.XmlSerializer.deserialize( decompress(serialized_system).decode() )
+        return openmm.XmlSerializer.deserialize(serialized_system).decode()
 
 
 class OpenMMSystemInput(OpenMMSystemSerializationMixin, InputPort):
