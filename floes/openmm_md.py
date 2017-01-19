@@ -19,7 +19,7 @@ job.classification = [
 job.tags = [tag for lists in job.classification for tag in lists]
 
 ifs = OEMolIStreamCube("ifs")
-ifs.promote_parameter("data_in", promoted_name="complex_pdb", description="complex pdb file")
+ifs.promote_parameter("data_in", promoted_name="ifs", description="complex pdb file")
 
 md_sim = OpenMMSimulation('md_sim')
 md_sim.promote_parameter('state', promoted_name='state')

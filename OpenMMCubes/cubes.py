@@ -1,7 +1,7 @@
 import time
 import traceback
 import numpy as np
-from floe.api import OEMolComputeCube, parameter, MoleculeInputPort, BinaryMoleculeInputPort, BinaryOutputPort
+from floe.api import OEMolComputeCube, parameter, MoleculeInputPort, BinaryMoleculeInputPort, BinaryOutputPort, OutputPort
 from floe.api.orion import in_orion, StreamingDataset
 from floe.constants import BYTES
 from OpenMMCubes.ports import OpenMMSystemOutput, OpenMMSystemInput
@@ -61,7 +61,7 @@ class OpenMMComplexSetup(OEMolComputeCube):
 
     molecule_forcefield = parameter.DataSetInputParameter(
         'molecule_forcefield',
-        required=True,
+    #    required=True,
         help_text='Forcefield parameters for molecule'
     )
 
@@ -109,7 +109,9 @@ class OpenMMComplexSetup(OEMolComputeCube):
             oechem.OETriposAtomNames(mol)
 
             from smarty.forcefield import ForceField
-            mol_ff = ForceField(self.args.molecule_forcefield)
+            #mol_ff = ForceField(self.args.molecule_forcefield)
+            molecule_forcefield = os.path.join('OpenMMCubes', 'tests', 'input', 'forcefield','smirff99Frosst.ffxml')
+            mol_ff = ForceField(molecule_forcefield)
             mol_top, mol_sys, mol_pos = smarty.forcefield_utils.create_system_from_molecule(mol_ff, mol)
             molecule_structure = parmed.openmm.load_topology(mol_top, mol_sys)
 
@@ -225,7 +227,7 @@ class OpenMMSimulation(OEMolComputeCube):
     )
     system = parameter.DataSetInputParameter(
         'system',
-        default=None,
+        default='system.xml.xz',
         help_text='system xml file',
     )
 
@@ -237,6 +239,7 @@ class OpenMMSimulation(OEMolComputeCube):
 
     complex_pdb = parameter.DataSetInputParameter(
         'complex_pdb',
+        required=True,
         default='combined_structure.pdb',
         help_text='complex pdb file')
 
@@ -265,9 +268,10 @@ class OpenMMSimulation(OEMolComputeCube):
 
             # Decompress System xml
             intake = OpenMMSystemInput("intake")
-            with open(self.args.system, 'rb') as sys_xz:
-                system = intake.decode(sys_xz.read())
+            system_path = os.path.join('OpenMMCubes', 'tests', 'input', 'system.xml.xz')
 
+            with open(system_path, 'rb') as sys_xz:
+                system = intake.decode(sys_xz.read())
 
             # Initialize Simulation
             simulation = app.Simulation(topology, system, self.integrator)
