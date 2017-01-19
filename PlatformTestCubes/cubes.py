@@ -10,14 +10,13 @@ class PlatformTestCube(OEMolComputeCube):
 
     Checks available OpenMM platforms
     """
-    title = "Cube Title for view in UI"
+    title = "OpenMM Platform Check"
     description = """
-    *Longform Description*
-    Shown in the UI for floe builders. Should explain cube and params
+    *OpenMM Platform Check*
+    Checks to see which OpenMM Platforms are available amongst CPU, OpenCL, and CUDA
     """
     classification = [
-        ["Testing", "OpenMM"],
-        ["Testing", "PlatformCheck"],
+        ["OpenMM", "PlatformCheck"],
     ]
     tags = [tag for lists in classification for tag in lists]
 
@@ -25,7 +24,7 @@ class PlatformTestCube(OEMolComputeCube):
     # note that right now, the pdb file has to reside in the same directory as this file
     pdbFileName = parameter.StringParameter("pdbFileName",
             title="pdb File Name",
-            description="name of pdb file to use in run_test",
+            description="name of pdb file to use in OpenMM Platform Check",
             default='test.pdb',
             )
 
