@@ -28,6 +28,8 @@ complex_setup.promote_parameter('protein_forcefield', promoted_name='protein_for
 complex_setup.promote_parameter('solvent_forcefield', promoted_name='solvent_forcefield')
 
 md_sim = OpenMMSimulation('md_sim')
+md_sim.promote_parameter('complex_mol', promoted_name='complex_mol')
+md_sim.set_parameters(complex_mol='complex.oeb.gz')
 
 ofs = OEMolOStreamCube('ofs')
 ofs.set_parameters(data_out="simulation.oeb.gz")

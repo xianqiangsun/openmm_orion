@@ -27,19 +27,10 @@ class OpenMMComplexSetup(OEMolComputeCube):
     ]
     tags = [tag for lists in classification for tag in lists]
 
-    #intake = MoleculeInputPort('intake')
-    #success = OpenMMSystemOutput('success')
-    #failure = OpenMMSystemOutput('failure')
-
     protein = parameter.DataSetInputParameter(
         'protein',
         required=True,
         help_text='Single protein to Dock Against')
-
-    #ligand = parameter.DataSetInputParameter(
-    #    'ligand',
-    #    required=True,
-    #    help_text='Docked ligands')
 
     pH = parameter.DecimalParameter(
         'pH',
@@ -139,7 +130,7 @@ class OpenMMComplexSetup(OEMolComputeCube):
             positions = unit.Quantity(positions, positions_unit)
 
             #Store in Structure object
-            structure.coordinates = positions
+            structure.coordinates = coordinates
 
             # Save to PDB
             structure.save('tmp.pdb', overwrite=True)
@@ -174,24 +165,23 @@ class OpenMMComplexSetup(OEMolComputeCube):
             combined_structure.positions = fixer.positions
             combined_structure.box = struct.box
 
-            # Remove temporary pdb
-            os.remove('tmp.pdb')
-            combined_structure.save('combined_structure.pdb', overwrite=True)
+            combined_structure.save('complex.pdb', overwrite=True)
 
             # Regenerate OpenMM system with parmed
             system = combined_structure.createSystem(nonbondedMethod=app.PME,
-                                                    nonbondedCutoff=10.0*unit.angstroms,
-                                                    constraints=app.HBonds)
+                                                    nonbondedCutoff=10.0*unit.angstroms)
+                                                    #constraints=app.HBonds)
 
             complex_mol = oechem.OEMol()
             output = OpenMMSystemOutput('output')
-            with oechem.oemolistream('combined_structure.pdb') as ifs:
+            with oechem.oemolistream('complex.pdb') as ifs:
                 if not oechem.OEReadMolecule(ifs, complex_mol):
                     raise RuntimeError("Error reading complex pdb")
-                with oechem.oemolostream('setup.oeb.gz') as ofs:
+                with oechem.oemolostream('complex.oeb.gz') as ofs:
+                    oechem.OEWriteMolecule(ofs, complex_mol)
                     complex_mol.SetData(oechem.OEGetTag('system'), output.encode(system))
-                    self.success.emit(complex_mol)
-                    #os.remove('combined_structure.pdb')
+            self.success.emit(complex_mol)
+
 
         except Exception as e:
             # Attach error message to the molecule that failed
@@ -199,6 +189,14 @@ class OpenMMComplexSetup(OEMolComputeCube):
             mol.SetData('error', str(e))
             # Return failed molecule
             self.failure.emit(mol)
+
+    def end(self):
+        #Clean up
+        os.remove('tmp.pdb')
+        os.remove('mol_parameters.ffxml')
+        os.remove('complex.pdb')
+        os.remove('protein.pdb')
+
 
 class OpenMMSimulation(OEMolComputeCube):
     title = "Run simulation in OpenMM"
@@ -220,9 +218,13 @@ class OpenMMSimulation(OEMolComputeCube):
 
     steps = parameter.IntegerParameter(
         'steps',
-        default=10000,
-        help_text="Number of MD steps"
-    )
+        default=1000,
+        help_text="Number of MD steps")
+
+    complex_mol = parameter.DataSetInputParameter(
+        'complex_mol',
+        required=True,
+        help_text='Single protein to Dock Against')
 
     def begin(self):
         # Initialize openmm integrator
@@ -230,35 +232,45 @@ class OpenMMSimulation(OEMolComputeCube):
 
     def process(self, mol, port):
         try:
-            if not mol.HasData:
-                raise RuntimeError('No Data found.')
+            # Regenerate the PDB object
+            pdbfilename = 'complex.pdb'
+            complex_mol = oechem.OEMol()
+            if in_orion():
+                stream = StreamingDataset(self.args.complex_mol)
+                stream.download_to_file(pdbfilename)
             else:
-                pdbfilename = 'complex.pdb'
-                complex_mol = oechem.OEMol()
-                with oechem.oemolostream(pdbfilename) as ofs:
-                    oechem.OEWriteMolecule(ofs, mol)
-                pdbfile = app.PDBFile(pdbfilename)
-                serialized_system = mol.GetData(oechem.OEGetTag('system'))
-                system = openmm.XmlSerializer.deserialize( serialized_system )
+                with oechem.oemolistream(self.args.complex_mol) as ifs:
+                    if not oechem.OEReadMolecule(ifs, complex_mol):
+                        raise RuntimeError("Error reading complex")
+                    with oechem.oemolostream(pdbfilename) as ofs:
+                        res = oechem.OEWriteMolecule(ofs, complex_mol)
+                        if res != oechem.OEWriteMolReturnCode_Success:
+                            raise RuntimeError("Error writing protein: {}".format(res))
+            pdbfile = app.PDBFile(pdbfilename)
 
-                # Initialize Simulation
-                simulation = app.Simulation(pdbfile.getTopology(), system, self.integrator)
+            # Reconstruct the OpenMM system
+            serialized_system = mol.GetData(oechem.OEGetTag('system'))
+            system = openmm.XmlSerializer.deserialize( serialized_system )
 
-                try:
-                    outfname = 'restart'
-                    mol.GetData(oechem.OEGetTag('state'))
-                    serialized_state = mol.GetData(oechem.OEGetTag('state'))
-                    state = openmm.XmlSerializer.deserialize( serialized_state )
-                    simulation.context.setState(state)
-                except ValueError:
-                    outfname = 'simulation'
-                    # Set initial positions and velocities then minimize
-                    simulation.context.setPositions(pdbfile.getPositions())
-                    simulation.context.setVelocitiesToTemperature(self.args.temperature*unit.kelvin)
-                    simulation.minimizeEnergy()
+            # Initialize Simulation
+            simulation = app.Simulation(pdbfile.getTopology(), system, self.integrator)
+
+            # Check if mol has State data attached
+            if 'state' in mol.GetData().keys():
+                outfname = 'restart'
+                mol.GetData(oechem.OEGetTag('state'))
+                serialized_state = mol.GetData(oechem.OEGetTag('state'))
+                state = openmm.XmlSerializer.deserialize( serialized_state )
+                simulation.context.setState(state)
+            else:
+                outfname = 'simulation'
+                # Set initial positions and velocities then minimize
+                simulation.context.setPositions(pdbfile.getPositions())
+                simulation.context.setVelocitiesToTemperature(self.args.temperature*unit.kelvin)
+                simulation.minimizeEnergy(tolerance=unit.Quantity(10.0,unit.kilojoules/unit.moles),maxIterations=20)
 
             # Do MD simulation and report energies
-            statereporter = app.StateDataReporter(outfname+'.log', 1000, step=True, potentialEnergy=True, temperature=True)
+            statereporter = app.StateDataReporter(outfname+'.log', 100, step=True, potentialEnergy=True, temperature=True)
             simulation.reporters.append(statereporter)
             simulation.step(self.args.steps)
 
@@ -269,15 +281,17 @@ class OpenMMSimulation(OEMolComputeCube):
 
             sim_mol = oechem.OEMol()
             output = OpenMMSystemOutput('output')
-            with oechem.oemolistream(pdbfilename) as ifs:
+            with oechem.oemolistream('complex.pdb') as ifs:
                 if not oechem.OEReadMolecule(ifs, sim_mol):
-                    raise RuntimeError("Error reading {}".format(pdbfilename))
+                    raise RuntimeError("Error reading {}".format('complex.pdb'))
+                # Attach openmm objects to mol, emit to output
                 with oechem.oemolostream(outfname+'.oeb.gz') as ofs:
                     sim_mol.SetData(oechem.OEGetTag('system'), output.encode(system))
                     sim_mol.SetData(oechem.OEGetTag('state'), output.encode(state))
                     with open(outfname+'.log', 'rb') as f:
                         sim_mol.SetData(oechem.OEGetTag('log'), f.read())
-                    self.success.emit(sim_mol)
+                    oechem.OEWriteMolecule(ofs, sim_mol)
+            self.success.emit(sim_mol)
 
         except Exception as e:
                 # Attach error message to the molecule that failed
@@ -285,3 +299,6 @@ class OpenMMSimulation(OEMolComputeCube):
                 mol.SetData('error', str(e))
                 # Return failed mol
                 self.failure.emit(mol)
+    def end(self):
+        #Clean up
+        os.remove('complex.pdb')
