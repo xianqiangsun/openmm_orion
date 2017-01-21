@@ -2,7 +2,7 @@
  "requirements": "requirements.txt",
  "python_version": "3.5",
  "conda_channels": ["omnia", "omnia/label/dev"],
- "conda_dependencies": ["openmm==7.1.0", "openmoltools", "ambermini"],
+ "conda_dependencies": ["openmm", "openmoltools", "ambermini"],
  "name": "OpenMM Platform test package",
  "version": "0.1.0"
 }
