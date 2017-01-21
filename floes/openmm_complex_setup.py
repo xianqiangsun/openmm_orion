@@ -14,7 +14,7 @@ Check out the awesome stuff at the [OpenMM website](http://openmm.org)
 """
 
 job.classification = [
-    ["OpenEye", "OpenMM"],
+    ["OpenMM", "Protein-Ligand Complex Setup"],
 ]
 job.tags = [tag for lists in job.classification for tag in lists]
 
@@ -22,7 +22,7 @@ ifs = OEMolIStreamCube("ifs")
 ofs = FileOutputCube("ofs")
 
 # Promotes the parameter to something we can specify from the command line as "--ifs=..."
-ifs.promote_parameter("data_in", promoted_name="ifs", description="docked ligands")
+ifs.promote_parameter("data_in", promoted_name="ifs", description="posed ligand")
 
 # this is hardwiring the filename to the molecules coming out of ofs
 # note: requires decompression with lzma.decompress or gunzip system.xml.xz
