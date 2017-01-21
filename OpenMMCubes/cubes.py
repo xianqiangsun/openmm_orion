@@ -240,14 +240,6 @@ class OpenMMSimulation(OEMolComputeCube):
 
     def process(self, mol, port):
         try:
-            # Regenerate the PDB object
-            molfilename = 'mdcomplex.oeb.gz'
-            if in_orion():
-                stream = StreamingDataset(self.args.complex_mol, input_format='.oeb.gz')
-                stream.download_to_file(molfilename)
-            else:
-                pass
-
             self.log.info('Regenerating positions and topology from OEMol')
             def extractPositionsFromOEMOL(molecule):
                 # Taken from openmoltools
