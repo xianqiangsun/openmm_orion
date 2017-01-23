@@ -13,8 +13,7 @@ Based on OpenMM SimTK installation check script
 """
 
 job.classification = [
-    ["OpenEye", "OpenMM"],
-    ["OpenEye", "Platforms"]
+    ["OpenMM", "Platforms"]
 ]
 job.tags = [tag for lists in job.classification for tag in lists]
 

@@ -14,7 +14,7 @@ Check out the awesome stuff at the [OpenMM website](http://openmm.org)
 """
 
 job.classification = [
-    ["OpenEye", "OpenMM"],
+    ["OpenMM", "Protein-Ligand Complex Setup"],
 ]
 job.tags = [tag for lists in job.classification for tag in lists]
 

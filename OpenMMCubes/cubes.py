@@ -26,8 +26,7 @@ class OpenMMComplexSetup(OEMolComputeCube):
     will be stored into a complex.oeb.gz file and streamed into the OpenMMSimulation cube.
     """
     classification = [
-        ["Testing", "OpenMM"],
-        ["Testing", "Complex Setup"],
+        ["OpenMM", "ProtLigComplex Setup"],
     ]
     tags = [tag for lists in classification for tag in lists]
 
@@ -203,7 +202,6 @@ class OpenMMComplexSetup(OEMolComputeCube):
                     complex_mol.SetData(oechem.OEGetTag('system'), output.encode(system))
                     oechem.OEWriteMolecule(ofs, complex_mol)
             self.success.emit(complex_mol)
-
 
         except Exception as e:
             # Attach error message to the molecule that failed
