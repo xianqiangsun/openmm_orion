@@ -10,18 +10,13 @@
 ## Workfloes
 
 * `floes/example_floe.py` - report available OpenMM Platforms
-* `floes/openmm_complex_setup.py` - set up protein:ligand complexes as OpenMM System object
-* `floes/openmm_md.py` - run short md simulation of protein:ligand complex
-* `floes/openmm_continue.py` - restart md simulation from saved State
+* `floes/openmm_setup_md.py` - setup the protein:ligand complex and run 1000 MD steps.
 
 ## Example
 
 Test setup of OpenMM complex:
 ```bash
 python setup.py develop or pip install -e ./
-
-# Setup protein-ligand complex
-python floes/openmm_complex_setup.py --protein OpenMMCubes/tests/input/T4-protein.pdb --ligand OpenMMCubes/tests/input/smirff_mol.oeb.gz
 
 # Setup protein-ligand complex and Run short MD simulation
 python floes/openmm_setup_md.py --protein OpenMMCubes/tests/input/T4-protein.pdb --ligand OpenMMCubes/tests/input/smirff_mol.oeb.gz

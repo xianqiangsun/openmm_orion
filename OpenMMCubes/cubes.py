@@ -18,8 +18,12 @@ from simtk.openmm import XmlSerializer
 class OpenMMComplexSetup(OEMolComputeCube):
     title = "Set up complex for simulation in OpenMM"
     description = """
-    *Longform Description*
     Set up protein:ligand complex for simulation with OpenMM.
+
+    This cube will generate an OpenMM System object containing
+    a TIP3P solvated protein:ligand complex. The ligand will be parameterized
+    the smirff99Frosst.ffxml parameters, which is parsed with smarty. The complex
+    will be stored into a complex.oeb.gz file and streamed into the OpenMMSimulation cube.
     """
     classification = [
         ["Testing", "OpenMM"],
@@ -30,7 +34,7 @@ class OpenMMComplexSetup(OEMolComputeCube):
     protein = parameter.DataSetInputParameter(
         'protein',
         required=True,
-        help_text='Single protein to Dock Against')
+        help_text='Protein PDB file')
 
     pH = parameter.DecimalParameter(
         'pH',
@@ -92,6 +96,7 @@ class OpenMMComplexSetup(OEMolComputeCube):
 
     def process(self, mol, port):
         try:
+            self.log.info('Parameterizing the ligand...')
             # Generate smarty ligand structure
             from smarty.forcefield import ForceField
             ffxml = mol.GetData(oechem.OEGetTag('forcefield')).encode()
@@ -102,7 +107,9 @@ class OpenMMComplexSetup(OEMolComputeCube):
             molecule_structure = parmed.openmm.load_topology(mol_top, mol_sys, xyz=mol_pos)
             #Alter molecule residue name for easy selection
             molecule_structure.residues[0].name = "MOL"
+            self.log.info('\t{}'.format(str(molecule_structure)))
 
+            self.log.info('Parameterizing the protein...')
             #Generate protein Structure object
             forcefield = app.ForceField(self.args.protein_forcefield, self.args.solvent_forcefield)
             protein_system = forcefield.createSystem( self.proteinpdb.topology )
@@ -110,6 +117,7 @@ class OpenMMComplexSetup(OEMolComputeCube):
                                                              protein_system,
                                                              xyz=self.proteinpdb.positions )
 
+            self.log.info('\t{}'.format(str(protein_structure)))
             # Merge structures
             pl_structure = protein_structure + molecule_structure
 
@@ -133,6 +141,10 @@ class OpenMMComplexSetup(OEMolComputeCube):
             pl_structure.save('pl_tmp.pdb', overwrite=True)
 
             # Solvate with PDBFixer
+            self.log.info('Solvating system with PDBFixer...')
+            self.log.info('\tpH = {}'.format(self.args.pH))
+            self.log.info('\tpadding = {}'.format(unit.Quantity(self.args.solvent_padding, unit.angstroms)))
+            self.log.info('\tionicStrength = {}'.format(unit.Quantity(self.args.salt_concentration, unit.millimolar)))
             fixer = pdbfixer.PDBFixer('pl_tmp.pdb')
             #fixer.findMissingResidues()
             #fixer.findMissingAtoms()
@@ -169,13 +181,17 @@ class OpenMMComplexSetup(OEMolComputeCube):
             full_structure.box = nomol.box
             # Save full structure
             full_structure.save('complex.pdb', overwrite=True)
+            self.log.info('Saving the protien:ligand complex')
+            self.log.info('\t{}'.format(str(full_structure)))
+            self.log.info('\tBox = {}'.format(full_structure.box))
 
+            self.log.info('Generating the OpenMM system...')
             # Regenerate OpenMM system with parmed
             system = full_structure.createSystem(nonbondedMethod=app.PME,
                                                 nonbondedCutoff=10.0*unit.angstroms,
                                                 constraints=app.HBonds)
 
-            self.log.info('Generated OpenMM system')
+
             self.log.info('Saving System to complex.oeb.gz')
             # Pack mol into oeb and emit system
             complex_mol = oechem.OEMol()
@@ -208,8 +224,18 @@ class OpenMMComplexSetup(OEMolComputeCube):
 class OpenMMSimulation(OEMolComputeCube):
     title = "Run simulation in OpenMM"
     description = """
-    *Longform Description*
     Run simulation with OpenMM for protein:ligand complex.
+
+    This cube will take in the streamed complex.oeb.gz file containing
+    the protein:ligand complex, reconstruct the OpenMM System object,
+    minimize the system for a max of 20 iterations (for faster runtime),
+    and run 1000 MD steps at 300K. The potential energies are evaluated every
+    100 steps and stored to a log file.
+    The OpenMM System, State, and log file are attached to the OEMol and saved
+    to the file simulation.oeb.gz.
+
+    The simulation.oeb.gz file, containing the State can then be reused to
+    restart the MD simulation.
     """
     classification = [
         ["Testing", "OpenMM"],
@@ -240,7 +266,7 @@ class OpenMMSimulation(OEMolComputeCube):
 
     def process(self, mol, port):
         try:
-            self.log.info('Regenerating positions and topology from OEMol')
+            self.log.info('Regenerating positions and topology from OEMol input file stream.')
             def extractPositionsFromOEMOL(molecule):
                 # Taken from openmoltools
                 positions = unit.Quantity(np.zeros([molecule.NumAtoms(), 3], np.float32), unit.angstroms)
@@ -253,7 +279,7 @@ class OpenMMSimulation(OEMolComputeCube):
 
             # Reconstruct the OpenMM system
             if 'system' in mol.GetData().keys():
-                self.log.info('Reconstructing System from mol')
+                self.log.info('Regenerating System from OEMol input file stream')
                 serialized_system = mol.GetData(oechem.OEGetTag('system'))
                 system = openmm.XmlSerializer.deserialize( serialized_system )
                 # Initialize Simulation
@@ -266,6 +292,7 @@ class OpenMMSimulation(OEMolComputeCube):
 
             # Check if mol has State data attached
             if 'state' in mol.GetData().keys():
+                self.log.info('Found a saved State, restarting simulation')
                 outfname = 'restart'
                 mol.GetData(oechem.OEGetTag('state'))
                 serialized_state = mol.GetData(oechem.OEGetTag('state'))
@@ -283,6 +310,7 @@ class OpenMMSimulation(OEMolComputeCube):
                 st = simulation.context.getState(getPositions=True,getEnergy=True)
                 self.log.info('\tMinimized energy is {}'.format(st.getPotentialEnergy()))
 
+            self.log.info('Running {} MD steps at {}K'.format(self.args.steps, self.args.temperature))
             # Do MD simulation and report energies
             statereporter = app.StateDataReporter(outfname+'.log', 100, step=True, potentialEnergy=True, temperature=True)
             simulation.reporters.append(statereporter)
@@ -297,6 +325,7 @@ class OpenMMSimulation(OEMolComputeCube):
 
             # Attach openmm objects to mol, emit to output
             output = OpenMMSystemOutput('output')
+            self.log.info('Saving to {}'.format(outfname+'.oeb.gz'))
             with oechem.oemolostream(outfname+'.oeb.gz') as ofs:
                 mol.SetData(oechem.OEGetTag('system'), output.encode(system))
                 mol.SetData(oechem.OEGetTag('state'), output.encode(state))
