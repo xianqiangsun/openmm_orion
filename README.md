@@ -16,7 +16,7 @@
 ## Local Installation
 ### MacOS 10.12 Sierra
 ```bash
-git clone git@github.com:openeye-private/openmm_orion.git -b custom-ff
+git clone git@github.com:openeye-private/openmm_orion.git
 cd openmm_orion 
 
 #Create a new local conda environment and install dependencies
@@ -45,7 +45,7 @@ python setup.py develop
 
 ### Linux
 ```bash
-git clone git@github.com:openeye-private/openmm_orion.git -b custom-ff
+git clone git@github.com:openeye-private/openmm_orion.git
 cd openmm_orion 
 
 #Create a new local conda environment and install dependencies
