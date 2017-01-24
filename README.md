@@ -16,6 +16,9 @@
 ## Local Installation
 ### MacOS 10.12 Sierra
 ```bash
+git clone git@github.com:openeye-private/openmm_orion.git -b custom-ff
+cd openmm_orion 
+
 #Create a new local conda environment and install dependencies
 conda create -c omnia -c omnia/label/dev -n openmm_mac python=3.5 openmm==7.0.1 openmoltools==0.7.4 ambermini==16.16.0 smarty==0.1.4 parmed==2.7.1
 source activate openmm_mac
@@ -42,6 +45,9 @@ python setup.py develop
 
 ### Linux
 ```bash
+git clone git@github.com:openeye-private/openmm_orion.git -b custom-ff
+cd openmm_orion 
+
 #Create a new local conda environment and install dependencies
 conda create -c omnia -c omnia/label/dev -n openmm_linux python=3.5 openmm==7.0.1 openmoltools==0.7.4 ambermini==16.16.0 smarty==0.1.4 parmed==2.7.1 pdbfixer-dev
 source activate openmm_linux
