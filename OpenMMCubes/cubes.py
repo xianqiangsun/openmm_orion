@@ -1,42 +1,44 @@
 import time
 import traceback
 import numpy as np
-from floe.api import OEMolComputeCube, parameter
+from floe.api import OEMolComputeCube, parameter, MoleculeInputPort, BinaryMoleculeInputPort, BinaryOutputPort, OutputPort
 from floe.api.orion import in_orion, StreamingDataset
 from floe.constants import BYTES
-from OpenMMCubes.ports import OpenMMSystemOutput
-
+from OpenMMCubes.ports import OpenMMSystemOutput, OpenMMSystemInput
 from simtk import unit, openmm
 from simtk.openmm import app
 
 from openeye import oechem
-
-import openmoltools
+import os, smarty, parmed, pdbfixer
 from openmoltools import forcefield_generators
+import lzma
+from simtk.openmm import XmlSerializer
 
 # For parallel, import and inherit from ParallelOEMolComputeCube
 class OpenMMComplexSetup(OEMolComputeCube):
     title = "Set up complex for simulation in OpenMM"
     description = """
-    *Longform Description*
     Set up protein:ligand complex for simulation with OpenMM.
+
+    This cube will generate an OpenMM System object containing
+    a TIP3P solvated protein:ligand complex. The ligand will be parameterized
+    the smirff99Frosst.ffxml parameters, which is parsed with smarty. The complex
+    will be stored into a complex.oeb.gz file and streamed into the OpenMMSimulation cube.
     """
     classification = [
         ["OpenMM", "ProtLigComplex Setup"],
     ]
     tags = [tag for lists in classification for tag in lists]
 
-    success = OpenMMSystemOutput("success")
-
-    receptor = parameter.DataSetInputParameter(
-        'receptor',
+    protein = parameter.DataSetInputParameter(
+        'protein',
         required=True,
-        help_text='Single Receptor to Dock Against')
+        help_text='Protein PDB file')
 
     pH = parameter.DecimalParameter(
         'pH',
-        default=7.4,
-        help_text="Solvent pH used to select appropriate receptor protonation state.",
+        default=7.0,
+        help_text="Solvent pH used to select appropriate protein protonation state.",
     )
 
     solvent_padding = parameter.DecimalParameter(
@@ -47,73 +49,291 @@ class OpenMMComplexSetup(OEMolComputeCube):
 
     salt_concentration = parameter.DecimalParameter(
         'salt_concentration',
-        default=150,
+        default=50,
         help_text="Salt concentration (millimolar)",
     )
 
-    def begin(self):
-        pdbfilename = 'receptor.pdb'
+    molecule_forcefield = parameter.DataSetInputParameter(
+        'molecule_forcefield',
+    #    required=True,
+        help_text='Forcefield parameters for molecule'
+    )
 
-        # Write the receptor to a PDB
+    protein_forcefield = parameter.DataSetInputParameter(
+        'protein_forcefield',
+    #    required=True,
+        default='amber99sbildn.xml',
+        help_text='Forcefield parameters for protein'
+    )
+
+    solvent_forcefield = parameter.DataSetInputParameter(
+        'solvent_forcefield',
+    #   required=True,
+        default='tip3p.xml',
+        help_text='Forcefield parameters for solvent'
+    )
+
+    def begin(self):
+        pdbfilename = 'protein.pdb'
+
+        # Write the protein to a PDB
         if in_orion():
-            stream = StreamingDataset(self.args.receptor, input_format=".pdb")
+            stream = StreamingDataset(self.args.protein, input_format=".pdb")
             stream.download_to_file(pdbfilename)
         else:
-            receptor = oechem.OEMol()
-            with oechem.oemolistream(self.args.receptor) as ifs:
-                if not oechem.OEReadMolecule(ifs, receptor):
+            protein = oechem.OEMol()
+            with oechem.oemolistream(self.args.protein) as ifs:
+                if not oechem.OEReadMolecule(ifs, protein):
                     raise RuntimeError("Error reading molecule")
                 with oechem.oemolostream(pdbfilename) as ofs:
-                    res = oechem.OEWriteMolecule(ofs, receptor)
+                    res = oechem.OEWriteMolecule(ofs, protein)
                     if res != oechem.OEWriteMolReturnCode_Success:
-                        raise RuntimeError("Error writing receptor: {}".format(res))
+                        raise RuntimeError("Error writing protein: {}".format(res))
 
         # Read the PDB file into an OpenMM PDBFile object
-        self.pdbfile = app.PDBFile(pdbfilename)
+        self.proteinpdb = app.PDBFile(pdbfilename)
 
     def process(self, mol, port):
         try:
-            # Create OpenMM Topology from OEMol
-            molecule_topology = forcefield_generators.generateTopologyFromOEMol(mol)
-            molecule_positions = unit.Quantity( np.zeros([mol.NumAtoms(),3], np.float64), unit.angstroms)
-            for (index, atom) in enumerate(mol.GetAtoms()):
-                [x,y,z] = mol.GetCoords(atom)
-                molecule_positions[index,0] = x*unit.angstroms
-                molecule_positions[index,1] = y*unit.angstroms
-                molecule_positions[index,2] = z*unit.angstroms
+            self.log.info('Parameterizing the ligand...')
+            # Generate smarty ligand structure
+            from smarty.forcefield import ForceField
+            ffxml = mol.GetData(oechem.OEGetTag('forcefield')).encode()
+            with open('mol_parameters.ffxml', 'wb') as out:
+                out.write(ffxml)
+            mol_ff = ForceField(open('mol_parameters.ffxml'))
+            mol_top, mol_sys, mol_pos = smarty.forcefield_utils.create_system_from_molecule(mol_ff, mol)
+            molecule_structure = parmed.openmm.load_topology(mol_top, mol_sys, xyz=mol_pos)
+            #Alter molecule residue name for easy selection
+            molecule_structure.residues[0].name = "MOL"
+            self.log.info('\t{}'.format(str(molecule_structure)))
 
-            # Initialize a forcefield
-            gaff_xml_filename = openmoltools.utils.get_data_filename("parameters/gaff.xml")
-            forcefield = app.ForceField('amber99sbildn.xml', 'tip3p.xml', gaff_xml_filename)
-            forcefield.registerTemplateGenerator(forcefield_generators.gaffTemplateGenerator)
+            self.log.info('Parameterizing the protein...')
+            #Generate protein Structure object
+            forcefield = app.ForceField(self.args.protein_forcefield, self.args.solvent_forcefield)
+            protein_system = forcefield.createSystem( self.proteinpdb.topology )
+            protein_structure = parmed.openmm.load_topology( self.proteinpdb.topology,
+                                                             protein_system,
+                                                             xyz=self.proteinpdb.positions )
 
-            # Set up protein
-            modeller = app.Modeller(self.pdbfile.topology, self.pdbfile.positions)
-            modeller.add(molecule_topology, molecule_positions)
+            self.log.info('\t{}'.format(str(protein_structure)))
+            # Merge structures
+            pl_structure = protein_structure + molecule_structure
 
-            # Add missing hydrogens (if needed)
-            modeller.addHydrogens(forcefield, self.args.pH)
+            #Concatenate positions arrays (ensures same units)
+            positions_unit = unit.angstroms
+            positions0_dimensionless = np.array( self.proteinpdb.positions / positions_unit )
+            positions1_dimensionless = np.array( molecule_structure.positions / positions_unit )
+            coordinates = np.vstack((positions0_dimensionless,positions1_dimensionless))
+            natoms = len(coordinates)
+            positions = np.zeros([natoms,3], np.float32)
+            for index in range(natoms):
+                (x,y,z) = coordinates[index]
+                positions[index,0] = x
+                positions[index,1] = y
+                positions[index,2] = z
+            positions = unit.Quantity(positions, positions_unit)
 
-            # Add solvent
-            modeller.addSolvent(forcefield, model='tip3p',
-                padding = unit.Quantity( self.args.solvent_padding, unit.angstroms),
-                ionicStrength=unit.Quantity(self.args.salt_concentration, unit.millimolar)
-                )
+            #Store Structure object
+            #structure.coordinates = coordinates
+            pl_structure.positions = positions
+            pl_structure.save('pl_tmp.pdb', overwrite=True)
 
-            # Generate System
-            system = forcefield.createSystem(modeller.getTopology(),
-                nonbondedMethod=app.PME,
-                nonbondedCutoff=10.0*unit.angstroms,
-                constraints=app.HBonds)
+            # Solvate with PDBFixer
+            self.log.info('Solvating system with PDBFixer...')
+            self.log.info('\tpH = {}'.format(self.args.pH))
+            self.log.info('\tpadding = {}'.format(unit.Quantity(self.args.solvent_padding, unit.angstroms)))
+            self.log.info('\tionicStrength = {}'.format(unit.Quantity(self.args.salt_concentration, unit.millimolar)))
+            fixer = pdbfixer.PDBFixer('pl_tmp.pdb')
+            #fixer.findMissingResidues()
+            #fixer.findMissingAtoms()
+            #fixer.addMissingAtoms()
+            fixer.addMissingHydrogens(self.args.pH)
+            fixer.addSolvent(padding=unit.Quantity(self.args.solvent_padding, unit.angstroms),
+                            ionicStrength=unit.Quantity(self.args.salt_concentration, unit.millimolar)
+                            )
 
-            # write pdb of System
-            app.PDBFile.writeFile( modeller.getTopology(), modeller.getPositions(),  open('complexSolv.pdb', 'w'))
+            # Load PDBFixer object back to Structure
+            tmp = parmed.openmm.load_topology(fixer.topology, xyz=fixer.positions)
+            #Store positions, topology, and box vectors for solvated system
+            full_positions = tmp.positions
+            full_topology = tmp.topology
+            full_box = tmp.box
 
-            # Emit the serialized system.
-            self.success.emit(system)
+            # Remove ligand from protein Structure by AmberMask selection
+            tmp.strip(":MOL")
+            tmp.save('nomol_tmp.pdb', overwrite=True)
+            nomol = parmed.load_file('nomol_tmp.pdb')
+
+            # Regenerate openMM System to parameterize solvent
+            nomol_system = forcefield.createSystem(nomol.topology, rigidWater=False)
+
+            # Regenerate parameterized solvated protein structure
+            solv_structure = parmed.openmm.load_topology( nomol.topology,
+                                                            nomol_system,
+                                                            xyz=nomol.positions,
+                                                            box=nomol.box )
+
+            # Remerge with ligand structure
+            full_structure = solv_structure + molecule_structure
+            # Restore box dimensions
+            full_structure.box = nomol.box
+            # Save full structure
+            full_structure.save('complex.pdb', overwrite=True)
+            self.log.info('Saving the protien:ligand complex')
+            self.log.info('\t{}'.format(str(full_structure)))
+            self.log.info('\tBox = {}'.format(full_structure.box))
+
+            self.log.info('Generating the OpenMM system...')
+            # Regenerate OpenMM system with parmed
+            system = full_structure.createSystem(nonbondedMethod=app.PME,
+                                                nonbondedCutoff=10.0*unit.angstroms,
+                                                constraints=app.HBonds)
+
+
+            self.log.info('Saving System to complex.oeb.gz')
+            # Pack mol into oeb and emit system
+            complex_mol = oechem.OEMol()
+            output = OpenMMSystemOutput('output')
+            with oechem.oemolistream('complex.pdb') as ifs:
+                if not oechem.OEReadMolecule(ifs, complex_mol):
+                    raise RuntimeError("Error reading complex pdb")
+                with oechem.oemolostream('complex.oeb.gz') as ofs:
+                    complex_mol.SetData(oechem.OEGetTag('system'), output.encode(system))
+                    oechem.OEWriteMolecule(ofs, complex_mol)
+            self.success.emit(complex_mol)
+
         except Exception as e:
             # Attach error message to the molecule that failed
             self.log.error(traceback.format_exc())
             mol.SetData('error', str(e))
             # Return failed molecule
             self.failure.emit(mol)
+
+    def end(self):
+        #Clean up
+        os.remove('protein.pdb')
+        os.remove('mol_parameters.ffxml')
+        os.remove('pl_tmp.pdb')
+        os.remove('nomol_tmp.pdb')
+        os.remove('complex.pdb')
+
+
+class OpenMMSimulation(OEMolComputeCube):
+    title = "Run simulation in OpenMM"
+    description = """
+    Run simulation with OpenMM for protein:ligand complex.
+
+    This cube will take in the streamed complex.oeb.gz file containing
+    the protein:ligand complex, reconstruct the OpenMM System object,
+    minimize the system for a max of 20 iterations (for faster runtime),
+    and run 1000 MD steps at 300K. The potential energies are evaluated every
+    100 steps and stored to a log file.
+    The OpenMM System, State, and log file are attached to the OEMol and saved
+    to the file simulation.oeb.gz.
+
+    The simulation.oeb.gz file, containing the State can then be reused to
+    restart the MD simulation.
+    """
+    classification = [
+        ["Testing", "OpenMM"],
+        ["Testing", "Simulation"],
+    ]
+    tags = [tag for lists in classification for tag in lists]
+
+    temperature = parameter.DecimalParameter(
+        'temperature',
+        default=300,
+        help_text="Temperature (Kelvin)"
+    )
+
+    steps = parameter.IntegerParameter(
+        'steps',
+        default=1000,
+        help_text="Number of MD steps")
+
+    complex_mol = parameter.DataSetInputParameter(
+        'complex_mol',
+        default='complex.oeb.gz',
+        #required=True,
+        help_text='Single protein to Dock Against')
+
+    def begin(self):
+        # Initialize openmm integrator
+        self.integrator = openmm.LangevinIntegrator(self.args.temperature*unit.kelvin, 1/unit.picoseconds, 0.002*unit.picoseconds)
+
+    def process(self, mol, port):
+        try:
+            self.log.info('Regenerating positions and topology from OEMol input file stream.')
+            def extractPositionsFromOEMOL(molecule):
+                # Taken from openmoltools
+                positions = unit.Quantity(np.zeros([molecule.NumAtoms(), 3], np.float32), unit.angstroms)
+                coords = molecule.GetCoords()
+                for index in range(molecule.NumAtoms()):
+                    positions[index,:] = unit.Quantity(coords[index], unit.angstroms)
+                return positions
+            positions = extractPositionsFromOEMOL(mol)
+            topology = forcefield_generators.generateTopologyFromOEMol(mol)
+
+            # Reconstruct the OpenMM system
+            if 'system' in mol.GetData().keys():
+                self.log.info('Regenerating System from OEMol input file stream')
+                serialized_system = mol.GetData(oechem.OEGetTag('system'))
+                system = openmm.XmlSerializer.deserialize( serialized_system )
+                # Initialize Simulation
+                simulation = app.Simulation(topology, system, self.integrator)
+                #simulation = app.Simulation(topology, system, self.integrator, openmm.Platform.getPlatformByName('CPU'))
+                platform = simulation.context.getPlatform().getName()
+                self.log.info('Running OpenMMSimulation on Platform {}'.format(platform))
+            else:
+                raise RuntimeError('Could not find system from mol')
+
+            # Check if mol has State data attached
+            if 'state' in mol.GetData().keys():
+                self.log.info('Found a saved State, restarting simulation')
+                outfname = 'restart'
+                mol.GetData(oechem.OEGetTag('state'))
+                serialized_state = mol.GetData(oechem.OEGetTag('state'))
+                state = openmm.XmlSerializer.deserialize( serialized_state )
+                simulation.context.setState(state)
+            else:
+                self.log.info('Minimizing system...')
+                outfname = 'simulation'
+                # Set initial positions and velocities then minimize
+                simulation.context.setPositions(positions)
+                simulation.context.setVelocitiesToTemperature(self.args.temperature*unit.kelvin)
+                # Temporarily, place some restrictions on minization to run faster
+                #simulation.minimizeEnergy()
+                simulation.minimizeEnergy(tolerance=unit.Quantity(10.0,unit.kilojoules/unit.moles),maxIterations=100)
+                st = simulation.context.getState(getPositions=True,getEnergy=True)
+                self.log.info('\tMinimized energy is {}'.format(st.getPotentialEnergy()))
+
+            self.log.info('Running {} MD steps at {}K'.format(self.args.steps, self.args.temperature))
+            # Do MD simulation and report energies
+            statereporter = app.StateDataReporter(outfname+'.log', 100, step=True, potentialEnergy=True, temperature=True)
+            simulation.reporters.append(statereporter)
+            outlog = open(outfname+'.log', 'r')
+            simulation.step(self.args.steps)
+            self.log.info(outlog.read())
+
+            # Save serialized State object
+            state = simulation.context.getState( getPositions=True,
+                                              getVelocities=True,
+                                              getParameters=True )
+
+            # Attach openmm objects to mol, emit to output
+            output = OpenMMSystemOutput('output')
+            self.log.info('Saving to {}'.format(outfname+'.oeb.gz'))
+            with oechem.oemolostream(outfname+'.oeb.gz') as ofs:
+                mol.SetData(oechem.OEGetTag('system'), output.encode(system))
+                mol.SetData(oechem.OEGetTag('state'), output.encode(state))
+                mol.SetData(oechem.OEGetTag('log'), outlog.read())
+                oechem.OEWriteMolecule(ofs, mol)
+            self.success.emit(mol)
+
+        except Exception as e:
+                # Attach error message to the molecule that failed
+                self.log.error(traceback.format_exc())
+                mol.SetData('error', str(e))
+                # Return failed mol
+                self.failure.emit(mol)
