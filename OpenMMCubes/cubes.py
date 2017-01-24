@@ -304,7 +304,7 @@ class OpenMMSimulation(OEMolComputeCube):
                 simulation.context.setVelocitiesToTemperature(self.args.temperature*unit.kelvin)
                 # Temporarily, place some restrictions on minization to run faster
                 #simulation.minimizeEnergy()
-                simulation.minimizeEnergy(tolerance=unit.Quantity(10.0,unit.kilojoules/unit.moles),maxIterations=20)
+                simulation.minimizeEnergy(tolerance=unit.Quantity(10.0,unit.kilojoules/unit.moles),maxIterations=100)
                 st = simulation.context.getState(getPositions=True,getEnergy=True)
                 self.log.info('\tMinimized energy is {}'.format(st.getPotentialEnergy()))
 
