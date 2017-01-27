@@ -1,0 +1,21 @@
+language: python
+python:
+  - 3.5
+
+# Setup anaconda
+before_install:
+  - sudo apt-get update
+  - wget https://repo.continuum.io/miniconda/Miniconda3-latest-Linux-x86_64.sh -O miniconda.sh
+  - bash miniconda.sh -b -p $HOME/miniconda
+  - export PATH=$HOME/miniconda/bin:$PATH
+  - hash -r
+  - conda config --set always_yes true --set changeps1 no
+  - conda update --yes -q conda
+  - conda info -a
+
+
+# Install packages
+install:
+  - conda create -c omnia -c omnia/label/dev -n openmm_linux python=$TRAVIS_PYTHON_VERSION openmm==7.0.1 openmoltools==0.7.4 ambermini==16.16.0 smarty==0.1.4 parmed==2.7.1 pdbfixer-dev
+source activate openmm_linux
+  - source activate openmm_linux
