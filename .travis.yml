@@ -15,5 +15,5 @@ before_install:
 
 # Install packages
 install:
-  - conda create -c omnia -c omnia/label/dev -n openmm_linux python=$TRAVIS_PYTHON_VERSION openmm==7.0.1 openmoltools==0.7.4 ambermini==16.16.0 smarty==0.1.4 parmed==2.7.1 pdbfixer-dev source activate openmm_linux
+  - conda create -c omnia -c omnia/label/dev -n openmm_linux python=$TRAVIS_PYTHON_VERSION openmm==7.0.1 openmoltools==0.7.4 ambermini==16.16.0 smarty==0.1.4 parmed==2.7.1 pdbfixer-dev
   - source activate openmm_linux
