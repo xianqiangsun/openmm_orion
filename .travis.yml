@@ -20,7 +20,7 @@ install:
   openmm==7.0.1 openmoltools==0.7.4 ambermini==16.16.0 smarty==0.1.4 parmed==2.7.1
   pdbfixer-dev
 - source activate openmm_linux
-- pip install --extra-index-url https://pypi.anaconda.org/t/$CONDA_TOKEN/OpenEye/label/Orion/simple -r requirements.txt
+- pip install --extra-index-url https://pypi.anaconda.org/OpenEye/simple --extra-index-url https://pypi.anaconda.org/t/$CONDA_TOKEN/OpenEye/label/Orion/simple -r requirements.txt
 
 script:
 - py.test -v
