@@ -70,7 +70,7 @@ Setup the protein-ligand complex.
 python floes/openmm_complex-setup.py --ligand examples/data/toluene.pdb --protein examples/data/T4-protein.pdb
 
 # Available options
-python floes/openmm_complex-setup.py --ligand examples/data/toluene.pdb --protein examples/data/T4-protein.pdb --ffxml examples/data/smirff99Frosst.ffxml --protein_ff amber99sbildn.xml --solvent_ff tip3p.xml --pH 7.0 --salt_conc 10
+python floes/openmm_complex-setup.py --ligand examples/data/toluene.pdb --protein examples/data/T4-protein.pdb --ffxml smirff99Frosst.ffxml --protein_ff amber99sbildn.xml --solvent_ff tip3p.xml --pH 7.0 --salt_conc 10
 ```
 
 #### [SetupOpenMMSimulation]: Setup and simulate the protein:ligand complex.
@@ -112,5 +112,5 @@ python floes/smiles_complex-setup.py --ligand examples/data/test_smiles.ism --re
 #### [SmilesSimulation]: Setup and prepare the MD simulation.
 Does all the preparation steps above and runs the MD simulation:
 ```
-python floes/smiles_setup-md.py --ligand examples/data/test_smiles.ism --receptor examples/data/test-receptor.oeb.gz --protein examples/data/receptor-fixed.pd --steps 10000
+python floes/smiles_setup-md.py --ligand examples/data/test_smiles.ism --receptor examples/data/test-receptor.oeb.gz --protein examples/data/receptor-fixed.pdb --steps 10000
 ```
