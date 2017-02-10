@@ -22,7 +22,10 @@ def _generateRandomID(size=5, chars=string.ascii_uppercase + string.digits):
 class SetIDTagfromTitle(OEMolComputeCube):
     title = "SetIDTagfromTitle"
     description = """
-    Attach IDname to OEMol tag.
+    Assigns IDtag from the OEMol's title via mol.GetTitle() or gets assigned a random one
+    This cube is a place holder, it will eventually accomplish two things:
+    (1) Assigns a unique title to used for naming output files
+    (2) Split the different confs/poses from a single molecule while assigning each one a unique id tag.
     """
     classification = [["Testing", "Ligand Preparation"]]
     tags = [tag for lists in classification for tag in lists]
