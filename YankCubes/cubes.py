@@ -52,7 +52,7 @@ solvents:
 systems:
   hydration:
     solute: input_molecule
-    solvent1: gbsa
+    solvent1: GBSA
     solvent2: vacuum
     leap:
       parameters: [leaprc.gaff, leaprc.protein.ff14SB, leaprc.water.tip3p]
