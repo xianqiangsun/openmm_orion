@@ -21,7 +21,7 @@ hydration_yaml_default = """\
 ---
 options:
   minimize: no
-  verbose: yes
+  verbose: no
   timestep: %(timestep)f*femtoseconds
   nsteps_per_iteration: %(nsteps_per_iteration)d
   number_of_iterations: %(number_of_iterations)d
@@ -152,8 +152,13 @@ class YankHydrationCube(OEMolComputeCube):
             # Write the specified molecule out to a mol2 file
             # TODO: Can we read .oeb files directly into YANK?
             # TODO: Do we need to use a randomly-generated filename to avoid collisions?
-            ofs = oechem.oemolostream('input.mol2')
+            mol2_filename = 'input.mol2'
+            ofs = oechem.oemolostream(mol2_filename)
             oechem.OEWriteMolecule(ofs, input_molecule)
+
+            # Undo oechem fuckery with naming mol2 substructures `<0>`
+            from YankCubes.utils import unfuck_oechem_mol2_file
+            unfuck_oechem_mol2_file(mol2_filename)
 
             # Delete output directory if it already exists.
             if os.path.exists('output'):

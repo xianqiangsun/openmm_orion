@@ -32,3 +32,23 @@ def get_data_filename(relative_path):
     if not os.path.exists(fn):
         raise ValueError("Sorry! %s does not exist. If you just added it, you'll have to re-install" % fn)
     return fn
+
+def unfuck_oechem_mol2_file(filename, substructure_name='MOL'):
+    """Undo oechem fuckery with mol2 substructure names.
+
+    Parameters
+    ----------
+    filename : str
+        mol2 filename for file to be modified
+    substructure_name : str, optional, default='MOL'
+        substructure name to replace `<0>`
+
+    """
+    # Replace <0> substructure names with valid text.
+    infile = open(filename, 'r')
+    lines = infile.readlines()
+    infile.close()
+    newlines = [line.replace('<0>', substructure_name) for line in lines]
+    outfile = open(filename, 'w')
+    outfile.writelines(newlines)
+    outfile.close()
