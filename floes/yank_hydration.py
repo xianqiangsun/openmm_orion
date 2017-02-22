@@ -5,12 +5,12 @@ Written by John D. Chodera
 from floe.api import WorkFloe, OEMolIStreamCube, OEMolOStreamCube, FileOutputCube, DataSetInputParameter, FileInputCube
 from YankCubes.cubes import YankHydrationCube
 
-job = WorkFloe("YankHydration")
+job = WorkFloe("Yank hydration free energy")
 
 job.description = """
 Compute hydration free energies in explicit solvent using YANK.
 
-Ex. `python floes/yank-hydration.py --molecules examples/data/freesolv_mini.oeb.gz --output output.sdf`
+Ex. `python floes/yank_hydration.py --molecules examples/data/freesolv_mini.oeb.gz --output output.sdf`
 
 Parameters:
 -----------
@@ -29,7 +29,7 @@ Outputs:
 Attaches to OEMols 'DeltaG_yank_hydration' and 'dDeltaG_yank_hydration'
 """
 
-job.classification =[["Alchemical", "Simulation", "OpenMM", "Hydration", "YANK"]]
+job.classification =[["YANK", "Hydration"]]
 job.tags = [tag for lists in job.classification for tag in lists]
 
 ifs = OEMolIStreamCube("ifs")

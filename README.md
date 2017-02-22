@@ -12,6 +12,8 @@
 * `OpenMMCubes/` - OpenMM utility cubes
   * `OpenMMComplexSetup` - set up protein:ligand complex and emit OpenMM System
   * `OpenMMSimulation` - run OpenMM simulation.
+* `YankCubes/` - YANK cubes
+  * `YankHydrationCube` - YANK hydration free energy calculations
 
 ## Workfloes
 
