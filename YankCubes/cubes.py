@@ -84,20 +84,6 @@ experiments:
   protocol: hydration-protocol-implicit
 """
 
-def run_cli(arguments):
-    """Generic helper to run command line arguments"""
-    # cli.main(argv=arguments.split())
-    command = 'yank ' + arguments
-    [stoutdata, sterrdata] = subprocess.Popen(command.split()).communicate()
-
-    # TODO: Interpret suprocess data better
-    if sterrdata:
-        message = "An error return value (%s) was obtained:\n" % str(sterrdata)
-        message += "\n"
-        message += stoutdata
-        message += "\n"
-        raise Exception(message)
-
 class YankHydrationCube(OEMolComputeCube):
     title = "YankHydrationCube"
     description = """
@@ -198,3 +184,12 @@ class YankHydrationCube(OEMolComputeCube):
             input_molecule.SetData('error', str(e))
             # Return failed molecule
             self.failure.emit(input_molecule)
+
+        # clean up
+        filenames_to_delete = ['input.mol2', 'output']
+        for filename in filenames_to_delete:
+            if os.path.exists(filename):
+                try:
+                    os.remove(filename)
+                except:
+                    shutil.rmtree(filename)
