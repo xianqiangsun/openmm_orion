@@ -124,7 +124,7 @@ class YankHydrationCube(OEMolComputeCube):
         # TODO: Make substitutions to YAML here.
 
         kB = unit.BOLTZMANN_CONSTANT_kB * unit.AVOGADRO_CONSTANT_NA # Boltzmann constant
-        self.kT = self.kB * (self.args.temperature * unit.kelvin)
+        self.kT = kB * (self.args.temperature * unit.kelvin)
         pass
 
     def process(self, input_molecule, port):

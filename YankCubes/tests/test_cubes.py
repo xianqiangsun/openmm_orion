@@ -1,5 +1,5 @@
 import unittest, os, parmed
-from YankCubes.utils import download_dataset_to_file, get_data_filename
+from YankCubes.utils import get_data_filename
 from YankCubes.cubes import YankHydrationCube
 from simtk import openmm, unit
 from floe.test import CubeTestRunner
