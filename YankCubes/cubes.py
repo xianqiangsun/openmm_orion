@@ -133,7 +133,7 @@ class YankHydrationCube(OEMolComputeCube):
                                  help_text="Pressure (atm)")
 
     # TODO: Check if this is the best way to present a large YAML file to be edited
-    yaml_template = parameter.StringParameter('yaml',
+    yaml_template = parameter.StringParameter('yaml_template',
                                         default=hydration_yaml_default,
                                         description='suffix to append')
 
@@ -188,8 +188,8 @@ class YankHydrationCube(OEMolComputeCube):
             dDeltaG_hydration = np.sqrt(Deltaf_ij_vacuum[0,-1]**2 + Deltaf_ij_solvent[0,-1]**2)
 
             # Add result to original molecule
-            result_molecule.SetData('DeltaG_hydration', DeltaG_hydration * kT_in_kcal_per_mole)
-            result_molecule.SetData('dDeltaG_hydration', dDeltaG_hydration * kT_in_kcal_per_mole)
+            result_molecule.SetData('DeltaG_yank_hydration', DeltaG_hydration * kT_in_kcal_per_mole)
+            result_molecule.SetData('dDeltaG_yank_hydration', dDeltaG_hydration * kT_in_kcal_per_mole)
             self.success.emit(result_molecule)
 
         except Exception as e:

@@ -41,7 +41,8 @@ class YankHydrationCubeTester(unittest.TestCase):
         # Check that the number of atoms match
         self.assertEqual(outmol.NumAtoms(), mol.NumAtoms())
         # Check that a free energy of hydration has been attached
-        self.assertTrue(outmol.HasData(oechem.OEGetTag('DeltaG_hydration')))
+        self.assertTrue(outmol.HasData(oechem.OEGetTag('DeltaG_yank_hydration')))
+        self.assertTrue(outmol.HasData(oechem.OEGetTag('dDeltaG_yank_hydration')))
 
     def test_failure(self):
         pass
