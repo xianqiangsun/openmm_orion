@@ -1,4 +1,4 @@
-import io, os, time, traceback, base64
+import io, os, time, traceback, base64, shutil
 from openeye import oechem
 import numpy as np
 from simtk import unit, openmm
@@ -20,12 +20,13 @@ import subprocess
 hydration_yaml_default = """\
 ---
 options:
-  minimize: yes
+  minimize: no
   verbose: yes
-  # TODO: Make these into parameters
-  number_of_iterations: 10
-  temperature: 300*kelvin
-  pressure: 1*atmosphere
+  timestep: %(timestep)f*femtoseconds
+  nsteps_per_iteration: %(nsteps_per_iteration)d
+  number_of_iterations: %(number_of_iterations)d
+  temperature: %(temperature)f*kelvin
+  pressure: %(pressure)f*atmosphere
 
 molecules:
   input_molecule:
@@ -42,13 +43,16 @@ solvents:
     nonbonded_method: PME
     nonbonded_cutoff: 9*angstroms
     clearance: 16*angstroms
+  GBSA:
+    nonbonded_method: NoCutoff
+    implicit_solvent: OBC2
   vacuum:
     nonbonded_method: NoCutoff
 
 systems:
   hydration:
     solute: input_molecule
-    solvent1: pme
+    solvent1: gbsa
     solvent2: vacuum
     leap:
       parameters: [leaprc.gaff, leaprc.protein.ff14SB, leaprc.water.tip3p]
@@ -68,10 +72,6 @@ experiments:
   system: hydration
   protocol: hydration-protocol
 """
-
-def yank_load(script):
-    """Shortcut to load a string YAML script with YankLoader."""
-    return yaml.load(textwrap.dedent(script), Loader=YankLoader)
 
 def run_cli(arguments):
     """Generic helper to run command line arguments"""
@@ -105,8 +105,14 @@ class YankHydrationCube(OEMolComputeCube):
     intake = CustomMoleculeInputPort('intake')
     success = CustomMoleculeOutputPort('success')
 
-    # TODO: Have these override YAML parameters
-    simulation_time = parameter.DecimalParameter('simulation_time', default=1.0,
+    # These can override YAML parameters
+    nsteps_per_iteration = parameter.IntegerParameter('nsteps_per_iteration', default=500,
+                                     help_text="Number of steps per iteration")
+
+    timestep = parameter.DecimalParameter('timestep', default=2.0,
+                                     help_text="Timestep (fs)")
+
+    simulation_time = parameter.DecimalParameter('simulation_time', default=0.001,
                                      help_text="Simulation time (ns/replica)")
 
     temperature = parameter.DecimalParameter('temperature', default=300.0,
@@ -116,16 +122,25 @@ class YankHydrationCube(OEMolComputeCube):
                                  help_text="Pressure (atm)")
 
     # TODO: Check if this is the best way to present a large YAML file to be edited
-    yaml_contents = parameter.StringParameter('yaml',
+    yaml_template = parameter.StringParameter('yaml',
                                         default=hydration_yaml_default,
                                         description='suffix to append')
 
     def begin(self):
-        # TODO: Make substitutions to YAML here.
+        # Make substitutions to YAML here.
+        # TODO: Can we override YAML parameters without having to do string substitutions?
+        options = {
+            'timestep' : self.args.timestep,
+            'nsteps_per_iteration' : self.args.nsteps_per_iteration,
+            'number_of_iterations' : int(np.ceil(self.args.simulation_time * unit.nanoseconds / (self.args.nsteps_per_iteration * self.args.timestep * unit.femtoseconds))),
+            'temperature' : self.args.temperature,
+            'pressure' : self.args.pressure,
+        }
+        self.yaml = self.args.yaml_template % options
 
+        # Compute kT
         kB = unit.BOLTZMANN_CONSTANT_kB * unit.AVOGADRO_CONSTANT_NA # Boltzmann constant
         self.kT = kB * (self.args.temperature * unit.kelvin)
-        pass
 
     def process(self, input_molecule, port):
         kT_in_kcal_per_mole = self.kT.value_in_unit(unit.kilocalories_per_mole)
@@ -140,9 +155,13 @@ class YankHydrationCube(OEMolComputeCube):
             ofs = oechem.oemolostream('input.mol2')
             oechem.OEWriteMolecule(ofs, input_molecule)
 
+            # Delete output directory if it already exists.
+            if os.path.exists('output'):
+                shutil.rmtree('output')
+
             # Run YANK on the specified molecule.
             from yank.yamlbuild import YamlBuilder
-            yaml_builder = YamlBuilder(self.args.yaml_contents)
+            yaml_builder = YamlBuilder(self.yaml)
             yaml_builder.build_experiments()
 
             # Analyze the hydration free energy.
