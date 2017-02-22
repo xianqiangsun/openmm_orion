@@ -3,6 +3,7 @@ from openeye import oechem
 import numpy as np
 from simtk import unit, openmm
 from simtk.openmm import app
+import netCDF4 as netcdf
 
 from floe.api import OEMolComputeCube, parameter, MoleculeInputPort, BinaryMoleculeInputPort, BinaryOutputPort, OutputPort, ParallelOEMolComputeCube
 from floe.api.orion import in_orion, StreamingDataset
@@ -58,7 +59,7 @@ systems:
       parameters: [leaprc.gaff, leaprc.protein.ff14SB, leaprc.water.tip3p]
 
 protocols:
-  hydration-protocol:
+  hydration-protocol-explicit:
     solvent1:
       alchemical_path:
         lambda_electrostatics: [1.00, 0.75, 0.50, 0.25, 0.00, 0.00, 0.00, 0.00, 0.00, 0.00, 0.00, 0.00, 0.00, 0.00, 0.00, 0.00, 0.00, 0.00, 0.00]
@@ -68,9 +69,19 @@ protocols:
         lambda_electrostatics: [1.00, 0.75, 0.50, 0.25, 0.00, 0.00, 0.00, 0.00, 0.00, 0.00, 0.00, 0.00, 0.00, 0.00, 0.00, 0.00, 0.00, 0.00, 0.00]
         lambda_sterics:        [1.00, 1.00, 1.00, 1.00, 1.00, 0.95, 0.90, 0.85, 0.80, 0.75, 0.70, 0.65, 0.60, 0.50, 0.40, 0.30, 0.20, 0.10, 0.00]
 
+  hydration-protocol-implicit:
+    solvent1:
+      alchemical_path:
+        lambda_electrostatics: [1.00, 0.00]
+        lambda_sterics:        [1.00, 0.00]
+    solvent2:
+      alchemical_path:
+        lambda_electrostatics: [1.00, 0.00]
+        lambda_sterics:        [1.00, 0.00]
+
 experiments:
   system: hydration
-  protocol: hydration-protocol
+  protocol: hydration-protocol-implicit
 """
 
 def run_cli(arguments):
@@ -112,7 +123,7 @@ class YankHydrationCube(OEMolComputeCube):
     timestep = parameter.DecimalParameter('timestep', default=2.0,
                                      help_text="Timestep (fs)")
 
-    simulation_time = parameter.DecimalParameter('simulation_time', default=0.001,
+    simulation_time = parameter.DecimalParameter('simulation_time', default=0.005,
                                      help_text="Simulation time (ns/replica)")
 
     temperature = parameter.DecimalParameter('temperature', default=300.0,
@@ -170,10 +181,11 @@ class YankHydrationCube(OEMolComputeCube):
             yaml_builder.build_experiments()
 
             # Analyze the hydration free energy.
-            (Deltaf_ij_solvent, dDeltaf_ij_solvent) = estimate_free_energies('output/experiments/solvent1.nc')
-            (Deltaf_ij_vacuum,  dDeltaf_ij_vacuum)  = estimate_free_energies('output/experiments/solvent2.nc')
-            DeltaG_hydration = Deltaf_ij_vacuum - Deltaf_ij_solvent
-            dDeltaG_hydration = np.sqrt(Deltaf_ij_vacuum**2 + Deltaf_ij_solvent**2)
+            from yank.analyze import estimate_free_energies
+            (Deltaf_ij_solvent, dDeltaf_ij_solvent) = estimate_free_energies(netcdf.Dataset('output/experiments/solvent1.nc', 'r'))
+            (Deltaf_ij_vacuum,  dDeltaf_ij_vacuum)  = estimate_free_energies(netcdf.Dataset('output/experiments/solvent2.nc', 'r'))
+            DeltaG_hydration = Deltaf_ij_vacuum[0,-1] - Deltaf_ij_solvent[0,-1]
+            dDeltaG_hydration = np.sqrt(Deltaf_ij_vacuum[0,-1]**2 + Deltaf_ij_solvent[0,-1]**2)
 
             # Add result to original molecule
             result_molecule.SetData('DeltaG_hydration', DeltaG_hydration * kT_in_kcal_per_mole)
@@ -183,6 +195,6 @@ class YankHydrationCube(OEMolComputeCube):
         except Exception as e:
             # Attach error message to the molecule that failed
             self.log.error(traceback.format_exc())
-            mol.SetData('error', str(e))
+            input_molecule.SetData('error', str(e))
             # Return failed molecule
-            self.failure.emit(mol)
+            self.failure.emit(input_molecule)

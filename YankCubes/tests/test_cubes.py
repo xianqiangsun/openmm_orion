@@ -39,7 +39,7 @@ class YankHydrationCubeTester(unittest.TestCase):
 
         outmol = self.runner.outputs["success"].get()
         # Check that the number of atoms match
-        self.assertGreater(outmol.NumAtoms(), mol.NumAtoms())
+        self.assertEqual(outmol.NumAtoms(), mol.NumAtoms())
         # Check that a free energy of hydration has been attached
         self.assertTrue(outmol.HasData(oechem.OEGetTag('DeltaG_hydration')))
 
