@@ -18,12 +18,14 @@ class YankHydrationCubeTester(unittest.TestCase):
         self.runner.start()
 
     def test_success(self):
+        """
+        Test that YankHydration can successfully process a single molecule.
+        """
+
         print('Testing cube:', self.cube.name)
         # Read a molecule
         mol = oechem.OEMol()
         ifs = oechem.oemolistream(get_data_filename('freesolv_mini.oeb.gz'))
-
-        # TODO: Test that I can process all molecules in `ifs` instead of just the fiorst one.
 
         # Test a single molecule
         if not oechem.OEReadMolecule(ifs, mol):
@@ -38,11 +40,11 @@ class YankHydrationCubeTester(unittest.TestCase):
         self.assertEqual(self.runner.outputs['failure'].qsize(), 0)
 
         outmol = self.runner.outputs["success"].get()
-        # Check that the number of atoms match
+        # Check that the number of atoms in input and output molecules match.
         self.assertEqual(outmol.NumAtoms(), mol.NumAtoms())
         # Check that a free energy of hydration has been attached
-        self.assertTrue(outmol.HasData(oechem.OEGetTag('DeltaG_yank_hydration')))
-        self.assertTrue(outmol.HasData(oechem.OEGetTag('dDeltaG_yank_hydration')))
+        self.assertTrue(oechem.OEHasSDData(outmol, 'DeltaG_yank_hydration'))
+        self.assertTrue(oechem.OEHasSDData(outmol, 'dDeltaG_yank_hydration'))
 
     def test_failure(self):
         pass

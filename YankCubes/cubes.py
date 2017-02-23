@@ -84,6 +84,186 @@ experiments:
   protocol: hydration-protocol-implicit
 """
 
+# This is an attempt to use JSON
+hydration_json_default = """\
+{
+  "options": {
+    "minimize": false,
+    "verbose": false,
+    "timestep": "2*femtoseconds",
+    "nsteps_per_iteration": 500,
+    "number_of_iterations": 100,
+    "temperature": "300*kelvin",
+    "pressure": "1*atmosphere"
+  },
+  "molecules": {
+    "input_molecule": {
+      "filepath": "input.mol2",
+      "openeye": {
+        "quacpac": "am1-bcc"
+      },
+      "antechamber": {
+        "charge_method": null
+      }
+    }
+  },
+  "solvents": {
+    "pme": {
+      "nonbonded_method": "PME",
+      "nonbonded_cutoff": "9*angstroms",
+      "clearance": "16*angstroms"
+    },
+    "GBSA": {
+      "nonbonded_method": "NoCutoff",
+      "implicit_solvent": "OBC2"
+    },
+    "vacuum": {
+      "nonbonded_method": "NoCutoff"
+    }
+  },
+  "systems": {
+    "hydration": {
+      "solute": "input_molecule",
+      "solvent1": "GBSA",
+      "solvent2": "vacuum",
+      "leap": {
+        "parameters": [
+          "leaprc.gaff",
+          "leaprc.protein.ff14SB",
+          "leaprc.water.tip3p"
+        ]
+      }
+    }
+  },
+  "protocols": {
+    "hydration-protocol-explicit": {
+      "solvent1": {
+        "alchemical_path": {
+          "lambda_electrostatics": [
+            1.0,
+            0.75,
+            0.5,
+            0.25,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0
+          ],
+          "lambda_sterics": [
+            1.0,
+            1.0,
+            1.0,
+            1.0,
+            1.0,
+            0.95,
+            0.9,
+            0.85,
+            0.8,
+            0.75,
+            0.7,
+            0.65,
+            0.6,
+            0.5,
+            0.4,
+            0.3,
+            0.2,
+            0.1,
+            0.0
+          ]
+        }
+      },
+      "solvent2": {
+        "alchemical_path": {
+          "lambda_electrostatics": [
+            1.0,
+            0.75,
+            0.5,
+            0.25,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0
+          ],
+          "lambda_sterics": [
+            1.0,
+            1.0,
+            1.0,
+            1.0,
+            1.0,
+            0.95,
+            0.9,
+            0.85,
+            0.8,
+            0.75,
+            0.7,
+            0.65,
+            0.6,
+            0.5,
+            0.4,
+            0.3,
+            0.2,
+            0.1,
+            0.0
+          ]
+        }
+      }
+    },
+    "hydration-protocol-implicit": {
+      "solvent1": {
+        "alchemical_path": {
+          "lambda_electrostatics": [
+            1.0,
+            0.0
+          ],
+          "lambda_sterics": [
+            1.0,
+            0.0
+          ]
+        }
+      },
+      "solvent2": {
+        "alchemical_path": {
+          "lambda_electrostatics": [
+            1.0,
+            0.0
+          ],
+          "lambda_sterics": [
+            1.0,
+            0.0
+          ]
+        }
+      }
+    }
+  },
+  "experiments": {
+    "system": "hydration",
+    "protocol": "hydration-protocol-implicit"
+  }
+}
+"""
+
 class YankHydrationCube(OEMolComputeCube):
     title = "YankHydrationCube"
     description = """
@@ -121,7 +301,12 @@ class YankHydrationCube(OEMolComputeCube):
     # TODO: Check if this is the best way to present a large YAML file to be edited
     yaml_template = parameter.StringParameter('yaml_template',
                                         default=hydration_yaml_default,
-                                        description='suffix to append')
+                                        description='YAML template for YANK')
+
+    # TODO: Check JSON handling
+    json_template = parameter.StringParameter('json_template',
+                                        default=hydration_json_default,
+                                        description='JSON template for YANK (debug)')
 
     def begin(self):
         # Make substitutions to YAML here.
@@ -139,27 +324,18 @@ class YankHydrationCube(OEMolComputeCube):
         kB = unit.BOLTZMANN_CONSTANT_kB * unit.AVOGADRO_CONSTANT_NA # Boltzmann constant
         self.kT = kB * (self.args.temperature * unit.kelvin)
 
-    def process(self, input_molecule, port):
+    def process(self, mol, port):
         kT_in_kcal_per_mole = self.kT.value_in_unit(unit.kilocalories_per_mole)
 
         try:
-            # Make a deep copy of the molecule to form the result molecule
-            result_molecule = oechem.OEGraphMol(input_molecule)
-
-            # Write the specified molecule out to a mol2 file
-            # TODO: Can we read .oeb files directly into YANK?
-            # TODO: Do we need to use a randomly-generated filename to avoid collisions?
+            # Write the specified molecule out to a mol2 file without changing its name.
             mol2_filename = 'input.mol2'
             ofs = oechem.oemolostream(mol2_filename)
-            oechem.OEWriteMolecule(ofs, input_molecule)
+            oechem.OEWriteMol2File(ofs, mol)
 
             # Undo oechem fuckery with naming mol2 substructures `<0>`
             from YankCubes.utils import unfuck_oechem_mol2_file
             unfuck_oechem_mol2_file(mol2_filename)
-
-            # Delete output directory if it already exists.
-            if os.path.exists('output'):
-                shutil.rmtree('output')
 
             # Run YANK on the specified molecule.
             from yank.yamlbuild import YamlBuilder
@@ -174,16 +350,18 @@ class YankHydrationCube(OEMolComputeCube):
             dDeltaG_hydration = np.sqrt(Deltaf_ij_vacuum[0,-1]**2 + Deltaf_ij_solvent[0,-1]**2)
 
             # Add result to original molecule
-            result_molecule.SetData('DeltaG_yank_hydration', DeltaG_hydration * kT_in_kcal_per_mole)
-            result_molecule.SetData('dDeltaG_yank_hydration', dDeltaG_hydration * kT_in_kcal_per_mole)
-            self.success.emit(result_molecule)
+            oechem.OESetSDData(mol, 'DeltaG_yank_hydration', str(DeltaG_hydration * kT_in_kcal_per_mole))
+            oechem.OESetSDData(mol, 'dDeltaG_yank_hydration', str(dDeltaG_hydration * kT_in_kcal_per_mole))
+
+            # Emit molecule to success port.
+            self.success.emit(mol)
 
         except Exception as e:
             # Attach error message to the molecule that failed
             self.log.error(traceback.format_exc())
             input_molecule.SetData('error', str(e))
             # Return failed molecule
-            self.failure.emit(input_molecule)
+            self.failure.emit(mol)
 
         # clean up
         filenames_to_delete = ['input.mol2', 'output']
