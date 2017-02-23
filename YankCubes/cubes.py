@@ -33,9 +33,6 @@ molecules:
   input_molecule:
     # Don't change input.mol2
     filepath: input.mol2
-    # TODO: Can we autodetect whether molecule has charges or not?
-    openeye:
-      quacpac: am1-bcc
     antechamber:
       charge_method: null
 
@@ -152,6 +149,14 @@ class YankHydrationCube(OEMolComputeCube):
         kT_in_kcal_per_mole = self.kT.value_in_unit(unit.kilocalories_per_mole)
 
         try:
+            # Check that molecule is charged.
+            is_charged = False
+            for atom in mol.GetAtoms():
+                if atom.GetPartialCharge() != 0.0:
+                    is_charged = True
+            if not is_charged:
+                raise Exception('Molecule %s has no charges; input molecules must be charged.' % mol.GetTitle())
+
             # Write the specified molecule out to a mol2 file without changing its name.
             mol2_filename = 'input.mol2'
             ofs = oechem.oemolostream(mol2_filename)

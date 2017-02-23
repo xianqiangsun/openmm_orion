@@ -22,6 +22,8 @@ This Floe processes the provided molecules, computes free energies of transfer f
 * Hydration free energy in kcal/mol: `DeltaG_yank_hydration`
 * Standard error estimate in hydration free energy estimate, in kcal/mol: `dDeltaG_yank_hydration`
 
+*IMPORTANT:* The molecules MUST be charged before feeding them into this workflow.
+
 The following advanced options are available:
 
 * temperature (`float`): Temperature in Kelvin (default: `300.0`)
