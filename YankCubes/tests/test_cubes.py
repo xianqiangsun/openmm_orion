@@ -21,7 +21,6 @@ class YankHydrationCubeTester(unittest.TestCase):
         """
         Test that YankHydration can successfully process a single molecule.
         """
-
         print('Testing cube:', self.cube.name)
         # Read a molecule
         mol = oechem.OEMol()
@@ -47,7 +46,28 @@ class YankHydrationCubeTester(unittest.TestCase):
         self.assertTrue(oechem.OEHasSDData(outmol, 'dDeltaG_yank_hydration'))
 
     def test_failure(self):
-        pass
+        print('Testing cube:', self.cube.name)
+        # Read a molecule
+        mol = oechem.OEMol()
+        ifs = oechem.oemolistream(get_data_filename('uranium-hexafluoride.sdf'))
+
+        # Test a single molecule
+        if not oechem.OEReadMolecule(ifs, mol):
+            raise Exception('Cannot read molecule')
+        ifs.close()
+
+        # Process the molecules
+        self.cube.process(mol, self.cube.intake.name)
+        # Assert that one molecule was emitted on the success port
+        self.assertEqual(self.runner.outputs['success'].qsize(), 0)
+        # Assert that zero molecules were emitted on the failure port
+        self.assertEqual(self.runner.outputs['failure'].qsize(), 1)
+
+        outmol = self.runner.outputs["failure"].get()
+        # Check that the number of atoms in input and output molecules match.
+        self.assertEqual(outmol.NumAtoms(), mol.NumAtoms())
+        # Check that an error message has been attached
+        self.assertTrue(outmol.HasData(oechem.OEGetTag('error')))
 
     def test_ports(self):
         pass

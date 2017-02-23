@@ -169,7 +169,7 @@ class YankHydrationCube(OEMolComputeCube):
         except Exception as e:
             # Attach error message to the molecule that failed
             self.log.error(traceback.format_exc())
-            input_molecule.SetData('error', str(e))
+            mol.SetData('error', str(e))
             # Return failed molecule
             self.failure.emit(mol)
 
