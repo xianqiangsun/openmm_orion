@@ -18,7 +18,7 @@ from yank.yamlbuild import *
 import textwrap
 import subprocess
 
-hydration_yaml_default = """\
+hydration_yaml_template = """\
 ---
 options:
   minimize: no
@@ -84,186 +84,6 @@ experiments:
   protocol: hydration-protocol-implicit
 """
 
-# This is an attempt to use JSON
-hydration_json_default = """\
-{
-  "options": {
-    "minimize": false,
-    "verbose": false,
-    "timestep": "2*femtoseconds",
-    "nsteps_per_iteration": 500,
-    "number_of_iterations": 100,
-    "temperature": "300*kelvin",
-    "pressure": "1*atmosphere"
-  },
-  "molecules": {
-    "input_molecule": {
-      "filepath": "input.mol2",
-      "openeye": {
-        "quacpac": "am1-bcc"
-      },
-      "antechamber": {
-        "charge_method": null
-      }
-    }
-  },
-  "solvents": {
-    "pme": {
-      "nonbonded_method": "PME",
-      "nonbonded_cutoff": "9*angstroms",
-      "clearance": "16*angstroms"
-    },
-    "GBSA": {
-      "nonbonded_method": "NoCutoff",
-      "implicit_solvent": "OBC2"
-    },
-    "vacuum": {
-      "nonbonded_method": "NoCutoff"
-    }
-  },
-  "systems": {
-    "hydration": {
-      "solute": "input_molecule",
-      "solvent1": "GBSA",
-      "solvent2": "vacuum",
-      "leap": {
-        "parameters": [
-          "leaprc.gaff",
-          "leaprc.protein.ff14SB",
-          "leaprc.water.tip3p"
-        ]
-      }
-    }
-  },
-  "protocols": {
-    "hydration-protocol-explicit": {
-      "solvent1": {
-        "alchemical_path": {
-          "lambda_electrostatics": [
-            1.0,
-            0.75,
-            0.5,
-            0.25,
-            0.0,
-            0.0,
-            0.0,
-            0.0,
-            0.0,
-            0.0,
-            0.0,
-            0.0,
-            0.0,
-            0.0,
-            0.0,
-            0.0,
-            0.0,
-            0.0,
-            0.0
-          ],
-          "lambda_sterics": [
-            1.0,
-            1.0,
-            1.0,
-            1.0,
-            1.0,
-            0.95,
-            0.9,
-            0.85,
-            0.8,
-            0.75,
-            0.7,
-            0.65,
-            0.6,
-            0.5,
-            0.4,
-            0.3,
-            0.2,
-            0.1,
-            0.0
-          ]
-        }
-      },
-      "solvent2": {
-        "alchemical_path": {
-          "lambda_electrostatics": [
-            1.0,
-            0.75,
-            0.5,
-            0.25,
-            0.0,
-            0.0,
-            0.0,
-            0.0,
-            0.0,
-            0.0,
-            0.0,
-            0.0,
-            0.0,
-            0.0,
-            0.0,
-            0.0,
-            0.0,
-            0.0,
-            0.0
-          ],
-          "lambda_sterics": [
-            1.0,
-            1.0,
-            1.0,
-            1.0,
-            1.0,
-            0.95,
-            0.9,
-            0.85,
-            0.8,
-            0.75,
-            0.7,
-            0.65,
-            0.6,
-            0.5,
-            0.4,
-            0.3,
-            0.2,
-            0.1,
-            0.0
-          ]
-        }
-      }
-    },
-    "hydration-protocol-implicit": {
-      "solvent1": {
-        "alchemical_path": {
-          "lambda_electrostatics": [
-            1.0,
-            0.0
-          ],
-          "lambda_sterics": [
-            1.0,
-            0.0
-          ]
-        }
-      },
-      "solvent2": {
-        "alchemical_path": {
-          "lambda_electrostatics": [
-            1.0,
-            0.0
-          ],
-          "lambda_sterics": [
-            1.0,
-            0.0
-          ]
-        }
-      }
-    }
-  },
-  "experiments": {
-    "system": "hydration",
-    "protocol": "hydration-protocol-implicit"
-  }
-}
-"""
-
 class YankHydrationCube(OEMolComputeCube):
     title = "YankHydrationCube"
     description = """
@@ -298,16 +118,6 @@ class YankHydrationCube(OEMolComputeCube):
     pressure = parameter.DecimalParameter('pressure', default=1.0,
                                  help_text="Pressure (atm)")
 
-    # TODO: Check if this is the best way to present a large YAML file to be edited
-    yaml_template = parameter.StringParameter('yaml_template',
-                                        default=hydration_yaml_default,
-                                        description='YAML template for YANK')
-
-    # TODO: Check JSON handling
-    json_template = parameter.StringParameter('json_template',
-                                        default=hydration_json_default,
-                                        description='JSON template for YANK (debug)')
-
     def begin(self):
         # Make substitutions to YAML here.
         # TODO: Can we override YAML parameters without having to do string substitutions?
@@ -318,7 +128,7 @@ class YankHydrationCube(OEMolComputeCube):
             'temperature' : self.args.temperature,
             'pressure' : self.args.pressure,
         }
-        self.yaml = self.args.yaml_template % options
+        self.yaml = hydration_yaml_template % options
 
         # Compute kT
         kB = unit.BOLTZMANN_CONSTANT_kB * unit.AVOGADRO_CONSTANT_NA # Boltzmann constant

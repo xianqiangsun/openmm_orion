@@ -44,10 +44,9 @@ ifs.promote_parameter("data_in", promoted_name="molecules", description="Input m
 yank_cube = YankHydrationCube('yank_hydration')
 yank_cube.promote_parameter('temperature', promoted_name='temperature (Kelvin)')
 yank_cube.promote_parameter('pressure', promoted_name='pressure (atm)')
+yank_cube.promote_parameter('nsteps_per_iteration', promoted_name='number of MD steps per replica-exchange iteration')
 yank_cube.promote_parameter('simulation_time', promoted_name='simulation time (ns/replica)')
 yank_cube.promote_parameter('timestep', promoted_name='timestep (fs)')
-yank_cube.promote_parameter('yaml_template', promoted_name='YAML template (experts only)')
-yank_cube.promote_parameter('json_template', promoted_name='JSON template (debug only)')
 
 ofs = OEMolOStreamCube("ofs")
 ofs.promote_parameter("data_out", promoted_name="output", description="Output molecules")
