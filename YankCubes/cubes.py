@@ -111,7 +111,7 @@ class YankHydrationCube(OEMolComputeCube):
     timestep = parameter.DecimalParameter('timestep', default=2.0,
                                      help_text="Timestep (fs)")
 
-    simulation_time = parameter.DecimalParameter('simulation_time', default=0.005,
+    simulation_time = parameter.DecimalParameter('simulation_time', default=0.100,
                                      help_text="Simulation time (ns/replica)")
 
     temperature = parameter.DecimalParameter('temperature', default=300.0,

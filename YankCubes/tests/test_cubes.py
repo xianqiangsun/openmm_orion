@@ -12,8 +12,7 @@ class YankHydrationCubeTester(unittest.TestCase):
     """
     def setUp(self):
         self.cube = YankHydrationCube("yank_hydration")
-        # TODO: override number of iterations for testing
-        # self.cube.args.iterations = 5
+        self.cube.args.simulation_time = 0.005 # ns/replica
         self.runner = CubeTestRunner(self.cube)
         self.runner.start()
 
