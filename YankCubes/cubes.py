@@ -40,26 +40,32 @@ molecules:
       charge_method: null
 
 solvents:
-  pme:
+  tip3p:
     nonbonded_method: PME
     nonbonded_cutoff: 9*angstroms
     clearance: 16*angstroms
-  GBSA:
+  gbsa:
     nonbonded_method: NoCutoff
     implicit_solvent: OBC2
   vacuum:
     nonbonded_method: NoCutoff
 
 systems:
-  hydration:
+  hydration-tip3p:
     solute: input_molecule
-    solvent1: GBSA
+    solvent1: tip3p
+    solvent2: vacuum
+    leap:
+      parameters: [leaprc.gaff, leaprc.protein.ff14SB, leaprc.water.tip3p]
+  hydration-gbsa:
+    solute: input_molecule
+    solvent1: gbsa
     solvent2: vacuum
     leap:
       parameters: [leaprc.gaff, leaprc.protein.ff14SB, leaprc.water.tip3p]
 
 protocols:
-  hydration-protocol-explicit:
+  protocol-tip3p:
     solvent1:
       alchemical_path:
         lambda_electrostatics: [1.00, 0.75, 0.50, 0.25, 0.00, 0.00, 0.00, 0.00, 0.00, 0.00, 0.00, 0.00, 0.00, 0.00, 0.00, 0.00, 0.00, 0.00, 0.00]
@@ -68,8 +74,7 @@ protocols:
       alchemical_path:
         lambda_electrostatics: [1.00, 0.75, 0.50, 0.25, 0.00, 0.00, 0.00, 0.00, 0.00, 0.00, 0.00, 0.00, 0.00, 0.00, 0.00, 0.00, 0.00, 0.00, 0.00]
         lambda_sterics:        [1.00, 1.00, 1.00, 1.00, 1.00, 0.95, 0.90, 0.85, 0.80, 0.75, 0.70, 0.65, 0.60, 0.50, 0.40, 0.30, 0.20, 0.10, 0.00]
-
-  hydration-protocol-implicit:
+  protocol-gbsa:
     solvent1:
       alchemical_path:
         lambda_electrostatics: [1.00, 0.00]
@@ -80,8 +85,8 @@ protocols:
         lambda_sterics:        [1.00, 0.00]
 
 experiments:
-  system: hydration
-  protocol: hydration-protocol-implicit
+  system: hydration-%(solvent)s
+  protocol: protocol-%(solvent)s
 """
 
 class YankHydrationCube(OEMolComputeCube):
@@ -118,7 +123,14 @@ class YankHydrationCube(OEMolComputeCube):
     pressure = parameter.DecimalParameter('pressure', default=1.0,
                                  help_text="Pressure (atm)")
 
+    solvent = parameter.StringParameter('solvent', default='gbsa',
+                                 help_text="Solvent choice: one of ['gbsa', 'tip3p']")
+
     def begin(self):
+        # TODO: Is there another idiom to use to check valid input?
+        if self.args.solvent not in ['gbsa', 'tip3p']:
+            raise Exception("solvent must be one of ['gbsa', 'tip3p']")
+
         # Make substitutions to YAML here.
         # TODO: Can we override YAML parameters without having to do string substitutions?
         options = {
@@ -127,7 +139,9 @@ class YankHydrationCube(OEMolComputeCube):
             'number_of_iterations' : int(np.ceil(self.args.simulation_time * unit.nanoseconds / (self.args.nsteps_per_iteration * self.args.timestep * unit.femtoseconds))),
             'temperature' : self.args.temperature,
             'pressure' : self.args.pressure,
+            'solvent' : self.args.solvent,
         }
+
         self.yaml = hydration_yaml_template % options
 
         # Compute kT
