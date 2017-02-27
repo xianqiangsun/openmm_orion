@@ -137,6 +137,8 @@ quit
         for elem in elements:
             if 'Could not open file' in elem:
                 raise(RuntimeError('Error encountered trying to load %s in tleap.') % ff)
+            if 'command not found' in elem:
+                raise(RuntimeError('Error: requires tleap.'))
 
 
     def process(self, mol, port):
