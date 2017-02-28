@@ -111,10 +111,9 @@ class GAFFParameterization(OEMolComputeCube):
     tags = [tag for lists in classification for tag in lists]
 
     #molecule_forcefield = parameter.DataSetInputParameter(
-    molecule_forcefield = parameter.StringParameter(
-        'molecule_forcefield',
-        default = 'GAFF',
-        help_text = "GAFF forcefield to use: 'GAFF' or 'GAFF2'. Default: 'GAFF'.")
+    molecule_forcefield = parameter.StringParameter('molecule_forcefield',
+        default='GAFF',
+        help_text="GAFF forcefield to use: 'GAFF' or 'GAFF2'. Default: 'GAFF'")
 
     def begin(self):
         #Make sure here that selected forcefield is GAFF or GAFF2
