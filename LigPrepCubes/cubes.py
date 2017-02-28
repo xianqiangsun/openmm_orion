@@ -113,7 +113,7 @@ class GAFFParameterization(OEMolComputeCube):
     #molecule_forcefield = parameter.DataSetInputParameter(
     molecule_forcefield = parameter.StringParameter(
         'molecule_forcefield',
-        default = 'GAFF'
+        default = 'GAFF',
         help_text = "GAFF forcefield to use: 'GAFF' or 'GAFF2'. Default: 'GAFF'.")
 
     def begin(self):
