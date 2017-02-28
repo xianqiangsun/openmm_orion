@@ -153,12 +153,12 @@ quit
                     raise RuntimeError("Error writing molecule %s to mol2." % mol.GetTitle())
 
             # Run antechamber to type and parmchk for frcmod
-            gaff_mol2_filename, frcmod_filename = openmoltools.run_antechamber( 'ligand', 'ligand.mol2')
+            gaff_mol2_filename, frcmod_filename = openmoltools.amber.run_antechamber( 'ligand', 'ligand.mol2')
             # TO DO: UPDATE TO THIS AFTER I ROLL OUT OPENMOLTOOLS RELEASE
             #gaff_mol2_filename, frcmod_filename = openmoltools.run_antechamber( 'ligand', 'ligand.mol2', gaff_version = ff.lower())
 
             # Run tleap using specified forcefield
-            prmtop, inpcrd = openmoltools.run_tleap('ligand', gaff_mol2_filename, frcmod_filename, leaprc = 'leaprc.%s' % ff.lower() )
+            prmtop, inpcrd = openmoltools.amber.run_tleap('ligand', gaff_mol2_filename, frcmod_filename, leaprc = 'leaprc.%s' % ff.lower() )
 
             # Load via ParmEd
             molecule_structure = parmed.amber.AmberParm( prmtop, inpcrd )
