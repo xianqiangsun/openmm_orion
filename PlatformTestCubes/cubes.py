@@ -2,8 +2,7 @@ from floe.api import(
     OEMolComputeCube, parameter, BinaryOutputPort, SourceCube
 )
 
-from simtk import testInstallation
-
+from PlatformTestCubes import testInstallation
 from PlatformTestCubes.benchmarking import run_platform_benchmarks
 
 
