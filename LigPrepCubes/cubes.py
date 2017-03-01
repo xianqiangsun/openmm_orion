@@ -153,9 +153,8 @@ quit
                     raise RuntimeError("Error writing molecule %s to mol2." % mol.GetTitle())
 
             # Run antechamber to type and parmchk for frcmod
-            gaff_mol2_filename, frcmod_filename = openmoltools.amber.run_antechamber( 'ligand', 'ligand.mol2')
-            # TO DO: UPDATE TO THIS AFTER I ROLL OUT OPENMOLTOOLS RELEASE
-            #gaff_mol2_filename, frcmod_filename = openmoltools.run_antechamber( 'ligand', 'ligand.mol2', gaff_version = ff.lower())
+            # requires openmoltools 0.7.5 or later, which should be conda-installable via omnia
+            gaff_mol2_filename, frcmod_filename = openmoltools.run_antechamber( 'ligand', 'ligand.mol2', gaff_version = ff.lower())
 
             # Run tleap using specified forcefield
             prmtop, inpcrd = openmoltools.amber.run_tleap('ligand', gaff_mol2_filename, frcmod_filename, leaprc = 'leaprc.%s' % ff.lower() )
