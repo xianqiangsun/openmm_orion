@@ -1,3 +1,6 @@
+
+from io import StringIO
+
 from floe.api import(
     OEMolComputeCube, parameter, BinaryOutputPort, SourceCube
 )
@@ -72,7 +75,15 @@ class BenchmarkCube(SourceCube):
 
     def __iter__(self):
         try:
-            run_platform_benchmarks(self.args)
-            yield b"Success"
+            stream = StringIO()
+            run_platform_benchmarks(self.args, stream=stream)
+            stream.flush()
+            stream.seek(0)
+            self.log.info("Benchmarking Results:")
+            output = stream.readline()
+            while len(output):
+                self.log.info(output)
+                yield output.encode("utf-8")
+                output = stream.readline()
         except Exception as e:
             self.failure.emit(str(e).encode("utf-8"))

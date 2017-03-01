@@ -23,30 +23,34 @@ def timeIntegration(context, steps, initialSteps):
     return elapsed.seconds + elapsed.microseconds * 1e-6
 
 
-def run_platform_benchmarks(options):
+def run_platform_benchmarks(options, stream=None):
+    if stream is None:
+        stream = sys.stdout
     platforms = [mm.Platform.getPlatform(i) for i in range(mm.Platform.getNumPlatforms())]
     for platform in platforms:
-        print("Performing Benchmarks on {}".format(platform.getName()))
+        stream.write("Performing Benchmarks on {}\n".format(platform.getName()))
         options.__dict__.update({"platform": platform})
         for test_type in ["rf", "pme", "amoebagk", "amoebapme"]:
-            print("Running Benchmarks for {} using {}".format(test_type, platform.getName()))
+            stream.write("Running Benchmarks for {} using {}\n".format(test_type, platform.getName()))
             run_benchmark("{}_{}".format(platform.getName(), test_type), options)
-            sys.stdout.flush()
+            stream.flush()
 
 
-def run_benchmark(test_name, options):
+def run_benchmark(test_name, options, stream=None):
     """Perform a single benchmarking simulation."""
+    if stream is None:
+        stream = sys.stdout
     benchmark_data_dir = os.path.join(os.path.dirname(__file__), "data")
 
     explicit = any([x in test_name for x in ["rf", "pme", "amoebapme"]])
     amoeba = any([x in test_name for x in ["amoebagk", "amoebapme"]])
     hydrogenMass = None
     if amoeba:
-        print('Test: %s (epsilon=%g)' % (test_name, options.epsilon))
+        stream.write('Test: %s (epsilon=%g)\n' % (test_name, options.epsilon))
     elif test_name == 'pme':
-        print('Test: pme (cutoff=%g)' % options.cutoff)
+        stream.write('Test: pme (cutoff=%g)\n' % options.cutoff)
     else:
-        print('Test: %s' % test_name)
+        stream.write('Test: %s\n' % test_name)
 
     # Create the System.
 
@@ -103,7 +107,7 @@ def run_benchmark(test_name, options):
             hydrogenMass = None
         system = ff.createSystem(pdb.topology, nonbondedMethod=method, nonbondedCutoff=cutoff, constraints=constraints, hydrogenMass=hydrogenMass)
         integ = mm.LangevinIntegrator(300 * unit.kelvin, friction, dt)
-    print('Step Size: %g fs' % dt.value_in_unit(unit.femtoseconds))
+    stream.write('Step Size: %g fs\n' % dt.value_in_unit(unit.femtoseconds))
     properties = {}
     initialSteps = 5
     if options.precision is not None and options.platform.getName() in ('CUDA', 'OpenCL'):
@@ -127,5 +131,5 @@ def run_benchmark(test_name, options):
             steps = int(steps*1.0/time)  # Integrate enough steps to get a reasonable estimate for how many we'll need.
         else:
             steps = int(steps * options.seconds / time)
-    print('Integrated %d steps in %g seconds' % (steps, time))
-    print('%g ns/day' % (dt * steps * 86400 / time).value_in_unit(unit.nanoseconds))
+    stream.write('Integrated %d steps in %g seconds\n' % (steps, time))
+    stream.write('%g ns/day\n' % (dt * steps * 86400 / time).value_in_unit(unit.nanoseconds))
