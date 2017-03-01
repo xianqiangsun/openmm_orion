@@ -56,7 +56,6 @@ class BenchmarkCube(SourceCube):
     tags = [["OpenMM", "Benchmarking"]]
 
     success = BinaryOutputPort("success")
-    failure = BinaryOutputPort("failure")
 
     cutoff = parameter.DecimalParameter("cutoff", default=0.9)
     seconds = parameter.IntegerParameter("seconds", default=60)
@@ -74,16 +73,13 @@ class BenchmarkCube(SourceCube):
     )
 
     def __iter__(self):
-        try:
-            stream = StringIO()
-            run_platform_benchmarks(self.args, stream=stream)
-            stream.flush()
-            stream.seek(0)
-            self.log.info("Benchmarking Results:")
+        stream = StringIO()
+        stream.write("Benchmarking Results:\n")
+        run_platform_benchmarks(self.args, stream=stream)
+        stream.flush()
+        stream.seek(0)
+        output = stream.readline()
+        while len(output):
+            self.log.info(output)
+            yield output.encode("utf-8")
             output = stream.readline()
-            while len(output):
-                self.log.info(output)
-                yield output.encode("utf-8")
-                output = stream.readline()
-        except Exception as e:
-            self.failure.emit(str(e).encode("utf-8"))

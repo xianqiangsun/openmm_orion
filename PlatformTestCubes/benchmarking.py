@@ -32,7 +32,8 @@ def run_platform_benchmarks(options, stream=None):
         options.__dict__.update({"platform": platform})
         for test_type in ["rf", "pme", "amoebagk", "amoebapme"]:
             stream.write("Running Benchmarks for {} using {}\n".format(test_type, platform.getName()))
-            run_benchmark("{}_{}".format(platform.getName(), test_type), options)
+            run_benchmark("{}_{}".format(platform.getName(), test_type), options, stream=stream)
+            stream.write("\n\n")  # add line breaks to seperate runs
             stream.flush()
 
 
@@ -116,10 +117,15 @@ def run_benchmark(test_name, options, stream=None):
     # Run the simulation.
 
     integ.setConstraintTolerance(1e-5)
-    if len(properties) > 0:
-        context = mm.Context(system, integ, options.platform, properties)
-    else:
-        context = mm.Context(system, integ, options.platform)
+    try:
+        if len(properties) > 0:
+            context = mm.Context(system, integ, options.platform, properties)
+        else:
+            context = mm.Context(system, integ, options.platform)
+    except Exception as e:
+        stream.write("Unable to complete Benchmarking {}\n".format(test_name))
+        stream.write("ERROR: {}\n".format(str(e)))
+        return
     context.setPositions(pdb.positions)
     context.setVelocitiesToTemperature(300 * unit.kelvin)
     steps = 20
