@@ -1,6 +1,7 @@
 import io, os, traceback, string, random, parmed
 import subprocess
 import openmoltools
+import tempfile
 from openeye import oechem, oedocking, oeomega
 from floe.api import (
     parameter, ParallelOEMolComputeCube, OEMolComputeCube, SinkCube, MoleculeInputPort,
@@ -146,7 +147,8 @@ quit
             # TO DO: Check that molecule HAS charges here (usually not having charges is a sign of a mistake)
 
             # Write out mol to a mol2 file to process via AmberTools
-            mol2filename = 'ligand.mol2'
+            mol2file = tempfile.NamedTemporaryFile(suffix='.mol2')
+            mol2filename = mol2file.name
             with oechem.oemolostream(mol2filename) as ofs:
                 res = oechem.OEWriteConstMolecule(ofs, mol)
                 if res != oechem.OEWriteMolReturnCode_Success:
@@ -166,6 +168,9 @@ quit
             # Pack parameters back into OEMol
             packedmol = utils.PackageOEMol.pack(mol, molecule_structure)
             self.success.emit(packedmol)
+
+            # close file
+            mol2file.close()
 
         except Exception as e:
             # Attach error message to the molecule that failed
