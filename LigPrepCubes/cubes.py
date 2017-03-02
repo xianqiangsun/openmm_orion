@@ -156,7 +156,7 @@ quit
 
             # Run antechamber to type and parmchk for frcmod
             # requires openmoltools 0.7.5 or later, which should be conda-installable via omnia
-            gaff_mol2_filename, frcmod_filename = openmoltools.amber.run_antechamber( 'ligand', 'ligand.mol2', gaff_version = ff.lower())
+            gaff_mol2_filename, frcmod_filename = openmoltools.amber.run_antechamber( 'ligand', mol2filename, gaff_version = ff.lower())
 
             # Run tleap using specified forcefield
             prmtop, inpcrd = openmoltools.amber.run_tleap('ligand', gaff_mol2_filename, frcmod_filename, leaprc = 'leaprc.%s' % ff.lower() )
@@ -166,7 +166,16 @@ quit
             molecule_structure.residues[0].name = "LIG"
 
             # Pack parameters back into OEMol
-            packedmol = utils.PackageOEMol.pack(mol, molecule_structure)
+            # Encode System/Structure, Attach to mol -- old/long way (waiting for #28)
+            packedmol = OEMol(mol)
+            sys_out = OpenMMSystemOutput('sys_put')
+            struct_out = ParmEdStructureOutput('struct_out')
+            packedmol.SetData(oechem.OEGetTag('system'), sys_out.encode(mol_sys))
+            packedmol.SetData(oechem.OEGetTag('structure'), struct_out.encode(molecule_structure))
+            #Eventually this will look more like:
+            #packedmol = utils.PackageOEMol.pack(mol, molecule_structure)
+
+            # Emit
             self.success.emit(packedmol)
 
             # close file
