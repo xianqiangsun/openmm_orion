@@ -47,7 +47,7 @@ def run_benchmark(test_name, options, stream=None):
     amoeba = any([x in test_name for x in ["amoebagk", "amoebapme"]])
     hydrogenMass = None
     if amoeba:
-        stream.write('Test: %s (epsilon=%g)\n' % (test_name, options.epsilon))
+        stream.write('Test: %s (epsilon=%g)\n' % (test_name, options.amoeba_target_epsilon))
     elif test_name == 'pme':
         stream.write('Test: pme (cutoff=%g)\n' % options.cutoff)
     else:
@@ -57,7 +57,7 @@ def run_benchmark(test_name, options, stream=None):
 
     if amoeba:
         constraints = None
-        epsilon = float(options.epsilon)
+        epsilon = float(options.amoeba_target_epsilon)
         if explicit:
             ff = app.ForceField('amoeba2009.xml')
             pdb = app.PDBFile(os.path.join(benchmark_data_dir, '5dfr_solv-cube_equil.pdb'))
@@ -98,7 +98,7 @@ def run_benchmark(test_name, options, stream=None):
             method = app.CutoffNonPeriodic
             cutoff = 2 * unit.nanometers
             friction = 91 * (1 / unit.picoseconds)
-        if options.heavy:
+        if options.use_heavy_hydrogens:
             dt = 0.005 * unit.picoseconds
             constraints = app.AllBonds
             hydrogenMass = 4 * unit.amu
@@ -123,7 +123,7 @@ def run_benchmark(test_name, options, stream=None):
         else:
             context = mm.Context(system, integ, options.platform)
     except Exception as e:
-        stream.write("Unable to complete Benchmarking {}\n".format(test_name))
+        stream.write("Unable to Benchmark '{}'\n".format(test_name))
         stream.write("ERROR: {}\n".format(str(e)))
         return
     context.setPositions(pdb.positions)
@@ -134,7 +134,7 @@ def run_benchmark(test_name, options, stream=None):
         if time >= 0.5 * options.seconds:
             break
         if time < 0.5:
-            steps = int(steps*1.0/time)  # Integrate enough steps to get a reasonable estimate for how many we'll need.
+            steps = int(steps * 1.0 / time)  # Integrate enough steps to get a reasonable estimate for how many we'll need.
         else:
             steps = int(steps * options.seconds / time)
     stream.write('Integrated %d steps in %g seconds\n' % (steps, time))

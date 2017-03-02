@@ -48,9 +48,9 @@ class BenchmarkCube(SourceCube):
     title = "OpenMM BenchmarkCube"
 
     description = """
-        Cube that performs a benchmark in a floe on all of the different
-        platforms that are available to OpenMM and outputs the byte string
-        resulting from the benchmarks to be handed to a FileOutput Cube
+        Cube that performs a benchmark of OpenMM on all of the different
+        platforms that are available and outputs the byte string
+        resulting from the benchmarks line by line to its success port
     """
 
     tags = [["OpenMM", "Benchmarking"]]
@@ -64,8 +64,16 @@ class BenchmarkCube(SourceCube):
         default="mutual",
         choices=["direct", "extrapolated", "mutual"]
     )
-    epsilon = parameter.DecimalParameter("epsilon", default=1e-5)
-    heavy = parameter.BooleanParameter("heavy", default=False)
+    amoeba_target_epsilon = parameter.DecimalParameter(
+        "amoeba_target_epsilon",
+        default=1e-5,
+        title="Amoeba Mutual Induced Target Epsilon"
+    )
+    use_heavy_hydrogens = parameter.BooleanParameter(
+        "use_heavy_hydrogens",
+        default=False,
+        title="Use Heavy Hydrogens"
+    )
     precision = parameter.StringParameter(
         "precision",
         default="single",
