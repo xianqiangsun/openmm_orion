@@ -174,6 +174,9 @@ quit
             #Eventually this will look more like:
             #packedmol = utils.PackageOEMol.pack(mol, molecule_structure)
 
+            # Tag with what forcefield used
+            oechem.OESetSDData(packedmol, 'FF', ff.upper() )
+
             # Emit
             self.success.emit(packedmol)
 
