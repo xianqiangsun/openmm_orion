@@ -142,7 +142,7 @@ quit
 
 
     def process(self, mol, port):
-
+        ff = self.args.molecule_forcefield
         try:
             # TO DO: Check that molecule HAS charges here (usually not having charges is a sign of a mistake)
 
@@ -156,7 +156,7 @@ quit
 
             # Run antechamber to type and parmchk for frcmod
             # requires openmoltools 0.7.5 or later, which should be conda-installable via omnia
-            gaff_mol2_filename, frcmod_filename = openmoltools.run_antechamber( 'ligand', 'ligand.mol2', gaff_version = ff.lower())
+            gaff_mol2_filename, frcmod_filename = openmoltools.amber.run_antechamber( 'ligand', 'ligand.mol2', gaff_version = ff.lower())
 
             # Run tleap using specified forcefield
             prmtop, inpcrd = openmoltools.amber.run_tleap('ligand', gaff_mol2_filename, frcmod_filename, leaprc = 'leaprc.%s' % ff.lower() )
