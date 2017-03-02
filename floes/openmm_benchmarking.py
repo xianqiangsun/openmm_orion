@@ -20,7 +20,7 @@ job.tags = [tag for lists in job.classification for tag in lists]
 benchmark_cube = BenchmarkCube("benchmark_cube")
 ofs = FileOutputCube("ofs")
 
-ofs.set_parameters(name="Success.txt")
+ofs.set_parameters(name="Orion_OpenMM_Benchmarks.txt")
 
 
 job.add_cubes(benchmark_cube, ofs)
