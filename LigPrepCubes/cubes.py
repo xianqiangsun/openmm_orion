@@ -167,10 +167,9 @@ quit
 
             # Pack parameters back into OEMol
             # Encode System/Structure, Attach to mol -- old/long way (waiting for #28)
-            packedmol = OEMol(mol)
+            packedmol = oechem.OEMol(mol)
             sys_out = OpenMMSystemOutput('sys_put')
             struct_out = ParmEdStructureOutput('struct_out')
-            packedmol.SetData(oechem.OEGetTag('system'), sys_out.encode(mol_sys))
             packedmol.SetData(oechem.OEGetTag('structure'), struct_out.encode(molecule_structure))
             #Eventually this will look more like:
             #packedmol = utils.PackageOEMol.pack(mol, molecule_structure)
