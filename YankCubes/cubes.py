@@ -87,7 +87,7 @@ experiments:
   protocol: protocol-%(solvent)s
 """
 
-class YankHydrationCube(OEMolComputeCube):
+class YankHydrationCube(ParallelOEMolComputeCube):
     title = "YankHydrationCube"
     description = """
     Compute the hydration free energy of a small molecule with YANK.
