@@ -29,6 +29,7 @@ options:
   temperature: %(temperature)f*kelvin
   pressure: %(pressure)f*atmosphere
   anisotropic_dispersion_correction: no
+  verbose: yes
 
 molecules:
   input_molecule:
@@ -102,7 +103,7 @@ class YankHydrationCube(ParallelOEMolComputeCube):
     tags = [tag for lists in classification for tag in lists]
 
     # Override defaults for some parameters
-     parameter_overrides = {
+    parameter_overrides = {
         "prefetch_count": {"default": 1}, # 1 molecule at a time
         "item_timeout": {"default": 3600}, # Default 1 hour limit (units are seconds)
         "item_count": {"default": 11} # 1 molecule at a time
