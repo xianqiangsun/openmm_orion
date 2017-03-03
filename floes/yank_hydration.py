@@ -51,7 +51,7 @@ job.tags = [tag for lists in job.classification for tag in lists]
 ifs = OEMolIStreamCube("ifs")
 ifs.promote_parameter("data_in", promoted_name="molecules", description="Input molecules")
 
-yank_cube = YankHydrationCube('yank_hydration')
+yank_cube = YankHydrationCube('yank_hydration', title = 'Parallel Yank')
 yank_cube.promote_parameter('solvent', promoted_name="solvent choice: one of 'gbsa' or 'tip3p'")
 yank_cube.promote_parameter('temperature', promoted_name='temperature (kelvin)')
 yank_cube.promote_parameter('pressure', promoted_name='pressure (atmospheres)')
