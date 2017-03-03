@@ -105,7 +105,7 @@ class YankHydrationCube(ParallelOEMolComputeCube):
     parameter_overrides = {
         "prefetch_count": {"default": 1}, # 1 molecule at a time
         "item_timeout": {"default": 3600}, # Default 1 hour limit (units are seconds)
-        "item_count": {"default": 11} # 1 molecule at a time
+        "item_count": {"default": 1} # 1 molecule at a time
     }
 
     #Define Custom Ports to handle oeb.gz files
