@@ -22,7 +22,6 @@ hydration_yaml_template = """\
 ---
 options:
   minimize: no
-  verbose: no
   timestep: %(timestep)f*femtoseconds
   nsteps_per_iteration: %(nsteps_per_iteration)d
   number_of_iterations: %(number_of_iterations)d
