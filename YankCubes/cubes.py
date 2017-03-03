@@ -28,6 +28,7 @@ options:
   number_of_iterations: %(number_of_iterations)d
   temperature: %(temperature)f*kelvin
   pressure: %(pressure)f*atmosphere
+  anisotropic_dispersion_correction: no
 
 molecules:
   input_molecule:
@@ -40,7 +41,7 @@ solvents:
   tip3p:
     nonbonded_method: PME
     nonbonded_cutoff: 9*angstroms
-    clearance: 16*angstroms
+    clearance: 9*angstroms
   gbsa:
     nonbonded_method: NoCutoff
     implicit_solvent: OBC2
