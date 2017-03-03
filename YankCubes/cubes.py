@@ -42,7 +42,7 @@ solvents:
   tip3p:
     nonbonded_method: PME
     nonbonded_cutoff: 9*angstroms
-    clearance: 9*angstroms
+    clearance: 8*angstroms
   gbsa:
     nonbonded_method: NoCutoff
     implicit_solvent: OBC2
