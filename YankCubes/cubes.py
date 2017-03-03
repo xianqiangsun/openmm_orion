@@ -22,13 +22,13 @@ hydration_yaml_template = """\
 ---
 options:
   minimize: no
-  verbose: no
   timestep: %(timestep)f*femtoseconds
   nsteps_per_iteration: %(nsteps_per_iteration)d
   number_of_iterations: %(number_of_iterations)d
   temperature: %(temperature)f*kelvin
   pressure: %(pressure)f*atmosphere
   anisotropic_dispersion_correction: no
+  verbose: yes
 
 molecules:
   input_molecule:
@@ -41,7 +41,7 @@ solvents:
   tip3p:
     nonbonded_method: PME
     nonbonded_cutoff: 9*angstroms
-    clearance: 9*angstroms
+    clearance: 8*angstroms
   gbsa:
     nonbonded_method: NoCutoff
     implicit_solvent: OBC2
@@ -87,7 +87,7 @@ experiments:
   protocol: protocol-%(solvent)s
 """
 
-class YankHydrationCube(OEMolComputeCube):
+class YankHydrationCube(ParallelOEMolComputeCube):
     title = "YankHydrationCube"
     description = """
     Compute the hydration free energy of a small molecule with YANK.
@@ -100,6 +100,13 @@ class YankHydrationCube(OEMolComputeCube):
     """
     classification = ["Alchemical free energy calculations"]
     tags = [tag for lists in classification for tag in lists]
+
+    # Override defaults for some parameters
+    parameter_overrides = {
+        "prefetch_count": {"default": 1}, # 1 molecule at a time
+        "item_timeout": {"default": 3600}, # Default 1 hour limit (units are seconds)
+        "item_count": {"default": 1} # 1 molecule at a time
+    }
 
     #Define Custom Ports to handle oeb.gz files
     intake = CustomMoleculeInputPort('intake')
