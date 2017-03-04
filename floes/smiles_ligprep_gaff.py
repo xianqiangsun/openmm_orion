@@ -28,11 +28,11 @@ receptor (file): OEB of a receptor prepared for docking.
 
 *Optionals:
 -----------
-molecule_forcefield (file): Smarty parsable FFXML file containining parameters for the molecule (default: smirff99Frosst.ffxml)
+molecule_forcefield (string): Choice of GAFF or GAFF2. Default: GAFF
 
 Outputs:
 --------
-ofs: Outputs a <idtag>-smirff.oeb.gz file containing: <idtag>, <Structure> and <System>.
+ofs: Outputs a <idtag>-gaff.oeb.gz file containing: <idtag>, <Structure> and <System>.
 attached to the OEMol of the ligand as generic data.
 """
 
@@ -49,19 +49,18 @@ fred.promote_parameter('receptor', promoted_name='receptor', description='Recept
 
 idtag = SetIDTagfromTitle('idtag')
 
-#Question: Lim's had SMIRFFParameterization('smirff') here but I don't see why the 'smirff' is present, so I'm slightly uncertain about the argument here.
 gaff = GAFFParameterization('gaff')
-smirff.promote_parameter('molecule_forcefield', promoted_name='molecule_forcefield', description="Forcefield: GAFF or GAFF2")
+gaff.promote_parameter('molecule_forcefield', promoted_name='molecule_forcefield', description="Forcefield: GAFF or GAFF2")
 
 ofs = OEBSinkCube('ofs')
 ofs.set_parameters(suffix='gaff')
 
-job.add_cubes(ifs, omega, fred, idtag, smirff, ofs)
+job.add_cubes(ifs, omega, fred, idtag, gaff, ofs)
 ifs.success.connect(omega.intake)
 omega.success.connect(fred.intake)
 fred.success.connect(idtag.intake)
-idtag.success.connect(smirff.intake)
-smirff.success.connect(ofs.intake)
+idtag.success.connect(gaff.intake)
+gaff.success.connect(ofs.intake)
 
 if __name__ == "__main__":
     job.run()
