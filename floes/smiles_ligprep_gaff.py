@@ -2,7 +2,7 @@ from __future__ import unicode_literals
 from floe.api import WorkFloe, OEMolIStreamCube, OEMolOStreamCube, FileOutputCube, DataSetInputParameter, FileInputCube
 from LigPrepCubes.omega import OEOmegaConfGen
 from LigPrepCubes.oedock import FREDDocking
-from LigPrepCubes.cubes import SMIRFFParameterization, SetIDTagfromTitle, OEBSinkCube
+from LigPrepCubes.cubes import GAFFParameterization, SetIDTagfromTitle, OEBSinkCube
 
 from OpenMMCubes.cubes import OpenMMComplexSetup, OpenMMSimulation
 
