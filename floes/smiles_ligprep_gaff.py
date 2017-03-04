@@ -6,7 +6,7 @@ from LigPrepCubes.cubes import GAFFParameterization, SetIDTagfromTitle, OEBSinkC
 
 from OpenMMCubes.cubes import OpenMMComplexSetup, OpenMMSimulation
 
-job = WorkFloe("SmilesLigPrep")
+job = WorkFloe("SmilesLigPrepGAFF")
 
 job.description = """
 This floe will do the following in each cube:
