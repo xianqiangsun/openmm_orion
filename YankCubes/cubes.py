@@ -167,7 +167,7 @@ class YankHydrationCube(ParallelOEMolComputeCube):
 
         try:
             # Print out which molecule we are processing
-            print("Processing title %s, PubChemID %s, SMILES %s, iupac %s:" % (title, pubchemid, smiles, iupac))
+            self.log.info('Processing {}, PubChemID {}, SMILES {}, iupac {}.'.format( title, pubchemid, smiles, iupac))
 
             # Check that molecule is charged.
             is_charged = False
@@ -190,7 +190,7 @@ class YankHydrationCube(ParallelOEMolComputeCube):
             from yank.yamlbuild import YamlBuilder
             yaml_builder = YamlBuilder(self.yaml)
             yaml_builder.build_experiments()
-            print("Ran Yank experiments for PubChemID %s." % pubchemid)
+            self.log.info('Ran Yank experiments for PubChemID {}.'.format(pubchemid))
 
             # Analyze the hydration free energy.
             from yank.analyze import estimate_free_energies
@@ -202,13 +202,13 @@ class YankHydrationCube(ParallelOEMolComputeCube):
             # Add result to original molecule
             oechem.OESetSDData(mol, 'DeltaG_yank_hydration', str(DeltaG_hydration * kT_in_kcal_per_mole))
             oechem.OESetSDData(mol, 'dDeltaG_yank_hydration', str(dDeltaG_hydration * kT_in_kcal_per_mole))
-            print("Analyzed and stored hydration free energy for PubChemID %s." % pubchemid)
+            self.log.info('Analyzed and stored hydration free energy for PubChemID {}.'.format(pubchemid))
 
             # Emit molecule to success port.
             self.success.emit(mol)
 
         except Exception as e:
-            print("Exception encountered when processing title %s, PubChemID %s, SMILES %s, iupac %s:" % (title, pubchemid, smiles, iupac))
+            self.log.info('Exception encountered when processing title {}, PubChemID {}, SMILES {}, iupac {}.'.format(title, pubchemid, smiles, iupac))
             # Attach error message to the molecule that failed
             self.log.error(traceback.format_exc())
             mol.SetData('error', str(e))
