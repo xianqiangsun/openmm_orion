@@ -16,6 +16,27 @@ from simtk import unit, openmm
 # Prevents repeated downloads of the same Dataset
 download_cache = {}
 
+def molecule_is_charged(mol):
+    """
+    Return True if the molecule has any nonzero charges; False otherwise.
+
+    Parameters
+    ----------
+    mol : OEMol
+       The molecule to examine.
+
+    Returns
+    -------
+    is_charged : bool
+        If any atom has nonzero charges, True is returned; else False.
+    """
+    is_charged = False
+    for atom in mol.GetAtoms():
+        if atom.GetPartialCharge() != 0.0:
+            is_charged = True
+
+    return is_charged
+    
 def get_data_filename(relative_path):
     """Get the full path to one of the reference files in testsystems.
     In the source distribution, these files are in ``examples/data/``,
@@ -50,7 +71,7 @@ def download_dataset_to_file(dataset_id):
         return tmp.name
     else:
         return dataset_id
-        
+
 def unfuck_oechem_mol2_file(filename, substructure_name='MOL'):
     """Undo oechem fuckery with mol2 substructure names.
 

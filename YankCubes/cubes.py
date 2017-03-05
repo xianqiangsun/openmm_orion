@@ -12,7 +12,7 @@ from floe.constants import BYTES
 
 from LigPrepCubes.ports import CustomMoleculeInputPort, CustomMoleculeOutputPort
 import YankCubes.utils as utils
-from YankCubes.utils import download_dataset_to_file, get_data_filename
+from YankCubes.utils import molecule_is_charged, download_dataset_to_file, get_data_filename
 
 import yank
 from yank.yamlbuild import *
@@ -175,11 +175,7 @@ class YankHydrationCube(ParallelOEMolComputeCube):
                 self.log.info('Processing {} in directory {}.'.format(title, output_directory))
 
                 # Check that molecule is charged.
-                is_charged = False
-                for atom in mol.GetAtoms():
-                    if atom.GetPartialCharge() != 0.0:
-                        is_charged = True
-                if not is_charged:
+                if not molecule_is_charged(mol):
                     raise Exception('Molecule %s has no charges; input molecules must be charged.' % mol.GetTitle())
 
                 # Write the specified molecule out to a mol2 file without changing its name.
@@ -237,6 +233,7 @@ options:
   temperature: %(temperature)f*kelvin
   pressure: %(pressure)f*atmosphere
   #anisotropic_dispersion_correction: yes
+  output_dir: %(output_directory)s
   verbose: no
 
 molecules:
@@ -244,7 +241,7 @@ molecules:
     filepath: receptor.pdb
     strip_protons: yes
   ligand:
-    filepath: input.mol2
+    filepath: %(output_directory)s/input.mol2
     antechamber:
       charge_method: null
 
@@ -357,11 +354,7 @@ class YankBindingCube(ParallelOEMolComputeCube):
     minimize = parameter.BooleanParameter('minimize', default=True,
                                      help_text="Minimize initial structures for stability")
 
-    def begin(self):
-        # TODO: Is there another idiom to use to check valid input?
-        if self.args.solvent not in ['gbsa', 'pme', 'rf']:
-            raise Exception("solvent must be one of ['gbsa', 'pme', 'rf']")
-
+    def construct_yaml(self, **kwargs):
         # Make substitutions to YAML here.
         # TODO: Can we override YAML parameters without having to do string substitutions?
         options = {
@@ -371,10 +364,17 @@ class YankBindingCube(ParallelOEMolComputeCube):
             'temperature' : self.args.temperature,
             'pressure' : self.args.pressure,
             'solvent' : self.args.solvent,
-            'minimize' : 'yes' if self.args.minimize else 'no',
         }
 
-        self.yaml = binding_yaml_template % options
+        for parameter in kwargs.keys():
+            options[parameter] = kwargs[parameter]
+
+        return hydration_yaml_template % options
+
+    def begin(self):
+        # TODO: Is there another idiom to use to check valid input?
+        if self.args.solvent not in ['gbsa', 'pme', 'rf']:
+            raise Exception("solvent must be one of ['gbsa', 'pme', 'rf']")
 
         # Compute kT
         kB = unit.BOLTZMANN_CONSTANT_kB * unit.AVOGADRO_CONSTANT_NA # Boltzmann constant
@@ -398,64 +398,53 @@ class YankBindingCube(ParallelOEMolComputeCube):
         # Retrieve data about which molecule we are processing
         title = mol.GetTitle()
 
-        try:
-            # Print out which molecule we are processing
-            self.log.info('Processing {}.'.format( title))
+        with TemporaryDirectory() as output_directory:
+            try:
+                # Print out which molecule we are processing
+                self.log.info('Processing {} in {}.'.format(title, output_directory))
 
-            # Check that molecule is charged.
-            is_charged = False
-            for atom in mol.GetAtoms():
-                if atom.GetPartialCharge() != 0.0:
-                    is_charged = True
-            if not is_charged:
-                raise Exception('Molecule %s has no charges; input molecules must be charged.' % mol.GetTitle())
+                # Check that molecule is charged.
+                if not molecule_is_charged(mol):
+                    raise Exception('Molecule %s has no charges; input molecules must be charged.' % mol.GetTitle())
 
-            # Write the specified molecule out to a mol2 file without changing its name.
-            mol2_filename = 'input.mol2'
-            ofs = oechem.oemolostream(mol2_filename)
-            oechem.OEWriteMol2File(ofs, mol)
+                # Write the specified molecule out to a mol2 file without changing its name.
+                mol2_filename = os.path.join(output_directory, 'input.mol2')
+                ofs = oechem.oemolostream(mol2_filename)
+                oechem.OEWriteMol2File(ofs, mol)
 
-            # Undo oechem fuckery with naming mol2 substructures `<0>`
-            from YankCubes.utils import unfuck_oechem_mol2_file
-            unfuck_oechem_mol2_file(mol2_filename)
+                # Undo oechem fuckery with naming mol2 substructures `<0>`
+                from YankCubes.utils import unfuck_oechem_mol2_file
+                unfuck_oechem_mol2_file(mol2_filename)
 
-            # Run YANK on the specified molecule.
-            from yank.yamlbuild import YamlBuilder
-            yaml_builder = YamlBuilder(self.yaml)
-            yaml_builder.build_experiments()
-            self.log.info('Ran Yank experiments for molecule {}.'.format(title))
+                # Run YANK on the specified molecule.
+                from yank.yamlbuild import YamlBuilder
+                yaml = self.construct_yaml(output_directory=output_directory)
+                yaml_builder = YamlBuilder(yaml)
+                yaml_builder.build_experiments()
+                self.log.info('Ran Yank experiments for molecule {}.'.format(title))
 
-            # Analyze the binding free energy
-            # TODO: Use yank.analyze API for this
-            from yank.analyze import analyze
-            store_directory = 'output/experiments'
-            analyze(store_directory)
-            DeltaG_binding = 0.0 # TODO: Get from output of analyze
-            dDeltaG_binding = 0.0 # TODO: Get from output of analyze
+                # Analyze the binding free energy
+                # TODO: Use yank.analyze API for this
+                from yank.analyze import analyze
+                store_directory = os.path.join(output_directory, 'experiments')
+                analyze(store_directory)
+                DeltaG_binding = 0.0 # TODO: Get from output of analyze
+                dDeltaG_binding = 0.0 # TODO: Get from output of analyze
 
-            # Add result to original molecule
-            oechem.OESetSDData(mol, 'DeltaG_yank_binding', str(DeltaG_binding * kT_in_kcal_per_mole))
-            oechem.OESetSDData(mol, 'dDeltaG_yank_binding', str(dDeltaG_binding * kT_in_kcal_per_mole))
-            self.log.info('Analyzed and stored binding free energy for molecule {}.'.format(title))
+                # Add result to original molecule
+                oechem.OESetSDData(mol, 'DeltaG_yank_binding', str(DeltaG_binding * kT_in_kcal_per_mole))
+                oechem.OESetSDData(mol, 'dDeltaG_yank_binding', str(dDeltaG_binding * kT_in_kcal_per_mole))
+                self.log.info('Analyzed and stored binding free energy for molecule {}.'.format(title))
 
-            # Emit molecule to success port.
-            self.success.emit(mol)
+                # Emit molecule to success port.
+                self.success.emit(mol)
 
-        except Exception as e:
-            self.log.info('Exception encountered when processing molecule {}.'.format(title))
-            # Attach error message to the molecule that failed
-            # TODO: If there is an error in the leap setup log,
-            # we should capture that and attach it to the failed molecule.
-            self.log.error(traceback.format_exc())
-            mol.SetData('error', str(e))
-            # Return failed molecule
-            self.failure.emit(mol)
-
-        # Clean up
-        filenames_to_delete = ['input.mol2', 'output']
-        for filename in filenames_to_delete:
-            if os.path.exists(filename):
-                try:
-                    os.remove(filename)
-                except:
-                    shutil.rmtree(filename)
+            except Exception as e:
+                self.log.info('Exception encountered when processing molecule {}.'.format(title))
+                # Attach error message to the molecule that failed
+                # TODO: If there is an error in the leap setup log,
+                # we should capture that and attach it to the failed molecule.
+                self.log.error(traceback.format_exc())
+                mol.SetData('error', str(e))
+                # Return failed molecule
+                self.failure.emit(mol)
