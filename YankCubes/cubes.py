@@ -28,7 +28,7 @@ options:
   temperature: %(temperature)f*kelvin
   pressure: %(pressure)f*atmosphere
   anisotropic_dispersion_correction: no
-  verbose: no
+  verbose: yes
 
 molecules:
   input_molecule:
