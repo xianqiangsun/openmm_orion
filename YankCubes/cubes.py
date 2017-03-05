@@ -158,9 +158,12 @@ class YankHydrationCube(ParallelOEMolComputeCube):
 
         # Retrieve data about which molecule we are processing
         title = mol.GetTitle()
-        pubchemid = mol.GetSDData('PubChemID')
-        smiles = mol.GetSDData('smiles')
-        iupac = mol.GetSDData('iupac')[0]
+        pubchemid = oechem.OEGetSDData(mol, 'PubChemID')
+        smiles = oechem.OEGetSDData(mol, 'smiles')
+        iupacs = oechem.OEGetSDData(mol, 'iupac')
+        if len(iupacs) > 0:
+            iupac = iupacs[0]
+        else: iupac = ''
 
         try:
             # Print out which molecule we are processing
