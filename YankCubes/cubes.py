@@ -4,6 +4,7 @@ import numpy as np
 from simtk import unit, openmm
 from simtk.openmm import app
 import netCDF4 as netcdf
+from tempfile import TemporaryDirectory
 
 from floe.api import OEMolComputeCube, parameter, MoleculeInputPort, BinaryMoleculeInputPort, BinaryOutputPort, OutputPort, ParallelOEMolComputeCube
 from floe.api.orion import in_orion, StreamingDataset
@@ -32,12 +33,12 @@ options:
   temperature: %(temperature)f*kelvin
   pressure: %(pressure)f*atmosphere
   anisotropic_dispersion_correction: no
+  output_dir: %(output_directory)s
   verbose: no
 
 molecules:
   input_molecule:
-    # Don't change input.mol2
-    filepath: input.mol2
+    filepath: %(output_directory)s/input.mol2
     antechamber:
       charge_method: null
 
@@ -136,11 +137,7 @@ class YankHydrationCube(ParallelOEMolComputeCube):
     solvent = parameter.StringParameter('solvent', default='gbsa',
                                  help_text="Solvent choice: one of ['gbsa', 'tip3p']")
 
-    def begin(self):
-        # TODO: Is there another idiom to use to check valid input?
-        if self.args.solvent not in ['gbsa', 'tip3p']:
-            raise Exception("solvent must be one of ['gbsa', 'tip3p']")
-
+    def construct_yaml(self, **kwargs):
         # Make substitutions to YAML here.
         # TODO: Can we override YAML parameters without having to do string substitutions?
         options = {
@@ -152,7 +149,15 @@ class YankHydrationCube(ParallelOEMolComputeCube):
             'solvent' : self.args.solvent,
         }
 
-        self.yaml = hydration_yaml_template % options
+        for parameter in kwargs.keys():
+            options[parameter] = kwargs[parameter]
+
+        return hydration_yaml_template % options
+
+    def begin(self):
+        # TODO: Is there another idiom to use to check valid input?
+        if self.args.solvent not in ['gbsa', 'tip3p']:
+            raise Exception("solvent must be one of ['gbsa', 'tip3p']")
 
         # Compute kT
         kB = unit.BOLTZMANN_CONSTANT_kB * unit.AVOGADRO_CONSTANT_NA # Boltzmann constant
@@ -164,66 +169,59 @@ class YankHydrationCube(ParallelOEMolComputeCube):
         # Retrieve data about which molecule we are processing
         title = mol.GetTitle()
 
-        try:
-            # Print out which molecule we are processing
-            self.log.info('Processing {}.'.format( title))
+        with TemporaryDirectory() as output_directory:
+            try:
+                # Print out which molecule we are processing
+                self.log.info('Processing {} in directory {}.'.format(title, output_directory))
 
-            # Check that molecule is charged.
-            is_charged = False
-            for atom in mol.GetAtoms():
-                if atom.GetPartialCharge() != 0.0:
-                    is_charged = True
-            if not is_charged:
-                raise Exception('Molecule %s has no charges; input molecules must be charged.' % mol.GetTitle())
+                # Check that molecule is charged.
+                is_charged = False
+                for atom in mol.GetAtoms():
+                    if atom.GetPartialCharge() != 0.0:
+                        is_charged = True
+                if not is_charged:
+                    raise Exception('Molecule %s has no charges; input molecules must be charged.' % mol.GetTitle())
 
-            # Write the specified molecule out to a mol2 file without changing its name.
-            mol2_filename = 'input.mol2'
-            ofs = oechem.oemolostream(mol2_filename)
-            oechem.OEWriteMol2File(ofs, mol)
+                # Write the specified molecule out to a mol2 file without changing its name.
+                mol2_filename = os.path.join(output_directory, 'input.mol2')
+                ofs = oechem.oemolostream(mol2_filename)
+                oechem.OEWriteMol2File(ofs, mol)
 
-            # Undo oechem fuckery with naming mol2 substructures `<0>`
-            from YankCubes.utils import unfuck_oechem_mol2_file
-            unfuck_oechem_mol2_file(mol2_filename)
+                # Undo oechem fuckery with naming mol2 substructures `<0>`
+                from YankCubes.utils import unfuck_oechem_mol2_file
+                unfuck_oechem_mol2_file(mol2_filename)
 
-            # Run YANK on the specified molecule.
-            from yank.yamlbuild import YamlBuilder
-            yaml_builder = YamlBuilder(self.yaml)
-            yaml_builder.build_experiments()
-            self.log.info('Ran Yank experiments for molecule {}.'.format(title))
+                # Run YANK on the specified molecule.
+                from yank.yamlbuild import YamlBuilder
+                yaml = self.construct_yaml(output_directory=output_directory)
+                yaml_builder = YamlBuilder(yaml)
+                yaml_builder.build_experiments()
+                self.log.info('Ran Yank experiments for molecule {}.'.format(title))
 
-            # Analyze the hydration free energy.
-            from yank.analyze import estimate_free_energies
-            (Deltaf_ij_solvent, dDeltaf_ij_solvent) = estimate_free_energies(netcdf.Dataset('output/experiments/solvent1.nc', 'r'))
-            (Deltaf_ij_vacuum,  dDeltaf_ij_vacuum)  = estimate_free_energies(netcdf.Dataset('output/experiments/solvent2.nc', 'r'))
-            DeltaG_hydration = Deltaf_ij_vacuum[0,-1] - Deltaf_ij_solvent[0,-1]
-            dDeltaG_hydration = np.sqrt(Deltaf_ij_vacuum[0,-1]**2 + Deltaf_ij_solvent[0,-1]**2)
+                # Analyze the hydration free energy.
+                from yank.analyze import estimate_free_energies
+                (Deltaf_ij_solvent, dDeltaf_ij_solvent) = estimate_free_energies(netcdf.Dataset(output_directory + '/experiments/solvent1.nc', 'r'))
+                (Deltaf_ij_vacuum,  dDeltaf_ij_vacuum)  = estimate_free_energies(netcdf.Dataset(output_directory + '/experiments/solvent2.nc', 'r'))
+                DeltaG_hydration = Deltaf_ij_vacuum[0,-1] - Deltaf_ij_solvent[0,-1]
+                dDeltaG_hydration = np.sqrt(Deltaf_ij_vacuum[0,-1]**2 + Deltaf_ij_solvent[0,-1]**2)
 
-            # Add result to original molecule
-            oechem.OESetSDData(mol, 'DeltaG_yank_hydration', str(DeltaG_hydration * kT_in_kcal_per_mole))
-            oechem.OESetSDData(mol, 'dDeltaG_yank_hydration', str(dDeltaG_hydration * kT_in_kcal_per_mole))
-            self.log.info('Analyzed and stored hydration free energy for molecule {}.'.format(title))
+                # Add result to original molecule
+                oechem.OESetSDData(mol, 'DeltaG_yank_hydration', str(DeltaG_hydration * kT_in_kcal_per_mole))
+                oechem.OESetSDData(mol, 'dDeltaG_yank_hydration', str(dDeltaG_hydration * kT_in_kcal_per_mole))
+                self.log.info('Analyzed and stored hydration free energy for molecule {}.'.format(title))
 
-            # Emit molecule to success port.
-            self.success.emit(mol)
+                # Emit molecule to success port.
+                self.success.emit(mol)
 
-        except Exception as e:
-            self.log.info('Exception encountered when processing molecule {}.'.format(title))
-            # Attach error message to the molecule that failed
-            # TODO: If there is an error in the leap setup log,
-            # we should capture that and attach it to the failed molecule.
-            self.log.error(traceback.format_exc())
-            mol.SetData('error', str(e))
-            # Return failed molecule
-            self.failure.emit(mol)
-
-        # Clean up
-        filenames_to_delete = ['input.mol2', 'output']
-        for filename in filenames_to_delete:
-            if os.path.exists(filename):
-                try:
-                    os.remove(filename)
-                except:
-                    shutil.rmtree(filename)
+            except Exception as e:
+                self.log.info('Exception encountered when processing molecule {}.'.format(title))
+                # Attach error message to the molecule that failed
+                # TODO: If there is an error in the leap setup log,
+                # we should capture that and attach it to the failed molecule.
+                self.log.error(traceback.format_exc())
+                mol.SetData('error', str(e))
+                # Return failed molecule
+                self.failure.emit(mol)
 
 ################################################################################
 # Binding free energy calculations

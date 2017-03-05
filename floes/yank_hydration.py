@@ -8,7 +8,7 @@ from YankCubes.cubes import YankHydrationCube
 """
 Testing via the command line:
 
-python floes/yank_hydration.py --molecules examples/data/freesolv_mini.oeb.gz --success success.sdf --failure failure.sdf --simulation_time 0.0001 --nsteps_per_iteration 5
+python floes/yank_hydration.py --molecules examples/data/freesolv_mini.oeb.gz --success success.sdf --failure failure.sdf --simulation_time 0.001 --nsteps_per_iteration 50
 
 """
 
