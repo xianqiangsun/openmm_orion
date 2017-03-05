@@ -3,24 +3,24 @@ from __future__ import unicode_literals
 Written by John D. Chodera
 """
 from floe.api import WorkFloe, OEMolIStreamCube, OEMolOStreamCube, FileOutputCube, DataSetInputParameter, FileInputCube
-from YankCubes.cubes import YankHydrationCube
+from YankCubes.cubes import YankBindingCube
 
 """
 Testing via the command line:
 
-python floes/yank_hydration.py --molecules examples/data/freesolv_mini.oeb.gz --success success.sdf --failure failure.sdf
+python floes/yank_binding.py --receptor examples/data/T4-protein.pdb --molecules examples/data/p-xylene.mol2 --success success.sdf --failure failure.sdf
 
 """
 
-job = WorkFloe("YANK small molecule hydration free energies")
+job = WorkFloe("YANK small molecule absolute binding free energies")
 
 job.description = """
-# Compute small molecule hydration free energies using YANK.
+# Compute small molecule absolute binding free energies using YANK.
 
-This Floe processes the provided molecules, computes free energies of transfer from gas to water, and appends the following SDData properties to the original molecules:
+This Floe processes the provided molecules, computes free energies of binding to a specified receptor, and appends the following SDData properties to the original molecules:
 
-* Hydration free energy in kcal/mol: `DeltaG_yank_hydration`
-* Standard error estimate in hydration free energy estimate, in kcal/mol: `dDeltaG_yank_hydration`
+* Absolute binding free energy in kcal/mol: `DeltaG_yank_binding`
+* Standard error estimate in binding free energy estimate, in kcal/mol: `dDeltaG_yank_binding`
 
 *IMPORTANT:* The molecules MUST be charged before feeding them into this workflow.
 
@@ -31,6 +31,15 @@ The following advanced options are available:
 * simulation_time (`float`): Simulation time in ns/replica (default: `0.010`)
 * timestep (`float`): Timestep in fs (default: `2.0`)
 * yaml_template (`str`): YANK YAML file to use (default template provided)
+* minimize (`bool`): If `True`, the complex will be minimized prior to simuation (recommended)
+
+## WARNINGS
+
+This floe is **highly experimental** and currently uses harmonic restraints to ensure the ligand remains close to the receptor.
+In principle, this procedure can dock the ligand into the receptor, but in practice, this may not work well for ligands with multiple rotatable bonds.
+This has only been tested on small fragment-like ligands so far.
+
+**Use at your own risk!**
 
 ## About this software
 
@@ -45,14 +54,15 @@ Please help us make it better by contributing code or funds.
 
 """
 
-job.classification =[["YANK", "Hydration free energies", "OpenMM", "choderalab"]]
+job.classification =[["YANK", "Binding free energies", "OpenMM", "choderalab"]]
 job.tags = [tag for lists in job.classification for tag in lists]
 
 ifs = OEMolIStreamCube("ifs")
 ifs.promote_parameter("data_in", promoted_name="molecules", description="Input molecules")
 
 # TODO: Do we need to explicitly use `yank_cube.promote_parameter`, or will this happen automatically to expose advanced options?
-yank_cube = YankHydrationCube('yank_hydration', title = 'Yank for hydration free energies')
+yank_cube = YankBindingCube('yank_binding', title = 'Yank for binding free energies')
+#yank_cube.promote_parameter('receptor', promoted_name="receptor structure")
 #yank_cube.promote_parameter('solvent', promoted_name="solvent choice: one of 'gbsa' or 'tip3p'")
 #yank_cube.promote_parameter('temperature', promoted_name='temperature (kelvin)')
 #yank_cube.promote_parameter('pressure', promoted_name='pressure (atmospheres)')
@@ -73,6 +83,7 @@ job.add_cubes(*cubes)
 ifs.success.connect(yank_cube.intake)
 yank_cube.success.connect(success_ofs.intake)
 yank_cube.failure.connect(failure_ofs.intake)
+
 
 if __name__ == "__main__":
     job.run()
