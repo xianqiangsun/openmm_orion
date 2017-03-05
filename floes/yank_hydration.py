@@ -8,7 +8,7 @@ from YankCubes.cubes import YankHydrationCube
 """
 Testing via the command line:
 
-python floes/yank_hydration.py --molecules examples/data/freesolv_mini.oeb.gz --success success.sdf --failure failure.sdf
+python floes/yank_hydration.py --molecules examples/data/freesolv_mini.oeb.gz --success success.sdf --failure failure.sdf --simulation_time 0.0001 --nsteps_per_iteration 5
 
 """
 
@@ -53,12 +53,9 @@ ifs.promote_parameter("data_in", promoted_name="molecules", description="Input m
 
 # TODO: Do we need to explicitly use `yank_cube.promote_parameter`, or will this happen automatically to expose advanced options?
 yank_cube = YankHydrationCube('yank_hydration', title = 'Yank for hydration free energies')
-#yank_cube.promote_parameter('solvent', promoted_name="solvent choice: one of 'gbsa' or 'tip3p'")
-#yank_cube.promote_parameter('temperature', promoted_name='temperature (kelvin)')
-#yank_cube.promote_parameter('pressure', promoted_name='pressure (atmospheres)')
-#yank_cube.promote_parameter('nsteps_per_iteration', promoted_name='number of MD steps per replica-exchange iteration')
-#yank_cube.promote_parameter('simulation_time', promoted_name='simulation time (nanoseconds/replica)')
-#yank_cube.promote_parameter('timestep', promoted_name='timestep (femtoseconds)')
+# TODO: Can we use introspection to promote all parameters?
+for parameter in ['solvent', 'temperature', 'pressure', 'nsteps_per_iteration', 'simulation_time', 'timestep']:
+    yank_cube.promote_parameter(parameter, promoted_name=parameter)
 
 success_ofs = OEMolOStreamCube("success_ofs")
 success_ofs.promote_parameter("data_out", promoted_name="success", description="Output molecules")
