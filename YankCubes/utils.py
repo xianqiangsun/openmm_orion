@@ -33,6 +33,24 @@ def get_data_filename(relative_path):
         raise ValueError("Sorry! %s does not exist. If you just added it, you'll have to re-install" % fn)
     return fn
 
+def download_dataset_to_file(dataset_id):
+    """
+    Used to retrieve a dataset either from Orion or from the local machine
+    """
+    if in_orion():
+        if dataset_id in download_cache:
+            return download_cache[dataset_id]
+        if os.path.isfile(dataset_id):
+            download_cache[dataset_id] = dataset_id
+            return dataset_id
+        tmp = NamedTemporaryFile(suffix=".oeb.gz", delete=False)
+        stream = StreamingDataset(dataset_id, input_format=".oeb.gz")
+        stream.download_to_file(tmp.name)
+        download_cache[dataset_id] = tmp.name
+        return tmp.name
+    else:
+        return dataset_id
+        
 def unfuck_oechem_mol2_file(filename, substructure_name='MOL'):
     """Undo oechem fuckery with mol2 substructure names.
 

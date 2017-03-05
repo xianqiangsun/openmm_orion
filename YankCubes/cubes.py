@@ -11,12 +11,16 @@ from floe.constants import BYTES
 
 from LigPrepCubes.ports import CustomMoleculeInputPort, CustomMoleculeOutputPort
 import YankCubes.utils as utils
-from YankCubes.utils import get_data_filename
+from YankCubes.utils import download_dataset_to_file, get_data_filename
 
 import yank
 from yank.yamlbuild import *
 import textwrap
 import subprocess
+
+################################################################################
+# Hydration free energy calculations
+################################################################################
 
 hydration_yaml_template = """\
 ---
@@ -111,6 +115,7 @@ class YankHydrationCube(ParallelOEMolComputeCube):
     #Define Custom Ports to handle oeb.gz files
     intake = CustomMoleculeInputPort('intake')
     success = CustomMoleculeOutputPort('success')
+    failure = CustomMoleculeOutputPort('failure')
 
     # These can override YAML parameters
     nsteps_per_iteration = parameter.IntegerParameter('nsteps_per_iteration', default=500,
@@ -204,12 +209,251 @@ class YankHydrationCube(ParallelOEMolComputeCube):
         except Exception as e:
             self.log.info('Exception encountered when processing molecule {}.'.format(title))
             # Attach error message to the molecule that failed
+            # TODO: If there is an error in the leap setup log,
+            # we should capture that and attach it to the failed molecule.
             self.log.error(traceback.format_exc())
             mol.SetData('error', str(e))
             # Return failed molecule
             self.failure.emit(mol)
 
-        # clean up
+        # Clean up
+        filenames_to_delete = ['input.mol2', 'output']
+        for filename in filenames_to_delete:
+            if os.path.exists(filename):
+                try:
+                    os.remove(filename)
+                except:
+                    shutil.rmtree(filename)
+
+################################################################################
+# Binding free energy calculations
+################################################################################
+
+binding_yaml_template = """\
+---
+options:
+  minimize: %(minimize)s
+  timestep: %(timestep)f*femtoseconds
+  nsteps_per_iteration: %(nsteps_per_iteration)d
+  number_of_iterations: %(number_of_iterations)d
+  temperature: %(temperature)f*kelvin
+  pressure: %(pressure)f*atmosphere
+  #anisotropic_dispersion_correction: yes
+  verbose: yes
+
+molecules:
+  receptor:
+    filepath: receptor.pdb
+    strip_protons: yes
+  ligand:
+    filepath: input.mol2
+    antechamber:
+      charge_method: null
+
+solvents:
+  pme:
+    nonbonded_method: PME
+    nonbonded_cutoff: 9*angstroms
+    clearance: 16*angstroms
+    positive_ion: Na+
+    negative_ion: Cl-
+  rf:
+    nonbonded_method: CutoffPeriodic
+    nonbonded_cutoff: 9*angstroms
+    clearance: 16*angstroms
+    positive_ion: Na+
+    negative_ion: Cl-
+  gbsa:
+    nonbonded_method: NoCutoff
+    implicit_solvent: OBC2
+
+systems:
+  binding-pme:
+    receptor: receptor
+    ligand: ligand
+    solvent: pme
+    leap:
+      parameters: [leaprc.protein.ff14SB, leaprc.gaff2, leaprc.water.tip3p]
+  binding-rf:
+    receptor: receptor
+    ligand: ligand
+    solvent: rf
+    leap:
+      parameters: [leaprc.protein.ff14SB, leaprc.gaff2, leaprc.water.tip3p]
+  binding-gbsa:
+    receptor: receptor
+    ligand: ligand
+    solvent: gbsa
+    leap:
+      parameters: [leaprc.protein.ff14SB, leaprc.gaff2, leaprc.water.tip3p]
+
+protocols:
+  protocol:
+    complex:
+      alchemical_path:
+        lambda_electrostatics: [1.00, 0.90, 0.80, 0.70, 0.60, 0.50, 0.40, 0.30, 0.20, 0.10, 0.00, 0.00, 0.00, 0.00, 0.00, 0.00, 0.00, 0.00, 0.00, 0.00, 0.00]
+        lambda_sterics:        [1.00, 1.00, 1.00, 1.00, 1.00, 1.00, 1.00, 1.00, 1.00, 1.00, 1.00, 0.90, 0.80, 0.70, 0.60, 0.50, 0.40, 0.30, 0.20, 0.10, 0.00]
+        lambda_restraints:     [1.00, 1.00, 1.00, 1.00, 1.00, 1.00, 1.00, 1.00, 1.00, 1.00, 1.00, 1.00, 1.00, 1.00, 1.00, 1.00, 1.00, 1.00, 1.00, 1.00, 1.00]
+    solvent:
+      alchemical_path:
+        lambda_electrostatics: [1.00, 0.90, 0.80, 0.70, 0.60, 0.50, 0.40, 0.30, 0.20, 0.10, 0.00, 0.00, 0.00, 0.00, 0.00, 0.00, 0.00, 0.00, 0.00, 0.00, 0.00]
+        lambda_sterics:        [1.00, 1.00, 1.00, 1.00, 1.00, 1.00, 1.00, 1.00, 1.00, 1.00, 1.00, 0.90, 0.80, 0.70, 0.60, 0.50, 0.40, 0.30, 0.20, 0.10, 0.00]
+
+experiments:
+  system: binding-%(solvent)s
+  protocol: protocol
+  restraint:
+    type: Harmonic
+"""
+
+class YankBindingCube(ParallelOEMolComputeCube):
+    title = "YankBindingCube"
+    description = """
+    Compute thebinding free energy of a small molecule with YANK.
+
+    This cube uses the YANK alchemical free energy code to compute the binding
+    free energy of one or more small molecules using harmonic restraints.
+
+    See http://getyank.org for more information about YANK.
+    """
+    classification = ["Alchemical free energy calculations"]
+    tags = [tag for lists in classification for tag in lists]
+
+    # Override defaults for some parameters
+    parameter_overrides = {
+        "prefetch_count": {"default": 1}, # 1 molecule at a time
+        "item_timeout": {"default": 3600}, # Default 1 hour limit (units are seconds)
+        "item_count": {"default": 1} # 1 molecule at a time
+    }
+
+    #Define Custom Ports to handle oeb.gz files
+    intake = CustomMoleculeInputPort('intake')
+    success = CustomMoleculeOutputPort('success')
+    failure = CustomMoleculeOutputPort('failure')
+
+    # Receptor specification
+    receptor = parameter.DataSetInputParameter(
+        'receptor',
+        required=True,
+        help_text='Receptor structure file')
+
+    # These can override YAML parameters
+    nsteps_per_iteration = parameter.IntegerParameter('nsteps_per_iteration', default=500,
+                                     help_text="Number of steps per iteration")
+
+    timestep = parameter.DecimalParameter('timestep', default=2.0,
+                                     help_text="Timestep (fs)")
+
+    simulation_time = parameter.DecimalParameter('simulation_time', default=0.100,
+                                     help_text="Simulation time (ns/replica)")
+
+    temperature = parameter.DecimalParameter('temperature', default=300.0,
+                                     help_text="Temperature (Kelvin)")
+
+    pressure = parameter.DecimalParameter('pressure', default=1.0,
+                                 help_text="Pressure (atm)")
+
+    solvent = parameter.StringParameter('solvent', default='gbsa',
+                                 help_text="Solvent choice: one of ['gbsa', 'pme', 'rf']")
+
+    minimize = parameter.BooleanParameter('minimize', default=True,
+                                     help_text="Minimize initial structures for stability")
+
+    def begin(self):
+        # TODO: Is there another idiom to use to check valid input?
+        if self.args.solvent not in ['gbsa', 'pme', 'rf']:
+            raise Exception("solvent must be one of ['gbsa', 'pme', 'rf']")
+
+        # Make substitutions to YAML here.
+        # TODO: Can we override YAML parameters without having to do string substitutions?
+        options = {
+            'timestep' : self.args.timestep,
+            'nsteps_per_iteration' : self.args.nsteps_per_iteration,
+            'number_of_iterations' : int(np.ceil(self.args.simulation_time * unit.nanoseconds / (self.args.nsteps_per_iteration * self.args.timestep * unit.femtoseconds))),
+            'temperature' : self.args.temperature,
+            'pressure' : self.args.pressure,
+            'solvent' : self.args.solvent,
+            'minimize' : 'yes' if self.args.minimize else 'no',
+        }
+
+        self.yaml = binding_yaml_template % options
+
+        # Compute kT
+        kB = unit.BOLTZMANN_CONSTANT_kB * unit.AVOGADRO_CONSTANT_NA # Boltzmann constant
+        self.kT = kB * (self.args.temperature * unit.kelvin)
+
+        # Write receptor structure as receptor.pdb
+        pdbfilename = 'receptor.pdb'
+        receptor = oechem.OEMol()
+        receptor_filename = download_dataset_to_file(self.args.receptor)
+        with oechem.oemolistream(receptor_filename) as ifs:
+            if not oechem.OEReadMolecule(ifs, receptor):
+                raise RuntimeError("Error reading protein")
+        with oechem.oemolostream(pdbfilename) as ofs:
+            res = oechem.OEWriteConstMolecule(ofs, receptor)
+            if res != oechem.OEWriteMolReturnCode_Success:
+                raise RuntimeError("Error writing receptor: {}".format(res))
+
+    def process(self, mol, port):
+        kT_in_kcal_per_mole = self.kT.value_in_unit(unit.kilocalories_per_mole)
+
+        # Retrieve data about which molecule we are processing
+        title = mol.GetTitle()
+
+        try:
+            # Print out which molecule we are processing
+            self.log.info('Processing {}.'.format( title))
+
+            # Check that molecule is charged.
+            is_charged = False
+            for atom in mol.GetAtoms():
+                if atom.GetPartialCharge() != 0.0:
+                    is_charged = True
+            if not is_charged:
+                raise Exception('Molecule %s has no charges; input molecules must be charged.' % mol.GetTitle())
+
+            # Write the specified molecule out to a mol2 file without changing its name.
+            mol2_filename = 'input.mol2'
+            ofs = oechem.oemolostream(mol2_filename)
+            oechem.OEWriteMol2File(ofs, mol)
+
+            # Undo oechem fuckery with naming mol2 substructures `<0>`
+            from YankCubes.utils import unfuck_oechem_mol2_file
+            unfuck_oechem_mol2_file(mol2_filename)
+
+            # Run YANK on the specified molecule.
+            from yank.yamlbuild import YamlBuilder
+            yaml_builder = YamlBuilder(self.yaml)
+            yaml_builder.build_experiments()
+            self.log.info('Ran Yank experiments for molecule {}.'.format(title))
+
+            # Analyze the binding free energy
+            # TODO: Use yank.analyze API for this
+            from yank.analyze import analyze
+            store_directory = 'output/experiments'
+            analyze(store_directory)
+            DeltaG_binding = 0.0 # TODO: Get from output of analyze
+            dDeltaG_binding = 0.0 # TODO: Get from output of analyze
+
+            # Add result to original molecule
+            oechem.OESetSDData(mol, 'DeltaG_yank_binding', str(DeltaG_binding * kT_in_kcal_per_mole))
+            oechem.OESetSDData(mol, 'dDeltaG_yank_binding', str(dDeltaG_binding * kT_in_kcal_per_mole))
+            self.log.info('Analyzed and stored binding free energy for molecule {}.'.format(title))
+
+            # Emit molecule to success port.
+            self.success.emit(mol)
+
+        except Exception as e:
+            self.log.info('Exception encountered when processing molecule {}.'.format(title))
+            # Attach error message to the molecule that failed
+            # TODO: If there is an error in the leap setup log,
+            # we should capture that and attach it to the failed molecule.
+            self.log.error(traceback.format_exc())
+            mol.SetData('error', str(e))
+            # Return failed molecule
+            self.failure.emit(mol)
+
+        # Clean up
         filenames_to_delete = ['input.mol2', 'output']
         for filename in filenames_to_delete:
             if os.path.exists(filename):
