@@ -158,16 +158,10 @@ class YankHydrationCube(ParallelOEMolComputeCube):
 
         # Retrieve data about which molecule we are processing
         title = mol.GetTitle()
-        pubchemid = oechem.OEGetSDData(mol, 'PubChemID')
-        smiles = oechem.OEGetSDData(mol, 'smiles')
-        iupacs = oechem.OEGetSDData(mol, 'iupac')
-        if len(iupacs) > 0:
-            iupac = iupacs[0]
-        else: iupac = ''
 
         try:
             # Print out which molecule we are processing
-            self.log.info('Processing {}, PubChemID {}, SMILES {}, iupac {}.'.format( title, pubchemid, smiles, iupac))
+            self.log.info('Processing {}.'.format( title))
 
             # Check that molecule is charged.
             is_charged = False
@@ -190,7 +184,7 @@ class YankHydrationCube(ParallelOEMolComputeCube):
             from yank.yamlbuild import YamlBuilder
             yaml_builder = YamlBuilder(self.yaml)
             yaml_builder.build_experiments()
-            self.log.info('Ran Yank experiments for PubChemID {}.'.format(pubchemid))
+            self.log.info('Ran Yank experiments for molecule {}.'.format(title))
 
             # Analyze the hydration free energy.
             from yank.analyze import estimate_free_energies
@@ -202,13 +196,13 @@ class YankHydrationCube(ParallelOEMolComputeCube):
             # Add result to original molecule
             oechem.OESetSDData(mol, 'DeltaG_yank_hydration', str(DeltaG_hydration * kT_in_kcal_per_mole))
             oechem.OESetSDData(mol, 'dDeltaG_yank_hydration', str(dDeltaG_hydration * kT_in_kcal_per_mole))
-            self.log.info('Analyzed and stored hydration free energy for PubChemID {}.'.format(pubchemid))
+            self.log.info('Analyzed and stored hydration free energy for molecule {}.'.format(title))
 
             # Emit molecule to success port.
             self.success.emit(mol)
 
         except Exception as e:
-            self.log.info('Exception encountered when processing title {}, PubChemID {}, SMILES {}, iupac {}.'.format(title, pubchemid, smiles, iupac))
+            self.log.info('Exception encountered when processing molecule {}.'.format(title))
             # Attach error message to the molecule that failed
             self.log.error(traceback.format_exc())
             mol.SetData('error', str(e))
