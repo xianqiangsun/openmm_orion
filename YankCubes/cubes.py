@@ -242,7 +242,7 @@ options:
 
 molecules:
   receptor:
-    filepath: receptor.pdb
+    filepath: %(output_directory)s/receptor.pdb
     strip_protons: yes
   ligand:
     filepath: %(output_directory)s/input.mol2
@@ -389,17 +389,12 @@ class YankBindingCube(ParallelOEMolComputeCube):
         kB = unit.BOLTZMANN_CONSTANT_kB * unit.AVOGADRO_CONSTANT_NA # Boltzmann constant
         self.kT = kB * (self.args.temperature * unit.kelvin)
 
-        # Write receptor structure as receptor.pdb
-        pdbfilename = 'receptor.pdb'
-        receptor = oechem.OEMol()
+        # Load receptor
+        self.receptor = oechem.OEMol()
         receptor_filename = download_dataset_to_file(self.args.receptor)
         with oechem.oemolistream(receptor_filename) as ifs:
-            if not oechem.OEReadMolecule(ifs, receptor):
-                raise RuntimeError("Error reading protein")
-        with oechem.oemolostream(pdbfilename) as ofs:
-            res = oechem.OEWriteConstMolecule(ofs, receptor)
-            if res != oechem.OEWriteMolReturnCode_Success:
-                raise RuntimeError("Error writing receptor: {}".format(res))
+            if not oechem.OEReadMolecule(ifs, self.receptor):
+                raise RuntimeError("Error reading receptor")
 
     def process(self, mol, port):
         kT_in_kcal_per_mole = self.kT.value_in_unit(unit.kilocalories_per_mole)
@@ -415,6 +410,14 @@ class YankBindingCube(ParallelOEMolComputeCube):
                 # Check that molecule is charged.
                 if not molecule_is_charged(mol):
                     raise Exception('Molecule %s has no charges; input molecules must be charged.' % mol.GetTitle())
+
+
+                # Write the receptor.
+                pdbfilename = os.path.join(output_directory, 'receptor.pdb')
+                with oechem.oemolostream(pdbfilename) as ofs:
+                    res = oechem.OEWriteConstMolecule(ofs, self.receptor)
+                    if res != oechem.OEWriteMolReturnCode_Success:
+                        raise RuntimeError("Error writing receptor: {}".format(res))
 
                 # Write the specified molecule out to a mol2 file without changing its name.
                 mol2_filename = os.path.join(output_directory, 'input.mol2')
