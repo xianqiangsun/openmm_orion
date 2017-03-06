@@ -15,6 +15,7 @@ class YankHydrationCubeTester(unittest.TestCase):
         self.cube.args.timestep = 2 # fs
         self.cube.args.nsteps_per_iteration = 50
         self.cube.args.simulation_time = 0.001 # ns/replica
+        self.cube.args.verbose = True
         self.runner = CubeTestRunner(self.cube)
         self.runner.start()
 
@@ -87,6 +88,7 @@ class YankBindingCubeTester(unittest.TestCase):
         self.cube.args.nsteps_per_iteration = 5
         self.cube.args.simulation_time = 0.0001 # ns/replica
         self.cube.args.minimize = False # don't minimize for testing
+        self.cube.args.verbose = True
         self.runner = CubeTestRunner(self.cube)
         self.runner.start()
 
