@@ -51,11 +51,10 @@ job.tags = [tag for lists in job.classification for tag in lists]
 ifs = OEMolIStreamCube("ifs")
 ifs.promote_parameter("data_in", promoted_name="molecules", description="Input molecules")
 
-# TODO: Do we need to explicitly use `yank_cube.promote_parameter`, or will this happen automatically to expose advanced options?
 yank_cube = YankHydrationCube('yank_hydration', title = 'Yank for hydration free energies')
-# TODO: Can we use introspection to promote all parameters?
-for parameter in ['solvent', 'temperature', 'pressure', 'nsteps_per_iteration', 'simulation_time', 'timestep']:
-    yank_cube.promote_parameter(parameter, promoted_name=parameter)
+for parameter_name in ['solvent', 'temperature', 'pressure', 'nsteps_per_iteration', 'simulation_time', 'timestep', 'verbose']:
+    description = yank_cube.parameters()[parameter_name].description
+    yank_cube.promote_parameter(parameter_name, promoted_name=parameter_name, description=description)
 
 success_ofs = OEMolOStreamCube("success_ofs")
 success_ofs.promote_parameter("data_out", promoted_name="success", description="Output molecules")

@@ -137,7 +137,7 @@ class YankHydrationCube(ParallelOEMolComputeCube):
     solvent = parameter.StringParameter('solvent', default='gbsa',
                                  help_text="Solvent choice: one of ['gbsa', 'tip3p']")
 
-    verbose = parameter.BooleanParameter('minimize', default=False,
+    verbose = parameter.BooleanParameter('verbose', default=False,
                                      help_text="Print verbose YANK logging output")
 
     def construct_yaml(self, **kwargs):
@@ -358,7 +358,7 @@ class YankBindingCube(ParallelOEMolComputeCube):
     minimize = parameter.BooleanParameter('minimize', default=True,
                                      help_text="Minimize initial structures for stability")
 
-    verbose = parameter.BooleanParameter('minimize', default=False,
+    verbose = parameter.BooleanParameter('verbose', default=False,
                                      help_text="Print verbose YANK logging output")
 
     def construct_yaml(self, **kwargs):

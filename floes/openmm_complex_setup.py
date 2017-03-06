@@ -24,7 +24,6 @@ ifs.promote_parameter("data_in", promoted_name="ligand", description="docked lig
 # the name of the object has to match the string: this is the name of myself
 complex_setup = OpenMMComplexSetup("complex_setup")
 complex_setup.promote_parameter('protein', promoted_name='protein')
-complex_setup.promote_parameter('molecule_forcefield', promoted_name='molecule_forcefield')
 complex_setup.promote_parameter('protein_forcefield', promoted_name='protein_forcefield')
 complex_setup.promote_parameter('solvent_forcefield', promoted_name='solvent_forcefield')
 
