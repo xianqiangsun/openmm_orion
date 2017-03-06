@@ -27,9 +27,9 @@ install:
 
 script:
 # Test cubes
-- py.test -v YankCubes
-- py.test -v PlatformTestCubes
-- py.test -v LigPrepCubes
-- py.test -v OpenMMCubes
+- py.test -v -s YankCubes
+- py.test -v -s PlatformTestCubes
+- py.test -v -s LigPrepCubes
+- py.test -v -s OpenMMCubes
 # Test floes
-- python -m pytest floes/floe_tests/ -s
+- py.test -v -s floes/floe_tests/
