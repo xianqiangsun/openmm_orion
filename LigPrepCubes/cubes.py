@@ -144,7 +144,14 @@ quit
     def process(self, mol, port):
         ff = self.args.molecule_forcefield
         try:
-            # TO DO: Check that molecule HAS charges here (usually not having charges is a sign of a mistake)
+            # Check that molecule is charged.
+            is_charged = False
+            for atom in mol.GetAtoms():
+                if atom.GetPartialCharge() != 0.0:
+                    is_charged = True
+            if not is_charged:
+                raise Exception('Molecule %s has no charges; input molecules must be charged.' % mol.GetTitle())
+
 
             # Determine formal charge (antechamber needs as argument)
             chg = 0
