@@ -34,7 +34,7 @@ options:
   pressure: %(pressure)f*atmosphere
   anisotropic_dispersion_correction: no
   output_dir: %(output_directory)s
-  verbose: yes
+  verbose: %(verbose)s
 
 molecules:
   input_molecule:
@@ -137,6 +137,9 @@ class YankHydrationCube(ParallelOEMolComputeCube):
     solvent = parameter.StringParameter('solvent', default='gbsa',
                                  help_text="Solvent choice: one of ['gbsa', 'tip3p']")
 
+    verbose = parameter.BooleanParameter('minimize', default=False,
+                                     help_text="Print verbose YANK logging output")
+
     def construct_yaml(self, **kwargs):
         # Make substitutions to YAML here.
         # TODO: Can we override YAML parameters without having to do string substitutions?
@@ -147,6 +150,7 @@ class YankHydrationCube(ParallelOEMolComputeCube):
             'temperature' : self.args.temperature,
             'pressure' : self.args.pressure,
             'solvent' : self.args.solvent,
+            'verbose' : 'yes' if self.args.verbose else 'no',
         }
 
         for parameter in kwargs.keys():
@@ -234,7 +238,7 @@ options:
   pressure: %(pressure)f*atmosphere
   #anisotropic_dispersion_correction: yes
   output_dir: %(output_directory)s
-  verbose: yes
+  verbose: %(verbose)s
 
 molecules:
   receptor:
@@ -354,6 +358,9 @@ class YankBindingCube(ParallelOEMolComputeCube):
     minimize = parameter.BooleanParameter('minimize', default=True,
                                      help_text="Minimize initial structures for stability")
 
+    verbose = parameter.BooleanParameter('minimize', default=False,
+                                     help_text="Print verbose YANK logging output")
+
     def construct_yaml(self, **kwargs):
         # Make substitutions to YAML here.
         # TODO: Can we override YAML parameters without having to do string substitutions?
@@ -365,6 +372,7 @@ class YankBindingCube(ParallelOEMolComputeCube):
             'pressure' : self.args.pressure,
             'solvent' : self.args.solvent,
             'minimize' : 'yes' if self.args.minimize else 'no',
+            'verbose' : 'yes' if self.args.verbose else 'no',
         }
 
         for parameter in kwargs.keys():

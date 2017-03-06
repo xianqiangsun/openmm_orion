@@ -1,4 +1,7 @@
 import io, os, traceback, string, random, parmed
+import subprocess
+import openmoltools
+import tempfile
 from openeye import oechem, oedocking, oeomega
 from floe.api import (
     parameter, ParallelOEMolComputeCube, OEMolComputeCube, SinkCube, MoleculeInputPort,
@@ -95,6 +98,98 @@ class SMIRFFParameterization(OEMolComputeCube):
             init_mol.SetData('error', str(e))
             # Return failed molecule
             self.failure.emit(init_mol)
+
+class GAFFParameterization(OEMolComputeCube):
+    title = "Attach GAFF parameters to OE molecules"
+    description = """
+    Parameterize a molecule with GAFF or GAFF2 parameters via AmberTools.
+    Attach the resulting ParmEd Structure to the OEMol.
+    """
+
+    # TO DO: add ambermini to manifest/requirements/install as appropriate
+
+    classification = [["Testing", "Ligand Preparation"]]
+    tags = [tag for lists in classification for tag in lists]
+
+    #molecule_forcefield = parameter.DataSetInputParameter(
+    molecule_forcefield = parameter.StringParameter('molecule_forcefield',
+        default='GAFF',
+        help_text="GAFF forcefield to use: 'GAFF' or 'GAFF2'. Default: 'GAFF'")
+
+    def begin(self):
+        #Make sure here that selected forcefield is GAFF or GAFF2
+        ff = self.args.molecule_forcefield
+        if not ff in ['GAFF', 'GAFF2']:
+            raise RuntimeError('Selected forcefield %s is not GAFF or GAFF2' % ff)
+
+        #TO DO: Is there anything else I should do here to die early if this is going to fail?
+
+        #Try to check if tleap is going to fail
+        tleapin = """source leaprc.%s
+quit
+""" % ff.lower()
+        file_handle = open('tleap_commands', 'w')
+        file_handle.writelines(tleapin)
+        file_handle.close()
+
+        tmp = subprocess.getoutput('tleap -f tleap_commands')
+        elements = tmp.split('\n')
+        for elem in elements:
+            if 'Could not open file' in elem:
+                raise(RuntimeError('Error encountered trying to load %s in tleap.') % ff)
+            if 'command not found' in elem:
+                raise(RuntimeError('Error: requires tleap.'))
+
+
+    def process(self, mol, port):
+        ff = self.args.molecule_forcefield
+        try:
+            # TO DO: Check that molecule HAS charges here (usually not having charges is a sign of a mistake)
+
+            # Write out mol to a mol2 file to process via AmberTools
+            mol2file = tempfile.NamedTemporaryFile(suffix='.mol2')
+            mol2filename = mol2file.name
+            with oechem.oemolostream(mol2filename) as ofs:
+                res = oechem.OEWriteConstMolecule(ofs, mol)
+                if res != oechem.OEWriteMolReturnCode_Success:
+                    raise RuntimeError("Error writing molecule %s to mol2." % mol.GetTitle())
+
+            # Run antechamber to type and parmchk for frcmod
+            # requires openmoltools 0.7.5 or later, which should be conda-installable via omnia
+            gaff_mol2_filename, frcmod_filename = openmoltools.amber.run_antechamber( 'ligand', mol2filename, gaff_version = ff.lower())
+
+            # Run tleap using specified forcefield
+            prmtop, inpcrd = openmoltools.amber.run_tleap('ligand', gaff_mol2_filename, frcmod_filename, leaprc = 'leaprc.%s' % ff.lower() )
+
+            # Load via ParmEd
+            molecule_structure = parmed.amber.AmberParm( prmtop, inpcrd )
+            molecule_structure.residues[0].name = "LIG"
+
+            # Pack parameters back into OEMol
+            # Encode System/Structure, Attach to mol -- old/long way (waiting for #28)
+            packedmol = oechem.OEMol(mol)
+            sys_out = OpenMMSystemOutput('sys_put')
+            struct_out = ParmEdStructureOutput('struct_out')
+            packedmol.SetData(oechem.OEGetTag('structure'), struct_out.encode(molecule_structure))
+            #Eventually this will look more like:
+            #packedmol = utils.PackageOEMol.pack(mol, molecule_structure)
+
+            # Tag with what forcefield used
+            oechem.OESetSDData(packedmol, 'FF', ff.upper() )
+
+            # Emit
+            self.success.emit(packedmol)
+
+            # close file
+            mol2file.close()
+
+        except Exception as e:
+            # Attach error message to the molecule that failed
+            self.log.error(traceback.format_exc())
+            mol.SetData('error', str(e))
+            # Return failed molecule
+            self.failure.emit(mol)
+
 
 
 class OEBSinkCube(SinkCube):
