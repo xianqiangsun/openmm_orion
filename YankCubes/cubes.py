@@ -34,7 +34,7 @@ options:
   pressure: %(pressure)f*atmosphere
   anisotropic_dispersion_correction: no
   output_dir: %(output_directory)s
-  verbose: no
+  verbose: yes
 
 molecules:
   input_molecule:
@@ -234,7 +234,7 @@ options:
   pressure: %(pressure)f*atmosphere
   #anisotropic_dispersion_correction: yes
   output_dir: %(output_directory)s
-  verbose: no
+  verbose: yes
 
 molecules:
   receptor:
@@ -364,12 +364,13 @@ class YankBindingCube(ParallelOEMolComputeCube):
             'temperature' : self.args.temperature,
             'pressure' : self.args.pressure,
             'solvent' : self.args.solvent,
+            'minimize' : 'yes' if self.args.minimize else 'no',
         }
 
         for parameter in kwargs.keys():
             options[parameter] = kwargs[parameter]
 
-        return hydration_yaml_template % options
+        return binding_yaml_template % options
 
     def begin(self):
         # TODO: Is there another idiom to use to check valid input?

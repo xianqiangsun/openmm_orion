@@ -8,7 +8,7 @@ from YankCubes.cubes import YankBindingCube
 """
 Testing via the command line:
 
-python floes/yank_binding.py --receptor examples/data/T4-protein.pdb --molecules examples/data/p-xylene.mol2 --success success.sdf --failure failure.sdf --simulation_time 0.0001 --nsteps_per_iteration 5
+python floes/yank_binding.py --receptor examples/data/T4-protein.pdb --molecules examples/data/p-xylene.mol2 --success success.sdf --failure failure.sdf --simulation_time 0.0001 --nsteps_per_iteration 5 --minimize 0
 
 """
 
