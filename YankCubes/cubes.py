@@ -137,6 +137,7 @@ class YankHydrationCube(ParallelOEMolComputeCube):
                                  help_text="Pressure (atm)")
 
     solvent = parameter.StringParameter('solvent', default='gbsa',
+                                 choices=['gbsa', 'tip3p'],
                                  help_text="Solvent choice: one of ['gbsa', 'tip3p']")
 
     verbose = parameter.BooleanParameter('verbose', default=False,
@@ -355,7 +356,8 @@ class YankBindingCube(ParallelOEMolComputeCube):
                                  help_text="Pressure (atm)")
 
     solvent = parameter.StringParameter('solvent', default='gbsa',
-                                 help_text="Solvent choice: one of ['gbsa', 'pme', 'rf']")
+                                 choices=['gbsa', 'pme', 'rf'],
+                                 help_text="Solvent choice ['gbsa', 'pme', 'rf']")
 
     minimize = parameter.BooleanParameter('minimize', default=True,
                                      help_text="Minimize initial structures for stability")
