@@ -65,7 +65,7 @@ python floes/openmm_setup_md.py --ligand examples/data/toluene.pdb --protein exa
 #### [RunOpenMMSimulation] Run a MD Simulation given a complex.oeb.gz
 If you want to just run MD from the prepared complex:
 ```
-python floes/openmm_md.py --complex examples/data/9PC1X-complex.oeb.gz --steps 10000
+python floes/openmm_md.py --complex examples/data/JF6_1-complex.oeb.gz --steps 10000
 ```
 
 
@@ -75,18 +75,18 @@ Starting from a SMILE string, generate conformers with OMEGA, dock to a
 prepared receptor using FRED, and parameterize the molecules. Writes out the
 SMIRFF molecules in their docked poses.
 ```
-python floes/smiles_ligprep.py --ligand examples/data/test_smiles.ism --receptor examples/data/test-receptor.oeb.gz
+python floes/smiles_ligprep.py --ligand examples/data/JF6_1.ism --receptor examples/data/epox_hydrolase_receptor.oeb.gz
 ```
 
 #### [SmilesComplexPrep]: Setup the protein:ligand complexes
 Does the same as above and then prepares the complex from a PDB of the receptor.
 Writes out the protein:ligand complex.
 ```
-python floes/smiles_complex_setup.py --ligand examples/data/test_smiles.ism --receptor examples/data/test-receptor.oeb.gz --protein examples/data/receptor-fixed.pdb
+python floes/smiles_complex-setup.py --ligand examples/data/JF6_1.ism --receptor examples/data/epox_hydrolase_receptor.oeb.gz --protein examples/data/epox_hydrolase_apo-protein.pdb
 ```
 
 #### [SmilesSimulation]: Setup and prepare the MD simulation.
 Does all the preparation steps above and runs the MD simulation:
 ```
-python floes/smiles_setup_md.py --ligand examples/data/test_smiles.ism --receptor examples/data/test-receptor.oeb.gz --protein examples/data/receptor-fixed.pdb --steps 10000
+python floes/smiles_setup-md.py --ligand examples/data/JF6_1.ism --receptor examples/data/epox_hydrolase_receptor.oeb.gz --protein examples/data/epox_hydrolase_apo-protein.pdb --steps 5000
 ```
