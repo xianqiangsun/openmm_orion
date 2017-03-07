@@ -143,7 +143,19 @@ quit
     def process(self, mol, port):
         ff = self.args.molecule_forcefield
         try:
-            # TO DO: Check that molecule HAS charges here (usually not having charges is a sign of a mistake)
+            # Check that molecule is charged.
+            is_charged = False
+            for atom in mol.GetAtoms():
+                if atom.GetPartialCharge() != 0.0:
+                    is_charged = True
+            if not is_charged:
+                raise Exception('Molecule %s has no charges; input molecules must be charged.' % mol.GetTitle())
+
+
+            # Determine formal charge (antechamber needs as argument)
+            chg = 0
+            for atom in mol.GetAtoms():
+                chg+=atom.GetFormalCharge()
 
             # Write out mol to a mol2 file to process via AmberTools
             mol2file = tempfile.NamedTemporaryFile(suffix='.mol2')
@@ -155,7 +167,7 @@ quit
 
             # Run antechamber to type and parmchk for frcmod
             # requires openmoltools 0.7.5 or later, which should be conda-installable via omnia
-            gaff_mol2_filename, frcmod_filename = openmoltools.amber.run_antechamber( 'ligand', mol2filename, gaff_version = ff.lower())
+            gaff_mol2_filename, frcmod_filename = openmoltools.amber.run_antechamber( 'ligand', mol2filename, gaff_version = ff.lower(), net_charge = chg)
 
             # Run tleap using specified forcefield
             prmtop, inpcrd = openmoltools.amber.run_tleap('ligand', gaff_mol2_filename, frcmod_filename, leaprc = 'leaprc.%s' % ff.lower() )
