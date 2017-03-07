@@ -71,11 +71,10 @@ class SMIRFFParameterization(OEMolComputeCube):
 
     def begin(self):
         try:
-            dfname = get_data_filename(self.args.molecule_forcefield)
-            with open(dfname) as ffxml:
+            with open(self.args.molecule_forcefield) as ffxml:
                 self.mol_ff = ForceField(ffxml)
         except:
-            raise RuntimeError('Error opening {}'.format(dfname))
+            raise RuntimeError('Error opening {}'.format(self.args.molecule_forcefield))
 
     def process(self, mol, port):
         # Create a copy incase of error
