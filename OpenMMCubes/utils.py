@@ -17,14 +17,20 @@ from simtk import unit, openmm
 download_cache = {}
 
 def get_data_filename(package_root, relative_path):
-    """Get the full path to one of the reference files in testsystems.
-    In the source distribution, these files are in ``examples/data/``,
-    but on installation, they're moved to somewhere in the user's python
-    site-packages directory.
+    """Get the full path of the files installed in python packages or included
+    in this package.
+
     Parameters
     ----------
-    name : str
-        Name of the file to load (with respect to the repex folder).
+    package_root : str (i.e examples or smirff99Frosst)
+        Name of the included/installed python package
+    relative_path: str (i.e. toluene.pdb or smirff99Frosst.ffxml)
+        Path to the file within the python package
+
+    Returns
+    --------
+    fn : str (i.e examples/data/toluene.pdb or smirff99Frosst/smirff99Frosst.ffxml)
+        Full path to the file within the python package
     """
 
     from pkg_resources import resource_filename
