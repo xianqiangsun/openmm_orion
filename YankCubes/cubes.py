@@ -255,13 +255,13 @@ solvents:
     nonbonded_method: PME
     nonbonded_cutoff: 9*angstroms
     ewald_error_tolerance: 1.0e-4
-    clearance: 16*angstroms
+    clearance: 9*angstroms
     positive_ion: Na+
     negative_ion: Cl-
   rf:
     nonbonded_method: CutoffPeriodic
     nonbonded_cutoff: 9*angstroms
-    clearance: 16*angstroms
+    clearance: 9*angstroms
     positive_ion: Na+
     negative_ion: Cl-
   gbsa:
