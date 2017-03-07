@@ -24,7 +24,7 @@ class OMEGATester(unittest.TestCase):
 
     def test_success(self):
         print('Testing cube:', self.cube.name)
-        self.cube.args.ligand = get_data_filename('test_smiles.ism')
+        self.cube.args.ligand = get_data_filename('examples','data/test_smiles.ism')
 
         # Read a molecule
         mol = oechem.OEMol()
@@ -57,7 +57,7 @@ class FREDTester(unittest.TestCase):
     """
     def setUp(self):
         self.cube = FREDDocking('fred')
-        self.cube.args.receptor = get_data_filename('test-receptor.oeb.gz')
+        self.cube.args.receptor = get_data_filename('examples', 'data/test-receptor.oeb.gz')
         self.runner = CubeTestRunner(self.cube)
         self.runner.start()
 
@@ -65,7 +65,7 @@ class FREDTester(unittest.TestCase):
         print('Testing cube:', self.cube.name)
         # Read a molecule
         mol = oechem.OEMol()
-        ifs = oechem.oemolistream(get_data_filename('mcmol.oeb'))
+        ifs = oechem.oemolistream(get_data_filename('examples', 'data/mcmol.oeb'))
         if not oechem.OEReadMolecule(ifs, mol):
             raise Exception('Cannot read molecule')
         ifs.close()
@@ -94,13 +94,13 @@ class SMIRFFTester(unittest.TestCase):
     """
     def setUp(self):
         self.cube = SMIRFFParameterization('smirff')
-        self.cube.args.molecule_forcefield = 'smirff99Frosst.ffxml'
+        self.cube.args.molecule_forcefield = get_data_filename('smirff99Frosst','smirff99Frosst.ffxml')
         self.runner = CubeTestRunner(self.cube)
         self.runner.start()
 
     def test_success(self):
         print('Testing cube:', self.cube.name)
-        self.cube.args.ligand = get_data_filename('toluene.pdb')
+        self.cube.args.ligand = get_data_filename('examples','data/toluene.pdb')
         # Read a molecule
         mol = oechem.OEMol()
         ifs = oechem.oemolistream(self.cube.args.ligand)
@@ -159,7 +159,7 @@ class GAFFTester(unittest.TestCase):
 
     def test_success(self):
         print('Testing cube:', self.cube.name)
-        self.cube.args.ligand = get_data_filename('toluene.pdb')
+        self.cube.args.ligand = get_data_filename('examples','data/toluene.pdb')
         # Read a molecule
         mol = oechem.OEMol()
         ifs = oechem.oemolistream(self.cube.args.ligand)
