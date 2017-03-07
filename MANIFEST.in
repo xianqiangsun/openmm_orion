@@ -7,3 +7,5 @@ recursive-include PlatformTestCubes *.py *.pdb
 recursive-include OpenMMCubes *.py
 recursive-include LigPrepCubes *.py
 recursive-include YankCubes *.py
+recursive-include SAMSCubes *.py
+recursive-include PersesCubes *.py

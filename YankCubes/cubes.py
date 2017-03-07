@@ -32,7 +32,7 @@ options:
   number_of_iterations: %(number_of_iterations)d
   temperature: %(temperature)f*kelvin
   pressure: %(pressure)f*atmosphere
-  anisotropic_dispersion_correction: no
+  anisotropic_dispersion_correction: 9*angstroms
   output_dir: %(output_directory)s
   verbose: %(verbose)s
 
@@ -236,7 +236,6 @@ options:
   number_of_iterations: %(number_of_iterations)d
   temperature: %(temperature)f*kelvin
   pressure: %(pressure)f*atmosphere
-  #anisotropic_dispersion_correction: yes
   output_dir: %(output_directory)s
   verbose: %(verbose)s
 

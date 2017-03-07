@@ -62,8 +62,9 @@ ifs.promote_parameter("data_in", promoted_name="molecules", description="Input m
 
 yank_cube = YankBindingCube('yank_binding', title = 'Yank for binding free energies')
 for parameter_name in ['receptor', 'solvent', 'temperature', 'pressure', 'nsteps_per_iteration', 'simulation_time', 'timestep', 'minimize', 'verbose']:
+    promoted_name = parameter_name
     description = yank_cube.parameters()[parameter_name].description
-    yank_cube.promote_parameter(parameter_name, promoted_name=parameter_name, description=description)
+    yank_cube.promote_parameter(parameter_name, promoted_name=promoted_name, description=description)
 
 success_ofs = OEMolOStreamCube("success_ofs")
 success_ofs.promote_parameter("data_out", promoted_name="success", description="Output molecules")
