@@ -47,6 +47,7 @@ solvents:
     nonbonded_method: PME
     nonbonded_cutoff: 9*angstroms
     clearance: 8*angstroms
+    ewald_error_tolerance: 1.0e-4
   gbsa:
     nonbonded_method: NoCutoff
     implicit_solvent: OBC2
@@ -252,6 +253,7 @@ solvents:
   pme:
     nonbonded_method: PME
     nonbonded_cutoff: 9*angstroms
+    ewald_error_tolerance: 1.0e-4
     clearance: 16*angstroms
     positive_ion: Na+
     negative_ion: Cl-
