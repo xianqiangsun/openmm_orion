@@ -149,6 +149,9 @@ class GAFFTester(unittest.TestCase):
         struct_string = [x.strip() for x in str(struct).split(';')]
         self.assertIn('parametrized>', struct_string)
 
+        gafftmpfiles = ['ligand.frcmod', 'ligand.inpcrd', 'ligand.prmtop', 'ligand.gaff.mol2', 'tleap_commands', 'leap.log']
+        utils.cleanup(gafftmpfiles)
+
     def test_failure(self):
         pass
 
@@ -170,7 +173,7 @@ class FREDTester(unittest.TestCase):
         print('Testing cube:', self.cube.name)
         # Read a molecule
         mol = oechem.OEMol()
-        ifs = oechem.oemolistream(utils.get_data_filename('examples', 'data/JF6_1-chgdmc.oeb.gz'))
+        ifs = oechem.oemolistream(utils.get_data_filename('examples', 'data/JF6_1-smirff.oeb.gz'))
         if not oechem.OEReadMolecule(ifs, mol):
             raise Exception('Cannot read molecule')
         ifs.close()

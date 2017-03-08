@@ -190,8 +190,6 @@ quit
             packedmol = utils.PackageOEMol.pack(mol, molecule_structure)
             self.success.emit(packedmol)
 
-
-
             # Emit
             self.success.emit(packedmol)
 
