@@ -15,6 +15,7 @@ import YankCubes.utils as utils
 from YankCubes.utils import molecule_is_charged, download_dataset_to_file, get_data_filename
 
 import yank
+import mdtraj
 from yank.yamlbuild import *
 import textwrap
 import subprocess
@@ -241,6 +242,7 @@ options:
   pressure: %(pressure)f*atmosphere
   output_dir: %(output_directory)s
   verbose: %(verbose)s
+  randomize_ligand: %(randomize_ligand)s
 
 molecules:
   receptor:
@@ -362,6 +364,9 @@ class YankBindingCube(ParallelOEMolComputeCube):
     minimize = parameter.BooleanParameter('minimize', default=True,
                                      help_text="Minimize initial structures for stability")
 
+    randomize_ligand = parameter.BooleanParameter('randomize_ligand', default=False,
+                                     help_text="Randomize initial ligand position (implicit only)")
+
     verbose = parameter.BooleanParameter('verbose', default=False,
                                      help_text="Print verbose YANK logging output")
 
@@ -377,6 +382,7 @@ class YankBindingCube(ParallelOEMolComputeCube):
             'solvent' : self.args.solvent,
             'minimize' : 'yes' if self.args.minimize else 'no',
             'verbose' : 'yes' if self.args.verbose else 'no',
+            'randomize_ligand' : 'yes' if self.args.randomize_ligand else 'no',
         }
 
         for parameter in kwargs.keys():
@@ -441,13 +447,27 @@ class YankBindingCube(ParallelOEMolComputeCube):
 
                 # Analyze the binding free energy
                 # TODO: Use yank.analyze API for this
-                from yank.analyze import analyze
+                from YankCubes.analysis import analyze
                 store_directory = os.path.join(output_directory, 'experiments')
-                analyze(store_directory)
-                DeltaG_binding = 0.0 # TODO: Get from output of analyze
-                dDeltaG_binding = 0.0 # TODO: Get from output of analyze
+                [DeltaG_binding, dDeltaG_binding] = analyze(store_directory)
 
-                # Add result to original molecule
+                """
+                # Extract trajectory (DEBUG)
+                from yank.analyze import extract_trajectory
+                trajectory_filename = 'trajectory.pdb'
+                store_filename = os.path.join(store_directory, 'complex.pdb')
+                extract_trajectory(trajectory_filename, store_filename, state_index=0, keep_solvent=False,
+                       discard_equilibration=True, image_molecules=True)
+                ifs = oechem.oemolistream(trajectory_filename)
+                ifs.SetConfTest(oechem.OEAbsCanonicalConfTest()) # load multi-conformer molecule
+                mol = oechem.OEMol()
+                for mol in ifs.GetOEMols():
+                    print (mol.GetTitle(), "has", mol.NumConfs(), "conformers")
+                ifs.close()
+                os.remove(trajectory_filename)
+                """
+
+                # Attach binding free energy estimates to molecule
                 oechem.OESetSDData(mol, 'DeltaG_yank_binding', str(DeltaG_binding * kT_in_kcal_per_mole))
                 oechem.OESetSDData(mol, 'dDeltaG_yank_binding', str(dDeltaG_binding * kT_in_kcal_per_mole))
                 self.log.info('Analyzed and stored binding free energy for molecule {}.'.format(title))
