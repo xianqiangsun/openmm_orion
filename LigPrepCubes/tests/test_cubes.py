@@ -11,7 +11,7 @@ from openeye import oechem, oedocking
 
 class ChargeMCMolTester(unittest.TestCase):
     """
-    Test the OMEGA cube
+    Test the Charging/OMEGA cube
     Example inputs from `openmm_orion/examples/data`
     """
     def setUp(self):
@@ -160,7 +160,7 @@ class GAFFTester(unittest.TestCase):
 
 class FREDTester(unittest.TestCase):
     """
-    Test the OMEGA cube
+    Test the FRED docking cube
     Example inputs from `openmm_orion/examples/data`
     """
     def setUp(self):
