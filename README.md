@@ -18,9 +18,9 @@
 * `floes/openmm_complex_setup.py` - Setup the protein:ligand complex from **PDBs**.
 * `floes/openmm_setup_md.py` - Setup the protein:ligand complex and run MD simulation from **PDBs**
 * `floes/openmm_md.py` - Run MD simulation from a prepared *complex.oeb.gz*
-* `floes/smiles_ligprep.py` - Parse smiles, dock and parameterize the molecules.
+* `floes/smiles_ligprep_smirnoff.py` - Parse smiles, dock and parameterize with SMIRNOFF.
+* `floes/smiles_ligprep_gaff.py` - Parse smiles, dock, and parameterize with GAFF.
 * `floes/smiles_complex_setup.py` - Parse smiles and setup the protein:ligand complex.
-* `floes/smiles_setup_md.py` - Parse smiles, prepare complex, and run MD simulation.
 
 ## Local Installation
 ```bash
@@ -83,10 +83,4 @@ Does the same as above and then prepares the complex from a PDB of the receptor.
 Writes out the protein:ligand complex.
 ```
 python floes/smiles_complex-setup.py --ligand examples/data/JF6_1.ism --receptor examples/data/epox_hydrolase_receptor.oeb.gz --protein examples/data/epox_hydrolase_apo-protein.pdb
-```
-
-#### [SmilesSimulation]: Setup and prepare the MD simulation.
-Does all the preparation steps above and runs the MD simulation:
-```
-python floes/smiles_setup-md.py --ligand examples/data/JF6_1.ism --receptor examples/data/epox_hydrolase_receptor.oeb.gz --protein examples/data/epox_hydrolase_apo-protein.pdb --steps 5000
 ```

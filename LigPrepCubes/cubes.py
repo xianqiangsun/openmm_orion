@@ -69,21 +69,22 @@ class ChargeMCMol(OEMolComputeCube):
 class SMIRFFParameterization(OEMolComputeCube):
     title = "SMIRFFParameterization"
     classification = [["Ligand Preparation"]]
-    tags = ['OpenMM', 'SMIRFF', 'Forcefields']
+    tags = ['OpenMM', 'SMIRNOFF', 'Forcefields']
     description = """Parameterize the ligand with the SMIRNOFF parameters, Attach the ParmEd Structure to the OEMol.
     """
 
     molecule_forcefield = parameter.DataSetInputParameter(
         'molecule_forcefield',
-        default='smirff99Frosst.ffxml',
+        default='SMIRNOFF',
         help_text='Forcefield FFXML file for molecule')
 
     def begin(self):
         try:
-            with open(self.args.molecule_forcefield) as ffxml:
+            ff = utils.get_data_filename('smirff99Frosst','smirff99Frosst.ffxml')
+            with open(ff) as ffxml:
                 self.mol_ff = ForceField(ffxml)
         except:
-            raise RuntimeError('Error opening {}'.format(self.args.molecule_forcefield))
+            raise RuntimeError('Error opening {}'.format(ff))
 
     def process(self, mol, port):
         try:
@@ -265,34 +266,3 @@ class FREDDocking(OEMolComputeCube):
 
     def end(self):
         pass
-
-class OEBSinkCube(SinkCube):
-    """
-    A custom sink cube that writes molecules to a oeb.gz
-    """
-    #classification = [["Testing", "Output"]]
-    title = "OEBSinkCube"
-    #Define Custom Ports to handle oeb.gz files
-    intake = CustomMoleculeInputPort('intake')
-
-    directory = parameter.StringParameter('directory',
-                                         default='output',
-                                         description='Directory name')
-    suffix = parameter.StringParameter('suffix',
-                                        required=True,
-                                        description='suffix to append')
-    def begin(self):
-        if not os.path.exists(self.args.directory):
-            os.makedirs(self.args.directory)
-
-    def write(self, mol, port):
-        if 'idtag' in mol.GetData().keys():
-            idtag = mol.GetData(oechem.OEGetTag('idtag'))
-        outfname = '{}/{}-{}.oeb.gz'.format(self.args.directory,
-                                           idtag, self.args.suffix)
-        with oechem.oemolostream(outfname) as ofs:
-            res = oechem.OEWriteConstMolecule(ofs, mol)
-            if res != oechem.OEWriteMolReturnCode_Success:
-                raise RuntimeError("Error writing {}.oeb.gz".format(outfname))
-            else:
-                self.log.info('Saving to {}'.format(outfname))

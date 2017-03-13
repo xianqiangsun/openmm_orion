@@ -1,7 +1,7 @@
 from __future__ import unicode_literals
 from floe.api import WorkFloe, OEMolIStreamCube, OEMolOStreamCube, FileOutputCube, DataSetInputParameter, FileInputCube
 from OpenMMCubes.cubes import OpenMMComplexSetup, OpenMMSimulation
-from LigPrepCubes.cubes import OEBSinkCube
+from LigPrepCubes.cubes import ChargeMCMol, SMIRFFParameterization, GAFFParameterization, FREDDocking
 
 job = WorkFloe("RunOpenMMSimulation")
 
@@ -32,8 +32,8 @@ ifs.promote_parameter("data_in", promoted_name="complex", description="OEB of th
 md = OpenMMSimulation('md')
 md.promote_parameter('steps', promoted_name='steps')
 
-ofs = OEBSinkCube('ofs')
-ofs.set_parameters(suffix='simulation')
+ofs = OEMolOStreamCube('ofs')
+ofs.set_parameters(data_out="simulation.oeb.gz")
 
 job.add_cubes(ifs, md, ofs)
 ifs.success.connect(md.intake)

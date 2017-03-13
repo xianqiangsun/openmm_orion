@@ -1,7 +1,7 @@
 from __future__ import unicode_literals
 from floe.api import WorkFloe, OEMolIStreamCube, OEMolOStreamCube, FileOutputCube, DataSetInputParameter, FileInputCube
 from OpenMMCubes.cubes import OpenMMComplexSetup, OpenMMSimulation
-from LigPrepCubes.cubes import SMIRFFParameterization, SetIDTagfromTitle, OEBSinkCube
+from LigPrepCubes.cubes import ChargeMCMol, SMIRFFParameterization, GAFFParameterization, FREDDocking
 
 job = WorkFloe("SetupOpenMMComplex")
 
@@ -47,7 +47,7 @@ job.tags = [tag for lists in job.classification for tag in lists]
 ifs = OEMolIStreamCube("ifs")
 ifs.promote_parameter("data_in", promoted_name="ligand", description="PDB of docked ligand")
 
-idtag = SetIDTagfromTitle('idtag')
+charge = ChargeMCMol('charge')
 
 smirff = SMIRFFParameterization('smirff')
 smirff.promote_parameter('molecule_forcefield', promoted_name='ffxml', description="SMIRFF FFXML")
@@ -60,12 +60,12 @@ complex_setup.promote_parameter('salt_concentration', promoted_name='salt_conc')
 complex_setup.promote_parameter('protein_forcefield', promoted_name='protein_ff')
 complex_setup.promote_parameter('solvent_forcefield', promoted_name='solvent_ff')
 
-ofs = OEBSinkCube('ofs')
-ofs.set_parameters(suffix='complex')
+ofs = OEMolOStreamCube('ofs')
+ofs.set_parameters(data_out="simulation.oeb.gz")
 
-job.add_cubes(ifs, idtag, smirff, complex_setup, ofs)
-ifs.success.connect(idtag.intake)
-idtag.success.connect(smirff.intake)
+job.add_cubes(ifs, charge, smirff, complex_setup, ofs)
+ifs.success.connect(charge.intake)
+charge.success.connect(smirff.intake)
 smirff.success.connect(complex_setup.intake)
 complex_setup.success.connect(ofs.intake)
 
