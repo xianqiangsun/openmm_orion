@@ -1,6 +1,3 @@
-from OpenMMCubes.ports import ( ParmEdStructureInput, ParmEdStructureOutput,
-    OpenMMSystemOutput, OpenMMSystemInput )
-
 import unittest, parmed, base64, pickle
 from LigPrepCubes.ports import (CustomMoleculeInputPort, CustomMoleculeOutputPort)
 from LigPrepCubes.cubes import ChargeMCMol, GAFFParameterization, SMIRNOFFParameterization, FREDDocking
@@ -52,9 +49,9 @@ class ChargeMCMolTester(unittest.TestCase):
     def tearDown(self):
         self.runner.finalize()
 
-class SMIRFFTester(unittest.TestCase):
+class SMIRNOFFTester(unittest.TestCase):
     """
-    Test the SMIRFF Parameterization cube
+    Test the SMIRNOFF Parameterization cube
     Example inputs from `openmm_orion/examples/data`
     """
     def setUp(self):
