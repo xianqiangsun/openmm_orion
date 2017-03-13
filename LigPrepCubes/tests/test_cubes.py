@@ -3,7 +3,7 @@ from OpenMMCubes.ports import ( ParmEdStructureInput, ParmEdStructureOutput,
 
 import unittest, parmed, base64, pickle
 from LigPrepCubes.ports import (CustomMoleculeInputPort, CustomMoleculeOutputPort)
-from LigPrepCubes.cubes import ChargeMCMol, GAFFParameterization, SMIRFFParameterization, FREDDocking
+from LigPrepCubes.cubes import ChargeMCMol, GAFFParameterization, SMIRNOFFParameterization, FREDDocking
 import OpenMMCubes.utils as utils
 from simtk import openmm, unit
 from floe.test import CubeTestRunner
@@ -58,8 +58,8 @@ class SMIRFFTester(unittest.TestCase):
     Example inputs from `openmm_orion/examples/data`
     """
     def setUp(self):
-        self.cube = SMIRFFParameterization('smirff')
-        self.cube.args.molecule_forcefield = utils.get_data_filename('smirff99Frosst','smirff99Frosst.ffxml')
+        self.cube = SMIRNOFFParameterization('smirnoff')
+        self.cube.args.molecule_forcefield = 'SMIRNOFF'
         self.runner = CubeTestRunner(self.cube)
         self.runner.start()
 
