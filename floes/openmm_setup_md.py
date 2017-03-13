@@ -4,7 +4,7 @@ Copyright (C) 2016 OpenEye Scientific Software
 """
 from floe.api import WorkFloe, OEMolIStreamCube, OEMolOStreamCube, FileOutputCube, DataSetInputParameter, FileInputCube
 from OpenMMCubes.cubes import OpenMMComplexSetup, OpenMMSimulation
-from LigPrepCubes.cubes import ChargeMCMol, SMIRFFParameterization, GAFFParameterization, FREDDocking
+from LigPrepCubes.cubes import ChargeMCMol, SMIRNOFFParameterization, GAFFParameterization, FREDDocking
 
 job = WorkFloe("SetupMD")
 
@@ -12,7 +12,7 @@ job.description = """
 **Set up an OpenMM complex for simulation and run 1000 steps of MD**
 
 This floe will generate a fully solvated system with TIP3P, where the ligad is parameterized
-with the SMIRFF forcefield parameters and the protein parameterized with amber99sbild.
+with the SMIRNOFF forcefield parameters and the protein parameterized with amber99sbild.
 It will then generate the OpenMM system to be run for 1000 steps of MD and
 store the System and State for easy restarting of the simulation.
 """

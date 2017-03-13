@@ -66,8 +66,8 @@ class ChargeMCMol(OEMolComputeCube):
             # Return failed molecule
             self.failure.emit(mol)
 
-class SMIRFFParameterization(OEMolComputeCube):
-    title = "SMIRFFParameterization"
+class SMIRNOFFParameterization(OEMolComputeCube):
+    title = "SMIRNOFFParameterization"
     classification = [["Ligand Preparation"]]
     tags = ['OpenMM', 'SMIRNOFF', 'Forcefields']
     description = """Parameterize the ligand with the SMIRNOFF parameters, Attach the ParmEd Structure to the OEMol.

@@ -1,7 +1,7 @@
 from __future__ import unicode_literals
 from floe.api import WorkFloe, OEMolIStreamCube, OEMolOStreamCube, FileOutputCube, DataSetInputParameter, FileInputCube
 from OpenMMCubes.cubes import OpenMMComplexSetup, OpenMMSimulation
-from LigPrepCubes.cubes import ChargeMCMol, SMIRFFParameterization, GAFFParameterization, FREDDocking
+from LigPrepCubes.cubes import ChargeMCMol, SMIRNOFFParameterization, GAFFParameterization, FREDDocking
 
 job = WorkFloe("SetupOpenMMComplex")
 
@@ -11,7 +11,7 @@ job.description = """
 This floe will do the following in each cube:
   (1) ifs: Read in the ligand file (toluene.pdb),
   (2) idtag: Add an idtag from the molecule's title or use a random 6 character string.
-  (3a) smirff: Parameterize the molecule with the ffxml file (smirff99Frosst.ffxml)
+  (3a) smirnoff: Parameterize the molecule with the ffxml file (smirnoff99Frosst.ffxml)
         Generate the ParmEd Structure and attach it to the OEMol.
   (4) complex_setup: Paramterize the protein (T4-protein.pdb) and merge with the molecule Structure,
         Using PDBFixer: add missing atoms, add hydrogens given a pH, and solvate with TIP3P.
@@ -30,7 +30,7 @@ protein (file): PDB file of the protein structure, *assumed to be `pre-prepared`
 pH (float): Solvent pH used to select protein protonation states (default: 7.0)
 solvent_padding (float): Padding around protein for solvent box (default: 10 angstroms)
 salt_concentration (float): Salt concentration (default: 50 millimolar)
-molecule_forcefield (file): Smarty parsable FFXML file containining parameters for the molecule (default: smirff99Frosst.ffxml)
+molecule_forcefield (file): Smarty parsable FFXML file containining parameters for the molecule (default: smirnoff99Frosst.ffxml)
 protein_forcefield (file): XML file containing forcefield parameters for protein (default: amber99sbildn.xml)
 solvent_forcefield (file): XML file containing forcefield parameter for solvent (default: tip3p.xml)
 
@@ -49,8 +49,8 @@ ifs.promote_parameter("data_in", promoted_name="ligand", description="PDB of doc
 
 charge = ChargeMCMol('charge')
 
-smirff = SMIRFFParameterization('smirff')
-smirff.promote_parameter('molecule_forcefield', promoted_name='ffxml', description="SMIRFF FFXML")
+smirnoff = smirnoffParameterization('smirnoff')
+smirnoff.promote_parameter('molecule_forcefield', promoted_name='ffxml', description="smirnoff FFXML")
 
 complex_setup = OpenMMComplexSetup("complex_setup")
 complex_setup.promote_parameter('protein', promoted_name='protein', description="PDB of protein structure")
@@ -63,10 +63,10 @@ complex_setup.promote_parameter('solvent_forcefield', promoted_name='solvent_ff'
 ofs = OEMolOStreamCube('ofs')
 ofs.set_parameters(data_out="simulation.oeb.gz")
 
-job.add_cubes(ifs, charge, smirff, complex_setup, ofs)
+job.add_cubes(ifs, charge, smirnoff, complex_setup, ofs)
 ifs.success.connect(charge.intake)
-charge.success.connect(smirff.intake)
-smirff.success.connect(complex_setup.intake)
+charge.success.connect(smirnoff.intake)
+smirnoff.success.connect(complex_setup.intake)
 complex_setup.success.connect(ofs.intake)
 
 if __name__ == "__main__":
