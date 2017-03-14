@@ -4,6 +4,7 @@ Copyright (C) 2016 OpenEye Scientific Software
 """
 from floe.api import WorkFloe, OEMolIStreamCube, OEMolOStreamCube, FileOutputCube, DataSetInputParameter, FileInputCube
 from OpenMMCubes.cubes import OpenMMComplexSetup, OpenMMSimulation
+from LigPrepCubes.cubes import ChargeMCMol, SMIRNOFFParameterization, GAFFParameterization, FREDDocking
 
 job = WorkFloe("SetupMD")
 
@@ -11,22 +12,9 @@ job.description = """
 **Set up an OpenMM complex for simulation and run 1000 steps of MD**
 
 This floe will generate a fully solvated system with TIP3P, where the ligad is parameterized
-with the SMIRFF forcefield parameters and the protein parameterized with amber99sbild.
+with the SMIRNOFF forcefield parameters and the protein parameterized with amber99sbild.
 It will then generate the OpenMM system to be run for 1000 steps of MD and
 store the System and State for easy restarting of the simulation.
-
-Parameters:
------------
-protein: Assumed to be taken from a 'pre-prepared' protein structure.
-ligand (ifs): This floe expects an .oeb.gz file (smirrf_mol.oeb.gz),
-where the ligand (toulene.pdb) is packaged with the smirff99Frosst.ffxml
-forcefield parameters into an .oeb.gz file.
-
-Returns:
---------
-ofs: Outputs a simulation.oeb.gz file containing the
-OpenMM System, State, and log file packaged with the
-OEMol of the protein:ligand complex
 """
 
 job.classification = [
