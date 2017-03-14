@@ -59,6 +59,7 @@ class SimulationCubeTester(unittest.TestCase):
         self.runner = CubeTestRunner(self.cube)
         self.cube.args.steps = 3
         self.cube.args.reporter_interval = 1
+        self.cube.args.tarxz = False
         self.runner = CubeTestRunner(self.cube)
         self.runner.start()
 
