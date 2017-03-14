@@ -29,8 +29,7 @@ class PackageOEMol(object):
         return molecule.GetData(oechem.OEGetTag(str(tag)))
 
     def updateSimIdx(molecule):
-        """Function to keep an index for file naming when molecules (OEMols)
-        contain a saved State and are being used to restart/continue the simulation."""
+        """Place a counter on the OEMol to track the number of restarts"""
         if molecule.HasData(oechem.OEGetTag('SimIdx')):
             idx = molecule.GetData(oechem.OEGetTag('SimIdx'))
             ndx = int(idx)+1
