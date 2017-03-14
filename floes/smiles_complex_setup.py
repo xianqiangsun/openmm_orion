@@ -22,7 +22,7 @@ charge = ChargeMCMol('charge')
 fred = FREDDocking('fred')
 fred.promote_parameter('receptor', promoted_name='receptor', description='Receptor OEB')
 
-smirnoff = smirnoffParameterization('smirnoff')
+smirnoff = SMIRNOFFParameterization('smirnoff')
 smirnoff.promote_parameter('molecule_forcefield', promoted_name='ffxml', description="smirnoff FFXML")
 
 complex_setup = OpenMMComplexSetup("complex_setup")
@@ -39,7 +39,7 @@ ofs.set_parameters(data_out="complex.oeb.gz")
 job.add_cubes(ifs, charge, fred, smirnoff, complex_setup, ofs)
 ifs.success.connect(charge.intake)
 charge.success.connect(fred.intake)
-fred.success.connect(smirnoff.intake))
+fred.success.connect(smirnoff.intake)
 smirnoff.success.connect(complex_setup.intake)
 complex_setup.success.connect(ofs.intake)
 if __name__ == "__main__":

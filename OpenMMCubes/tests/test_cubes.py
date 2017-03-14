@@ -13,7 +13,7 @@ class SetupCubeTester(unittest.TestCase):
     """
     def setUp(self):
         self.cube = OpenMMComplexSetup("complex_setup")
-        self.cube.args.protein = get_data_filename('examples','data/epox_hydrolase_apo-protein.pdb')
+        self.cube.args.protein = utils.get_data_filename('examples', 'data/epox_hydrolase_apo-protein.pdb')
         self.cube.args.solvent_padding = 1
         self.cube.args.salt_concentration = 10
         self.runner = CubeTestRunner(self.cube)
@@ -23,7 +23,7 @@ class SetupCubeTester(unittest.TestCase):
         print('Testing cube:', self.cube.name)
         # Read a molecule
         mol = oechem.OEMol()
-        ifs = oechem.oemolistream(get_data_filename('examples','data/JF6_1-smirff.oeb.gz'))
+        ifs = oechem.oemolistream(utils.get_data_filename('examples','data/JF6_1-smirff.oeb.gz'))
         if not oechem.OEReadMolecule(ifs, mol):
             raise Exception('Cannot read molecule')
         ifs.close()

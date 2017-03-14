@@ -28,4 +28,5 @@ install:
 script:
 - py.test -v PlatformTestCubes
 - py.test -v LigPrepCubes
-#- py.test -v OpenMMCubes
+- py.test -v OpenMMCubes
+- py.test -v floes/floes_tests

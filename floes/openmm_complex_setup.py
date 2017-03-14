@@ -49,7 +49,7 @@ ifs.promote_parameter("data_in", promoted_name="ligand", description="PDB of doc
 
 charge = ChargeMCMol('charge')
 
-smirnoff = smirnoffParameterization('smirnoff')
+smirnoff = SMIRNOFFParameterization('smirnoff')
 smirnoff.promote_parameter('molecule_forcefield', promoted_name='ffxml', description="smirnoff FFXML")
 
 complex_setup = OpenMMComplexSetup("complex_setup")

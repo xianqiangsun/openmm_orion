@@ -4,11 +4,10 @@
 
 * `PlatformTestCubes/` - simple example cube for testing available OpenMM PlatformTestCubes
 * `LigPrepCubes/` - Cubes for preparing molecules
-  * `OEOmegaConfGen` - Use OE's omega cubes to generate MCMols
+  * `ChargeMCMol` - Assigns partial charges and generates multi-conf molecules with OMEGA
   * `FREDDocking` - Dock MCMols using FRED to a prepared receptor
-  * `SMIRFFParameterization` - Parametrizes molecule with SMIRFF
-  * `SetIDTagfromTitle` - Attaches an idtag from the molecule's Title or random ID.
-  * `OEBSinkCube` - Custom cube to write out compressed MCMols
+  * `SMIRNOFFParameterization` - Parametrizes molecule with SMIRNOFF forcefield
+  * `GAFFParameterization` - Parametrizes molecule with GAFF forcefield
 * `OpenMMCubes/` - OpenMM utility cubes
   * `OpenMMComplexSetup` - set up protein:ligand complex and emit OpenMM System
   * `OpenMMSimulation` - run OpenMM simulation.

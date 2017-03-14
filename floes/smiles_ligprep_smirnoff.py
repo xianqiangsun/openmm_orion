@@ -21,7 +21,7 @@ charge = ChargeMCMol('charge')
 fred = FREDDocking('fred')
 fred.promote_parameter('receptor', promoted_name='receptor', description='Receptor OEB')
 
-smirnoff = smirnoffParameterization('smirnoff')
+smirnoff = SMIRNOFFParameterization('smirnoff')
 smirnoff.promote_parameter('molecule_forcefield', promoted_name='ffxml', description="smirnoff FFXML")
 
 ofs = OEMolOStreamCube('ofs')
