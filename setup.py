@@ -33,10 +33,10 @@ def get_version():
 setup(
     name="OpenMMCubes",
     version='0.1.6',
-    #version=get_version(),
-    packages=find_packages('examples', exclude=['tests*']),
+    packages=find_packages(include=['examples', 'smirff99frosst'], exclude=['tests*']),
     include_package_data=True,
-    package_data={ 'examples' : find_package_data('examples/data', 'examples') },
+    package_data={ 'examples' : find_package_data('examples/data', 'examples'),
+                   'smirff99Frosst' : find_package_data('', 'smirff99Frosst')},
     author="Christopher Bayly, Nathan M. Lim, John Chodera",
     author_email="bayly@eyesopen.com",
     description='Prepare complex for MD with OpenMM',

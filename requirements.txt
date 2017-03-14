@@ -1,6 +1,6 @@
 # OE Stack
-openeye-toolkits==2016.10.1
-openeye-floe==0.2.142
+openeye-toolkits
+openeye-floe
 
 # Dev Stack
 invoke
