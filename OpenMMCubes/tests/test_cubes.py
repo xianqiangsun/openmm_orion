@@ -57,7 +57,8 @@ class SimulationCubeTester(unittest.TestCase):
     def setUp(self):
         self.cube = OpenMMSimulation("md")
         self.runner = CubeTestRunner(self.cube)
-        self.cube.args.steps = 1000
+        self.cube.args.steps = 3
+        self.cube.args.reporter_interval = 1
         self.runner = CubeTestRunner(self.cube)
         self.runner.start()
 

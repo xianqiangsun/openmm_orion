@@ -81,5 +81,5 @@ python floes/smiles_ligprep.py --ligand examples/data/JF6_1.ism --receptor examp
 Does the same as above and then prepares the complex from a PDB of the receptor.
 Writes out the protein:ligand complex.
 ```
-python floes/smiles_complex-setup.py --ligand examples/data/JF6_1.ism --receptor examples/data/epox_hydrolase_receptor.oeb.gz --protein examples/data/epox_hydrolase_apo-protein.pdb
+python floes/smiles_complex_setup.py --ligand examples/data/JF6_1.ism --receptor examples/data/epox_hydrolase_receptor.oeb.gz --protein examples/data/epox_hydrolase_apo-protein.pdb
 ```
