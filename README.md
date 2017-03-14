@@ -4,11 +4,10 @@
 
 * `PlatformTestCubes/` - simple example cube for testing available OpenMM PlatformTestCubes
 * `LigPrepCubes/` - Cubes for preparing molecules
-  * `OEOmegaConfGen` - Use OE's omega cubes to generate MCMols
+  * `ChargeMCMol` - Assigns partial charges and generates multi-conf molecules with OMEGA
   * `FREDDocking` - Dock MCMols using FRED to a prepared receptor
-  * `SMIRFFParameterization` - Parametrizes molecule with SMIRFF
-  * `SetIDTagfromTitle` - Attaches an idtag from the molecule's Title or random ID.
-  * `OEBSinkCube` - Custom cube to write out compressed MCMols
+  * `SMIRNOFFParameterization` - Parametrizes molecule with SMIRNOFF forcefield
+  * `GAFFParameterization` - Parametrizes molecule with GAFF forcefield
 * `OpenMMCubes/` - OpenMM utility cubes
   * `OpenMMComplexSetup` - set up protein:ligand complex and emit OpenMM System
   * `OpenMMSimulation` - run OpenMM simulation.
@@ -82,5 +81,5 @@ python floes/smiles_ligprep.py --ligand examples/data/JF6_1.ism --receptor examp
 Does the same as above and then prepares the complex from a PDB of the receptor.
 Writes out the protein:ligand complex.
 ```
-python floes/smiles_complex-setup.py --ligand examples/data/JF6_1.ism --receptor examples/data/epox_hydrolase_receptor.oeb.gz --protein examples/data/epox_hydrolase_apo-protein.pdb
+python floes/smiles_complex_setup.py --ligand examples/data/JF6_1.ism --receptor examples/data/epox_hydrolase_receptor.oeb.gz --protein examples/data/epox_hydrolase_apo-protein.pdb
 ```
