@@ -18,8 +18,11 @@ from OpenMMCubes.ports import ( ParmEdStructureInput, ParmEdStructureOutput,
 from smarty.forcefield import ForceField
 from smarty.forcefield_utils import create_system_from_molecule
 from OpenMMCubes.utils import download_dataset_to_file, get_data_filename
-from openmoltools.openeye import get_charges
+
+from LigPrepCubes import ff_utils
 import OpenMMCubes.utils as utils
+
+
 def _generateRandomID(size=5, chars=string.ascii_uppercase + string.digits):
     return ''.join(random.choice(chars) for _ in range(size))
 
@@ -45,8 +48,8 @@ class ChargeMCMol(OEMolComputeCube):
                 idtag = mol.GetTitle()
 
             #Generate the charged molecule, keeping the first conf.
-            charged_mol = get_charges(mol, max_confs=800, strictStereo=True,
-                                      normalize=True, keep_confs=-1)
+            charged_mol = ff_utils.assignCharges(mol, max_confs=800, strictStereo=True,
+                                      normalize=True, keep_confs=1)
             # Store the IUPAC name from normalize_molecule
             iupac = [ charged_mol.GetTitle().strip() ]
             # Pack as list incase of commas in IUPUC
@@ -59,6 +62,7 @@ class ChargeMCMol(OEMolComputeCube):
             oechem.OESetSDData(charged_mol, 'IDTag', idtag)
 
             self.success.emit(charged_mol)
+
         except Exception as e:
             # Attach error message to the molecule that failed
             self.log.error(traceback.format_exc())
@@ -66,38 +70,35 @@ class ChargeMCMol(OEMolComputeCube):
             # Return failed molecule
             self.failure.emit(mol)
 
-class SMIRNOFFParameterization(OEMolComputeCube):
-    title = "SMIRNOFFParameterization"
+class LigandParameterization(OEMolComputeCube):
+    title = "LigandParameterization"
     classification = [["Ligand Preparation"]]
-    tags = ['OpenMM', 'SMIRNOFF', 'Forcefields']
-    description = """Parameterize the ligand with the SMIRNOFF parameters, Attach the ParmEd Structure to the OEMol.
+    tags = ['OpenMM', 'Forcefields', 'GAFF', 'SMIRNOFF']
+    description = """Parameterize the ligand with the chosen forcefield,
+    Attach the ParmEd Structure to the OEMol.
     """
 
-    molecule_forcefield = parameter.DataSetInputParameter(
+    molecule_forcefield = parameter.StringParameter(
         'molecule_forcefield',
-        default='SMIRNOFF',
-        help_text='Forcefield FFXML file for molecule')
-
-    def begin(self):
-        try:
-            ff = utils.get_data_filename('smirff99Frosst','smirff99Frosst.ffxml')
-            with open(ff) as ffxml:
-                self.mol_ff = ForceField(ffxml)
-        except:
-            raise RuntimeError('Error opening {}'.format(ff))
+        required=True,
+        default='GAFF2',
+        choices=['GAFF', 'GAFF2', 'SMIRNOFF'],
+        help_text='Forcefield to parameterize the molecule')
 
     def process(self, mol, port):
         try:
-            mol_top, mol_sys, mol_pos = create_system_from_molecule(self.mol_ff, mol)
-            molecule_structure = parmed.openmm.load_topology(mol_top, mol_sys, xyz=mol_pos)
-            molecule_structure.residues[0].name = "LIG"
+            pmd = ff_utils.GenMolStructure(mol, self.args.molecule_forcefield)
+            molecule_structure = pmd.parameterize()
+            self.log.info(str(molecule_structure))
 
             oechem.OESetSDData(mol, 'NumAtoms', str(mol.NumAtoms()))
             oechem.OESetSDData(mol, 'Structure', str(molecule_structure))
             oechem.OESetSDData(mol, 'FF', str(self.args.molecule_forcefield) )
             mol.SetData(oechem.OEGetTag('IDTag'), mol.GetTitle())
             packedmol = utils.PackageOEMol.pack(mol, molecule_structure)
+
             self.success.emit(packedmol)
+
         except Exception as e:
             # Attach error message to the molecule that failed
             self.log.error(traceback.format_exc())
@@ -105,104 +106,6 @@ class SMIRNOFFParameterization(OEMolComputeCube):
             # Return failed molecule
             self.failure.emit(mol)
 
-class GAFFParameterization(OEMolComputeCube):
-    title = "Attach GAFF parameters to OE molecules"
-    description = """
-    Parameterize a molecule with GAFF or GAFF2 parameters via AmberTools.
-    Attach the resulting ParmEd Structure to the OEMol.
-    """
-
-    # TO DO: add ambermini to manifest/requirements/install as appropriate
-
-    classification = [["Testing", "Ligand Preparation"]]
-    tags = [tag for lists in classification for tag in lists]
-
-    #molecule_forcefield = parameter.DataSetInputParameter(
-    molecule_forcefield = parameter.StringParameter('molecule_forcefield',
-        default='GAFF',
-        help_text="GAFF forcefield to use: 'GAFF' or 'GAFF2'. Default: 'GAFF'")
-
-    def begin(self):
-        #Make sure here that selected forcefield is GAFF or GAFF2
-        ff = self.args.molecule_forcefield
-        if not ff in ['GAFF', 'GAFF2']:
-            raise RuntimeError('Selected forcefield %s is not GAFF or GAFF2' % ff)
-
-        #TO DO: Is there anything else I should do here to die early if this is going to fail?
-
-        #Try to check if tleap is going to fail
-        tleapin = """source leaprc.%s
-quit
-""" % ff.lower()
-        file_handle = open('tleap_commands', 'w')
-        file_handle.writelines(tleapin)
-        file_handle.close()
-
-        tmp = subprocess.getoutput('tleap -f tleap_commands')
-        elements = tmp.split('\n')
-        for elem in elements:
-            if 'Could not open file' in elem:
-                raise(RuntimeError('Error encountered trying to load %s in tleap.') % ff)
-            if 'command not found' in elem:
-                raise(RuntimeError('Error: requires tleap.'))
-
-
-    def process(self, mol, port):
-        ff = self.args.molecule_forcefield
-        try:
-            # Check that molecule is charged.
-            is_charged = False
-            for atom in mol.GetAtoms():
-                if atom.GetPartialCharge() != 0.0:
-                    is_charged = True
-            if not is_charged:
-                raise Exception('Molecule %s has no charges; input molecules must be charged.' % mol.GetTitle())
-
-
-            # Determine formal charge (antechamber needs as argument)
-            chg = 0
-            for atom in mol.GetAtoms():
-                chg+=atom.GetFormalCharge()
-
-            # Write out mol to a mol2 file to process via AmberTools
-            mol2file = tempfile.NamedTemporaryFile(suffix='.mol2')
-            mol2filename = mol2file.name
-            with oechem.oemolostream(mol2filename) as ofs:
-                res = oechem.OEWriteConstMolecule(ofs, mol)
-                if res != oechem.OEWriteMolReturnCode_Success:
-                    raise RuntimeError("Error writing molecule %s to mol2." % mol.GetTitle())
-
-            # Run antechamber to type and parmchk for frcmod
-            # requires openmoltools 0.7.5 or later, which should be conda-installable via omnia
-            gaff_mol2_filename, frcmod_filename = openmoltools.amber.run_antechamber( 'ligand', mol2filename, gaff_version = ff.lower(), net_charge = chg)
-
-            # Run tleap using specified forcefield
-            prmtop, inpcrd = openmoltools.amber.run_tleap('ligand', gaff_mol2_filename, frcmod_filename, leaprc = 'leaprc.%s' % ff.lower() )
-
-            # Load via ParmEd
-            molecule_structure = parmed.amber.AmberParm( prmtop, inpcrd )
-            molecule_structure.residues[0].name = "LIG"
-
-            # Pack parameters back into OEMol
-            oechem.OESetSDData(mol, 'NumAtoms', str(mol.NumAtoms()))
-            oechem.OESetSDData(mol, 'Structure', str(molecule_structure))
-            oechem.OESetSDData(mol, 'FF', ff.upper() )
-            mol.SetData(oechem.OEGetTag('IDTag'), mol.GetTitle())
-            packedmol = utils.PackageOEMol.pack(mol, molecule_structure)
-            self.success.emit(packedmol)
-
-            # Emit
-            self.success.emit(packedmol)
-
-            # close file
-            mol2file.close()
-
-        except Exception as e:
-            # Attach error message to the molecule that failed
-            self.log.error(traceback.format_exc())
-            mol.SetData('error', str(e))
-            # Return failed molecule
-            self.failure.emit(mol)
 
 class FREDDocking(OEMolComputeCube):
     title = "FREDDocking"
