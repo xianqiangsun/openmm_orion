@@ -23,7 +23,7 @@ fred = FREDDocking('fred')
 fred.promote_parameter('receptor', promoted_name='receptor', description='Receptor OEB')
 
 lig_param = LigandParameterization('lig_param')
-lig_param.set_parameters(molecule_forcefield='SMIRNOFF')
+lig_param.promote_parameter('molecule_forcefield', promoted_name='molecule_forcefield', description='Forcefield for molecule')
 
 complex_setup = OpenMMComplexSetup("complex_setup")
 complex_setup.promote_parameter('protein', promoted_name='protein', description="PDB of protein structure")

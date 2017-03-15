@@ -89,6 +89,7 @@ class LigandParameterization(OEMolComputeCube):
         try:
             pmd = ff_utils.GenMolStructure(mol, self.args.molecule_forcefield)
             molecule_structure = pmd.parameterize()
+            molecule_structure.residues[0].name = "LIG"
             self.log.info(str(molecule_structure))
 
             oechem.OESetSDData(mol, 'NumAtoms', str(mol.NumAtoms()))
