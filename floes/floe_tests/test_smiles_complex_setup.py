@@ -28,7 +28,7 @@ class OpenMMComplexSetupTestCase(TestCase):
         run_args = [
             '--protein', protein_path,
             '--ligand', ligand_path,
-            '--receptor', receptor_path
+            '--receptor', receptor_path,
             '--molecule_forcefield', 'GAFF',
         ]
         self.assertFalse(complex_setup_floe.run(args=run_args))
