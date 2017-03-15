@@ -31,13 +31,21 @@ ifs.promote_parameter("data_in", promoted_name="complex", description="OEB of th
 
 md = OpenMMSimulation('md')
 md.promote_parameter('steps', promoted_name='steps')
+md.set_parameters(item_count=1)
+md.set_parameters(prefetch_count=1)
+
 
 ofs = OEMolOStreamCube('ofs')
-ofs.set_parameters(data_out="simulation.oeb.gz")
+ofs.set_parameters(backend='s3')
 
-job.add_cubes(ifs, md, ofs)
+fail = OEMolOStreamCube('fail')
+fail.set_parameters(data_out="sim_failed.oeb.gz")
+fail.set_parameters(backend='s3')
+
+job.add_cubes(ifs, md, ofs, fail)
 ifs.success.connect(md.intake)
 md.success.connect(ofs.intake)
+md.failure.connect(fail.intake)
 
 if __name__ == "__main__":
     job.run()
