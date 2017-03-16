@@ -1,7 +1,7 @@
 from __future__ import unicode_literals
 from floe.api import WorkFloe, OEMolIStreamCube, OEMolOStreamCube, FileOutputCube, DataSetInputParameter, FileInputCube
 from OpenMMCubes.cubes import OpenMMComplexSetup, OpenMMSimulation
-from LigPrepCubes.cubes import ChargeMCMol, SMIRNOFFParameterization, GAFFParameterization, FREDDocking
+from LigPrepCubes.cubes import ChargeMCMol, LigandParameterization, FREDDocking
 
 job = WorkFloe("SetupOpenMMComplex")
 

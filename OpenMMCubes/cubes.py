@@ -152,18 +152,18 @@ class OpenMMSimulation(ParallelOEMolComputeCube):
 
     steps = parameter.IntegerParameter(
         'steps',
-        default=50000,
-        help_text="Number of MD steps")
+        default=500000,
+        help_text="Number of MD steps (500K/1ns)")
 
     reporter_interval = parameter.IntegerParameter(
         'reporter_interval',
-        default=1000,
+        default=10000,
         help_text="Step interval for reporting data.")
-
 
     nonbondedMethod = parameter.StringParameter(
         'nonbondedMethod',
         default='PME',
+        choices=['NoCutoff', 'CutoffNonPeriodic', 'CutoffPeriodic', 'PME', 'Ewald'],
         help_text="NoCutoff, CutoffNonPeriodic, CutoffPeriodic, PME, or Ewald.")
 
     nonbondedCutoff = parameter.DecimalParameter(
@@ -175,6 +175,7 @@ class OpenMMSimulation(ParallelOEMolComputeCube):
     constraints = parameter.StringParameter(
         'constraints',
         default='HBonds',
+        choices=['None', 'HBonds', 'HAngles', 'AllBonds'],
         help_text="""None, HBonds, HAngles, or AllBonds
         Which type of constraints to add to the system (e.g., SHAKE).
         None means no bonds are constrained.
@@ -183,6 +184,7 @@ class OpenMMSimulation(ParallelOEMolComputeCube):
     trajectory_filetype = parameter.StringParameter(
         'trajectory_filetype',
         default='NetCDF',
+        choices=['NetCDF', 'DCD', 'HDF5'],
         help_text="NetCDF, DCD, HDF5. Filetype to write trajectory files")
 
     trajectory_selection = parameter.StringParameter(

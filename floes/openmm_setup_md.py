@@ -4,7 +4,7 @@ Copyright (C) 2016 OpenEye Scientific Software
 """
 from floe.api import WorkFloe, OEMolIStreamCube, OEMolOStreamCube, FileOutputCube, DataSetInputParameter, FileInputCube
 from OpenMMCubes.cubes import OpenMMComplexSetup, OpenMMSimulation
-from LigPrepCubes.cubes import ChargeMCMol, SMIRNOFFParameterization, GAFFParameterization, FREDDocking
+from LigPrepCubes.cubes import ChargeMCMol, LigandParameterization, FREDDocking
 
 job = WorkFloe("SetupMD")
 
