@@ -1,41 +1,37 @@
-import io, os, traceback, string, random, parmed
-import subprocess
-import openmoltools
-import tempfile
+import io, os, random, string, subprocess, tempfile, traceback
+import openmoltools, parmed
 from openeye import oechem, oedocking, oeomega
-from floe.api import (
-    parameter, ParallelOEMolComputeCube, OEMolComputeCube, SinkCube, MoleculeInputPort,
-    StringParameter, MoleculeOutputPort
-)
-from floe.api.orion import in_orion, StreamingDataset
-from floe.constants import BYTES
-
-from LigPrepCubes.ports import (
-    CustomMoleculeInputPort, CustomMoleculeOutputPort)
-from OpenMMCubes.ports import ( ParmEdStructureInput, ParmEdStructureOutput,
-    OpenMMSystemOutput, OpenMMSystemInput )
-
-from smarty.forcefield import ForceField
-from smarty.forcefield_utils import create_system_from_molecule
-from OpenMMCubes.utils import download_dataset_to_file, get_data_filename
-
-from LigPrepCubes import ff_utils
 import OpenMMCubes.utils as utils
-
+from LigPrepCubes import ff_utils
+from floe.api import OEMolComputeCube, parameter
 
 def _generateRandomID(size=5, chars=string.ascii_uppercase + string.digits):
     return ''.join(random.choice(chars) for _ in range(size))
 
-
 class ChargeMCMol(OEMolComputeCube):
-    title = "ChargeMCMol"
-    classification = [["Ligand Preparation"]]
-    tags = ['OpenMM', 'IDTagging', 'AtomTyping']
+    title = "Charge Multiconf. Molecules"
+    version = "0.0.1"
+    classification = [ ["Ligand Preparation", "OEChem", "Add Hydrogen"],
+    ["Ligand Preparation", "OEChem", "Check Aromaticity"],
+    ["Ligand Preparation", "OEChem", "IUPAC"],
+    ["Ligand Preparation", "OMEGA", "Conformer Generation"],
+    ["Ligand Preparation", "QUACPAC", "Charge Assignment"]]
+    tags = ['Openmoltools', 'OMEGA', 'QUACPAC']
     description = """
-    Uses openmoltools to perform the following:
-    (1) 'normalize_molecule': checks aromaticity, add explicit hydrogens and renaming by IUPAC
-    (2) Generate conformers with OMEGA
-    (3) Assigns partial charges with oequacpac.OEAssignPartialCharges
+    Calls openmoltools to perform the following:
+    (1) 'normalize_molecule': checks aromaticity, add explicit hydrogens and renaming by IUPAC.
+    (2) Generate multiple conformers with OMEGA.
+    (3) Assigns partial charges with oequacpac.OEAssignCharges (req: OpenEye-toolkits: 2017.2.1).
+
+    Input:
+    -------
+    oechem.OEMol - Streamed-in uncharged molecule with no hydrogens.
+
+    Output:
+    -------
+    oechem.OEMCMol - Emits a charged multi-conformer molecule with attachments:
+        - SDData Tags: { IUPAC : str, IDTag : str }
+        - Generic Tags: { IDTag: str }
     """
 
     def process(self, mol, port):
@@ -49,7 +45,7 @@ class ChargeMCMol(OEMolComputeCube):
 
             #Generate the charged molecule, keeping the first conf.
             charged_mol = ff_utils.assignCharges(mol, max_confs=800, strictStereo=True,
-                                      normalize=True, keep_confs=1)
+                                      normalize=True, keep_confs=-1)
             # Store the IUPAC name from normalize_molecule
             iupac = [ charged_mol.GetTitle().strip() ]
             # Pack as list incase of commas in IUPUC
@@ -71,11 +67,25 @@ class ChargeMCMol(OEMolComputeCube):
             self.failure.emit(mol)
 
 class LigandParameterization(OEMolComputeCube):
-    title = "LigandParameterization"
-    classification = [["Ligand Preparation"]]
-    tags = ['OpenMM', 'Forcefields', 'GAFF', 'SMIRNOFF']
-    description = """Parameterize the ligand with the chosen forcefield,
-    Attach the ParmEd Structure to the OEMol.
+    title = "Ligand Parameterization"
+    version = "0.0.1"
+    classification = [ ["Ligand Preparation", "SMARTY", "Forcefield Assignment"],
+    ["Ligand Preparation", "AMBER", "Forcefield Assignment"]]
+    tags = ['Openmoltools', 'ParmEd', 'SMARTY', 'SMIRNOFF', 'GAFF']
+    description = """
+    Parameterize the ligand with the chosen forcefield.
+    Supports GAFF/GAFF2/SMIRNOFF.
+    Generate a parameterized parmed Structure of the molecule.
+
+    Input:
+    -------
+    oechem.OEMol - Streamed-in charged molecule with explicit hydrogens.
+
+    Output:
+    -------
+    oechem.OEMol - Emits molecule with attachments:
+        - SDData Tags: { NumAtoms : str, FF : str, Structure: str <parmed.Structure> }
+        - Generic Tags: { Structure : parmed.Structure (base64-encoded) }
     """
 
     molecule_forcefield = parameter.StringParameter(
@@ -109,15 +119,25 @@ class LigandParameterization(OEMolComputeCube):
 
 
 class FREDDocking(OEMolComputeCube):
-    title = "FREDDocking"
-    description = "Dock OE molecules"
-    classification = [["Ligand Preparation"]]
-    tags = ['Docking', 'FRED']
-    #tags = [tag for lists in classification for tag in lists]
+    title = "FRED Docking"
+    version = "0.0.1"
+    classification = [ ["Ligand Preparation", "OEDock", "FRED"],
+    ["Ligand Preparation", "OEDock", "ChemGauss4"]]
+    tags = ['OEDock', 'FRED']
+    description = """
+    Dock molecules using the FRED docking engine against a prepared receptor file.
+    Return the top scoring pose.
 
-    #Define Custom Ports to handle oeb.gz files
-    intake = CustomMoleculeInputPort('intake')
-    success = CustomMoleculeOutputPort('success')
+    Input:
+    -------
+    receptor - Requires a prepared receptor (oeb.gz) file of the protein to dock molecules against.
+    oechem.OEMCMol - Expects a charged multi-conformer molecule on input port.
+
+    Output:
+    -------
+    oechem.OEMol - Emits the top scoring pose of the molecule with attachments:
+        - SDData Tags: { ChemGauss4 : pose score }
+    """
 
     receptor = parameter.DataSetInputParameter(
         'receptor',
@@ -126,7 +146,7 @@ class FREDDocking(OEMolComputeCube):
 
     def begin(self):
         receptor = oechem.OEGraphMol()
-        self.args.receptor = download_dataset_to_file(self.args.receptor)
+        self.args.receptor = utils.download_dataset_to_file(self.args.receptor)
         if not oedocking.OEReadReceptorFile(receptor, str(self.args.receptor)):
             raise Exception("Unable to read receptor from {0}".format(self.args.receptor))
 
@@ -166,7 +186,6 @@ class FREDDocking(OEMolComputeCube):
             mcmol.SetData('error', str(e))
             # Return failed molecule
             self.failure.emit(mcmol)
-        #return dockedMol
 
     def end(self):
         pass

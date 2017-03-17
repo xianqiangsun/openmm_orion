@@ -1,5 +1,4 @@
 import unittest, parmed, base64, pickle
-from LigPrepCubes.ports import (CustomMoleculeInputPort, CustomMoleculeOutputPort)
 from LigPrepCubes.cubes import ChargeMCMol, LigandParameterization, FREDDocking
 import OpenMMCubes.utils as utils
 from simtk import openmm, unit

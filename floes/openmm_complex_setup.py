@@ -1,44 +1,15 @@
 from __future__ import unicode_literals
-from floe.api import WorkFloe, OEMolIStreamCube, OEMolOStreamCube, FileOutputCube, DataSetInputParameter, FileInputCube
+from floe.api import WorkFloe, OEMolIStreamCube, OEMolOStreamCube
 from OpenMMCubes.cubes import OpenMMComplexSetup, OpenMMSimulation
 from LigPrepCubes.cubes import ChargeMCMol, LigandParameterization, FREDDocking
 
 job = WorkFloe("SetupOpenMMComplex")
 
 job.description = """
-**Set up an OpenMM complex for simulation**
+**Set up an OpenMM complex for simulation.**
 
-This floe will do the following in each cube:
-  (1) ifs: Read in the ligand file (toluene.pdb),
-  (2) idtag: Add an idtag from the molecule's title or use a random 6 character string.
-  (3a) smirnoff: Parameterize the molecule with the ffxml file (smirnoff99Frosst.ffxml)
-        Generate the ParmEd Structure and attach it to the OEMol.
-  (4) complex_setup: Paramterize the protein (T4-protein.pdb) and merge with the molecule Structure,
-        Using PDBFixer: add missing atoms, add hydrogens given a pH, and solvate with TIP3P.
-        Attach tagged data containing the <idtag>, <Structure> and <System>
-  (5) ofs: Write out the OEMOl of the complex to a <idtag>-complex.oeb.gz
-
-Ex. `python floes/openmm_complex-setup.py --ligand examples/data/toluene.pdb --protein examples/data/T4-protein.pdb`
-
-Parameters:
------------
-ligand (file): PDB file of ligand in docked position to the protein structure.
-protein (file): PDB file of the protein structure, *assumed to be `pre-prepared`*
-
-*Optionals:
------------
-pH (float): Solvent pH used to select protein protonation states (default: 7.0)
-solvent_padding (float): Padding around protein for solvent box (default: 10 angstroms)
-salt_concentration (float): Salt concentration (default: 50 millimolar)
-molecule_forcefield (file): Smarty parsable FFXML file containining parameters for the molecule (default: smirnoff99Frosst.ffxml)
-protein_forcefield (file): XML file containing forcefield parameters for protein (default: amber99sbildn.xml)
-solvent_forcefield (file): XML file containing forcefield parameter for solvent (default: tip3p.xml)
-
-Outputs:
---------
-ofs: Outputs a <idtag>-complex.oeb.gz file containing the
-OpenMM System and ParmEd Structure of the protein:ligand complex,
-packaged with the OEMol.
+Read in PDB of the docked ligand, create multi-conformer molecule with OMEGA,
+assign charges with QUACPAC, and parameterize the molecule with the chosen forcefields. Using PDBFixer, add missing atoms and assign protonation states, and solvate the protein:ligand complex with TIP3P.
 """
 
 job.classification = [["Complex Setup"]]
@@ -49,8 +20,8 @@ ifs.promote_parameter("data_in", promoted_name="ligand", description="PDB of doc
 
 charge = ChargeMCMol('charge')
 
-smirnoff = SMIRNOFFParameterization('smirnoff')
-smirnoff.promote_parameter('molecule_forcefield', promoted_name='ffxml', description="smirnoff FFXML")
+lig_param = LigandParameterization('lig_param')
+lig_param.promote_parameter('molecule_forcefield', promoted_name='molecule_forcefield', description='Forcefield for molecule')
 
 complex_setup = OpenMMComplexSetup("complex_setup")
 complex_setup.promote_parameter('protein', promoted_name='protein', description="PDB of protein structure")
@@ -60,14 +31,17 @@ complex_setup.promote_parameter('salt_concentration', promoted_name='salt_conc')
 complex_setup.promote_parameter('protein_forcefield', promoted_name='protein_ff')
 complex_setup.promote_parameter('solvent_forcefield', promoted_name='solvent_ff')
 
-ofs = OEMolOStreamCube('ofs')
-ofs.set_parameters(data_out="simulation.oeb.gz")
+ofs = OEMolOStreamCube('ofs', title='OFS-Success')
+ofs.set_parameters(backend='s3')
+fail = OEMolOStreamCube('fail', title='OFS-Failure')
+fail.set_parameters(backend='s3')
 
-job.add_cubes(ifs, charge, smirnoff, complex_setup, ofs)
+job.add_cubes(ifs, charge, lig_param, complex_setup, ofs, fail)
 ifs.success.connect(charge.intake)
-charge.success.connect(smirnoff.intake)
-smirnoff.success.connect(complex_setup.intake)
+charge.success.connect(lig_param.intake)
+lig_param.success.connect(complex_setup.intake)
 complex_setup.success.connect(ofs.intake)
+complex_setup.failure.connect(fail.intake)
 
 if __name__ == "__main__":
     job.run()
