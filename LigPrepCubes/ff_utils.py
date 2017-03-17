@@ -7,7 +7,7 @@ from OpenMMCubes.utils import get_data_filename
 
 def assignCharges(molecule, max_confs=800, strictStereo=True, normalize=True, keep_confs=None):
     """Generate charges for an OpenEye OEMol molecule.
-    Adopted get_charges() from
+    Adapted get_charges() from
     https://github.com/choderalab/openmoltools/blob/master/openmoltools/openeye.py
     to use new oequacpac.OEAssignCharges()
     Parameters
@@ -87,7 +87,7 @@ def assignCharges(molecule, max_confs=800, strictStereo=True, normalize=True, ke
 
     return charged_copy
 
-class GenMolStructure(object):
+class ParamLigStructure(object):
     """
     Generates parameterized ParmEd structure of the molecule with a chosen forcefield
 
@@ -134,7 +134,7 @@ class GenMolStructure(object):
         if not is_charged:
             raise Exception('Molecule %s has no charges; input molecules must be charged.' % molecule.GetTitle())
 
-    def smirnoffStructure(self, molecule=None):
+    def getSmirnoffStructure(self, molecule=None):
         from smarty.forcefield import ForceField
         from smarty.forcefield_utils import create_system_from_molecule
         if not molecule:
@@ -153,7 +153,7 @@ class GenMolStructure(object):
 
         return molecule_structure
 
-    def gaffStructure(self, molecule=None, forcefield=None):
+    def getGaffStructure(self, molecule=None, forcefield=None):
         if not molecule:
             molecule = self.molecule
         if not forcefield:
@@ -194,8 +194,8 @@ class GenMolStructure(object):
 
     def parameterize(self):
         if self.forcefield == 'SMIRNOFF':
-            structure = self.smirnoffStructure()
+            structure = self.getSmirnoffStructure()
         elif self.forcefield in ['GAFF', 'GAFF2']:
-            structure = self.gaffStructure()
+            structure = self.get.GaffStructure()
         self.structure = structure
         return self.structure

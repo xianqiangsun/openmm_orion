@@ -6,7 +6,6 @@ from openeye import oechem
 from floe.api.orion import in_orion, StreamingDataset, upload_file
 from simtk import unit, openmm
 from simtk.openmm import app
-from LigPrepCubes.ports import CustomMoleculeInputPort, CustomMoleculeOutputPort
 try:
     import cPickle as pickle
 except ImportError:
