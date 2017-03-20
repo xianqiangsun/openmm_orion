@@ -27,7 +27,7 @@ git clone git@github.com:openeye-private/openmm_orion.git
 cd openmm_orion
 
 #Create a new local conda environment and install dependencies
-conda create -c omnia -c omnia/label/dev -c mobleylab -n dev python=3.5 openmm==7.1.0rc1 openmoltools==0.7.5 ambermini==16.16.0 smarty==0.1.4 parmed==2.7.1 pdbfixer==1.4 smirff99frosst==1.0.4
+conda create -c omnia -c omnia/label/dev -c mobleylab -n dev python=3.5 openmm==7.1.0rc1 openmoltools==0.7.5 ambermini==16.16.0 smarty==0.1.4 parmed==2.7.1 alchemy==1.2.3 pdbfixer==1.4 smirff99frosst==1.0.5 yank==0.15.2
 source activate dev
 
 #Install the OpenEye-floe package and toolkits
@@ -38,8 +38,10 @@ pip install OpenEye-floe-0.2.141.tar.gz
 python setup.py develop
 
 # Run the tests.
-python LigPrepCubes/tests/test_cubes.py
-python OpenMMCubes/tests/test_cubes.py
+py.test -v -s PlatformTestCubes
+py.test -v -s LigPrepCubes
+py.test -v -s OpenMMCubes
+py.test -v -s YankCubes
 ```
 ## Detailed Walkthrough: From SMILES to Simulation.
 ### [FLOE] SmilesLigPrep: Preparing a molecule dataset from SMILES strings.
