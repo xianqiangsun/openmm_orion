@@ -196,6 +196,6 @@ class ParamLigStructure(object):
         if self.forcefield == 'SMIRNOFF':
             structure = self.getSmirnoffStructure()
         elif self.forcefield in ['GAFF', 'GAFF2']:
-            structure = self.get.GaffStructure()
+            structure = self.getGaffStructure()
         self.structure = structure
         return self.structure
