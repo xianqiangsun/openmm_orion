@@ -6,8 +6,7 @@ from LigPrepCubes.cubes import ChargeMCMol, LigandParameterization, FREDDocking
 job = WorkFloe("MinimizeComplex")
 
 job.description = """
-**Generate a TIP3P solvated protein:ligand system, minimize, and
-run a short MD trajectory (1000 steps) to relax the system.**
+**Generate a TIP3P solvated protein:ligand system, minimize, and run a short 1ps MD trajectory (500 steps).**
 
 *Note: Floe expects parameterized molecules (i.e. OEMols attached with a parmed.Structure).*
 
