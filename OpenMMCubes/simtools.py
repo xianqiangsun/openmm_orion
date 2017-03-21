@@ -19,7 +19,7 @@ def genProteinStructure(proteinpdb, **opt):
     ----------
     proteinpdb : openmm.app.PDBFile object,
         Loaded PDBFile object of the protein.
-    protein_forcefield : (opt), xml file, default='amber99sbildn9sbildn.xml'
+    protein_forcefield : (opt), xml file, default='amber99sbildn.xml'
         Forcefield parameters for protein
     solvent_forcefield : opt), xml file, default='tip3p.xml'
         Forcefield parameters for solvent
@@ -138,7 +138,7 @@ def solvateComplexStructure(structure, **opt):
         print('Did not find SEQRES in PDB. PDBFixer will not find missing Residues.')
 
     # Solvate with PDBFixer
-    print('PDBFixer solvating {}'.format(opt['outfname']))
+    print('PDBFixer settings for {}'.format(opt['outfname']))
     print('\tpH = {}'.format(opt['pH']))
     print('\tpadding = {}'.format(unit.Quantity(opt['solvent_padding'], unit.angstroms)))
     print('\tsalt conc. = {}'.format(unit.Quantity(opt['salt_concentration'], unit.millimolar)))

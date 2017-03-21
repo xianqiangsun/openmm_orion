@@ -1,39 +1,45 @@
-import io, os, time, traceback, base64, smarty, parmed, pdbfixer, mdtraj, pickle
-from openeye import oechem
-from sys import stdout
+import io, os, traceback
 import numpy as np
-from simtk import unit, openmm
+import mdtraj, parmed
+from openeye import oechem
+from simtk import openmm, unit
 from simtk.openmm import app
-from floe.api import OEMolComputeCube, parameter, MoleculeInputPort, BinaryMoleculeInputPort, BinaryOutputPort, OutputPort, ParallelOEMolComputeCube, SinkCube
-from floe.api.orion import in_orion, StreamingDataset
-from floe.constants import BYTES
-from LigPrepCubes.ports import CustomMoleculeInputPort, CustomMoleculeOutputPort, MoleculeSerializerMixin
-from OpenMMCubes.ports import ParmEdStructureInput, ParmEdStructureOutput
-from floe.api.orion import MultipartDatasetUploader, config_from_env, StreamingDataset, upload_file, stream_file
-from floe.api.parameter import (IntegerParameter, DataSetInputParameter, FileOutputParameter, FileInputParameter,
-                                DataSetOutputParameter, BaseParameter,
-                                DecimalParameter, StringParameter)
-
-import OpenMMCubes.utils as utils
 import OpenMMCubes.simtools as simtools
+import OpenMMCubes.utils as utils
+from floe.api import ParallelOEMolComputeCube, parameter
 
 class OpenMMComplexSetup(ParallelOEMolComputeCube):
-    title = "OpenMMComplexSetup"
-    classification = [["Protein-Ligand Preparation"]]
-    tags = ['OpenMM', 'Complex Setup']
+    title = "OpenMM Complex Setup"
+    version = "0.0.1"
+    classification = [["Protein Preparation", "OpenMM", "Forcefield Assignment"],
+    ["Protein Preparation", "PDBFixer", "Solvate"],
+    ["Protein Preparation", "PDBFixer", "Add Missing Atoms"],
+    ["Protien Preparation", "PDBFixer", "Assign Protonation States"],
+    ["Protein-Ligand Preparation", "ParmEd", "Generate Complex"]]
+    tags = ['PDBFixer', 'OpenMM', 'ParmEd', 'Parallel Cube']
     description = """
-    Set up protein:ligand complex for simulation with OpenMM.
+    Using PDBFixer, add missing atoms, assign protonation state with a given pH,
+    solvate the system with TIP3P, and assign forcefield parameters (default: amber99sbildn).
+    Generate a parameterized parmed Structure of the solvated protein:ligand complex.
 
-    This cube will generate an OpenMM System containing
-    a TIP3P solvated protein:ligand complex. The complex
-    will be stored into a <idtag>-complex.oeb.gz file, with the System and Structure
-    attached and streamed into the OpenMMSimulation cube.
+    Input:
+    -------
+    protein - Requires a PDB file of the protein.
+    oechem.OEMol - Streamed-in charged and docked molecule with explicit hydrogens.
+
+    Output:
+    -------
+    oechem.OEMol - Emits molecule with attachments:
+        - SDData Tags: { Structure: str <parmed.Structure> }
+        - Generic Tags: { Structure : parmed.Structure (base64-encoded) }
     """
 
-    #Define Custom Ports to handle oeb.gz files
-    intake = CustomMoleculeInputPort('intake')
-    #in_struct = ParmEdStructureInput('in_struct')
-    success = CustomMoleculeOutputPort('success')
+    # Override defaults for some parameters
+    parameter_overrides = {
+        "prefetch_count": {"default": 1}, # 1 molecule at a time
+        "item_timeout": {"default": 3600}, # Default 1 hour limit (units are seconds)
+        "item_count": {"default": 1} # 1 molecule at a time
+    }
 
     protein = parameter.DataSetInputParameter(
         'protein',
@@ -93,25 +99,31 @@ class OpenMMComplexSetup(ParallelOEMolComputeCube):
                 self.opt['outfname'] = '{}-complex'.format(gd['IDTag'])
 
             # Generate parameterized protein Structure
-            protein_structure = simtools.genProteinStructure(self.proteinpdb,**self.opt)
+            protein_structure = simtools.genProteinStructure(
+                self.proteinpdb, **self.opt)
 
             # Merge structures to prevent adding solvent in pocket
             # Ligand must be in docked position
-            pl_structure = simtools.mergeStructure(protein_structure, molecule_structure )
+            pl_structure = simtools.mergeStructure(
+                protein_structure, molecule_structure)
             self.log.info('{}: {}'.format(self.opt['outfname'], pl_structure))
 
             # Returns solvated system w/o ligand.
-            solv_structure = simtools.solvateComplexStructure(pl_structure, **self.opt)
+            solv_structure = simtools.solvateComplexStructure(
+                pl_structure, **self.opt)
 
             # Remerge with ligand structure
-            full_structure = simtools.mergeStructure(solv_structure, molecule_structure)
-            self.log.info('Solvated {}: {}'.format(self.opt['outfname'], full_structure))
+            full_structure = simtools.mergeStructure(
+                solv_structure, molecule_structure)
+            self.log.info('Solvated {}: {}'.format(
+                self.opt['outfname'], full_structure))
             self.log.info('\tBox = {}'.format(full_structure.box))
 
             # Emit OEMol with attached Structure
             oechem.OESetSDData(mol, 'Structure', str(full_structure))
             packedmol = utils.PackageOEMol.pack(mol, full_structure)
-            packedmol.SetData(oechem.OEGetTag('outfname'), self.opt['outfname'])
+            packedmol.SetData(oechem.OEGetTag(
+                'outfname'), self.opt['outfname'])
             self.success.emit(packedmol)
 
         except Exception as e:
@@ -123,27 +135,44 @@ class OpenMMComplexSetup(ParallelOEMolComputeCube):
 
 
 class OpenMMSimulation(ParallelOEMolComputeCube):
-    title = "OpenMMSimulation"
-    classification = [["Simulation"]]
-    tags = ['OpenMM', 'Molecular Dynamics']
+    title = "OpenMM MD Simulation"
+    version = "0.0.1"
+    classification = [["Simulation", "OpenMM", "Minimization"],
+    ["Simulation", "OpenMM", "Molecular Dynamics"]]
+    tags = ['OpenMM', 'MDTraj', 'Parallel Cube']
     description = """
-    Run simulation with OpenMM for protein:ligand complex.
+    Run an OpenMM molecular dynamics simulation. Default: 500K MD steps (1ns).
 
-    This cube will take in the streamed complex.oeb.gz file containing
-    the protein:ligand complex, reconstruct the OpenMM System,
-    minimize the system, save the minimized PDB, and run 1000 MD steps at 300K.
-    The potential energies are evaluated every 1000 steps and stored to a log file.
-    Stdout is a progress/benchmark timings reporter every 1000 steps.
-    The Structure, OpenMM System, State, and log file are attached to the OEMol and
-    saved to the file simulation.oeb.gz.
+    Minimizes the prepared protein:ligand complex or restarts the simulation
+    if there is an attached openmm.State on the molecule. Updates the attached
+    parmed.Structure from the final state of the simulation. Attaches the
+    openmm.State and output log file from the simulation energy reporter.
 
-    The simulation.oeb.gz file, containing the State can then be reused to
-    restart the MD simulation.
+    Input:
+    -------
+    oechem.OEMol - Requires a streamed-in 'packed' molecule containing:
+        - Generic Tags: { Structure : parmed.Structure (base64-encoded) }
+
+    Restarts requires:
+        - Generic Tags: { Structure : parmed.Structure (base64-encoded),
+                          State : openmm.State (serialized) }
+
+    Output:
+    -------
+    oechem.OEMol - Emits molecule with attachments:
+        - SDData Tags: { Structure: str <parmed.Structure> }
+        - Generic Tags: { Structure : parmed.Structure (base64-encoded),
+                          State : openmm.State (serialized),
+                          Log : txt-file (serialized) }
+    tarxz - Generated tarball (LZMA compressed) containing simulation data:
+        - Energy log, State.XML, Trajectory (default: NetCDF), and a PDB.
     """
-
-    #Define Custom Ports to handle oeb.gz files
-    intake = CustomMoleculeInputPort('intake')
-    success = CustomMoleculeOutputPort('success')
+    # Override defaults for some parameters
+    parameter_overrides = {
+        "prefetch_count": {"default": 1}, # 1 molecule at a time
+        "item_timeout": {"default": 28800}, # Default 8 hour limit (units are seconds)
+        "item_count": {"default": 1} # 1 molecule at a time
+    }
 
     temperature = parameter.DecimalParameter(
         'temperature',
@@ -152,18 +181,19 @@ class OpenMMSimulation(ParallelOEMolComputeCube):
 
     steps = parameter.IntegerParameter(
         'steps',
-        default=50000,
-        help_text="Number of MD steps")
+        default=500000,
+        help_text="Number of MD steps (500K = 1ns)")
 
     reporter_interval = parameter.IntegerParameter(
         'reporter_interval',
-        default=1000,
+        default=10000,
         help_text="Step interval for reporting data.")
-
 
     nonbondedMethod = parameter.StringParameter(
         'nonbondedMethod',
         default='PME',
+        choices=['NoCutoff', 'CutoffNonPeriodic',
+                 'CutoffPeriodic', 'PME', 'Ewald'],
         help_text="NoCutoff, CutoffNonPeriodic, CutoffPeriodic, PME, or Ewald.")
 
     nonbondedCutoff = parameter.DecimalParameter(
@@ -175,6 +205,7 @@ class OpenMMSimulation(ParallelOEMolComputeCube):
     constraints = parameter.StringParameter(
         'constraints',
         default='HBonds',
+        choices=['None', 'HBonds', 'HAngles', 'AllBonds'],
         help_text="""None, HBonds, HAngles, or AllBonds
         Which type of constraints to add to the system (e.g., SHAKE).
         None means no bonds are constrained.
@@ -183,6 +214,7 @@ class OpenMMSimulation(ParallelOEMolComputeCube):
     trajectory_filetype = parameter.StringParameter(
         'trajectory_filetype',
         default='NetCDF',
+        choices=['NetCDF', 'DCD', 'HDF5'],
         help_text="NetCDF, DCD, HDF5. Filetype to write trajectory files")
 
     trajectory_selection = parameter.StringParameter(
@@ -199,8 +231,8 @@ class OpenMMSimulation(ParallelOEMolComputeCube):
         self.opt = vars(self.args)
         self.opt['convert'] = False
         self.opt['Logger'] = self.log
-        conv_rule = [ self.opt['trajectory_selection'] != None ,
-                      self.opt['trajectory_filetype']  != 'NetCDF' ]
+        conv_rule = [self.opt['trajectory_selection'] != None,
+                     self.opt['trajectory_filetype'] != 'NetCDF']
 
         if any(conv_rule):
             self.opt['convert'] = True
@@ -218,11 +250,11 @@ class OpenMMSimulation(ParallelOEMolComputeCube):
             if 'State' in gd.keys():
                 mol = utils.PackageOEMol.updateSimIdx(mol)
                 simidx = mol.GetData(oechem.OEGetTag('SimIdx'))
-                self.opt['outfname'] = '{}-sim_{}'.format(gd['IDTag'], simidx)
+                self.opt['outfname'] = '{}-md_{}'.format(gd['IDTag'], simidx)
                 self.log.info('%s RESTARTING from saved State' % gd['IDTag'])
                 simulation.context.setState(gd['State'])
             else:
-                self.opt['outfname'] = '{}-sim'.format(gd['IDTag'])
+                self.opt['outfname'] = '{}-md'.format(gd['IDTag'])
                 self.log.info('%s MINIMIZING System' % gd['IDTag'])
                 minene, simulation = simtools.minimizeSimulation(simulation)
                 oechem.OESetSDData(mol, 'Minimized Energy', str(minene))
@@ -230,26 +262,30 @@ class OpenMMSimulation(ParallelOEMolComputeCube):
             for rep in simtools.getReporters(**self.opt):
                 simulation.reporters.append(rep)
 
-            self.log.info('{} running {steps} MD steps at {temperature}K'.format(gd['IDTag'], **self.opt))
+            self.log.info('{} running {steps} MD steps at {temperature}K'.format(
+                gd['IDTag'], **self.opt))
             simulation.step(self.args.steps)
 
             if self.opt['convert']:
-                self.log.info('Converting trajectories to: {trajectory_filetype}'.format(**self.opt))
+                self.log.info(
+                    'Converting trajectories to: {trajectory_filetype}'.format(**self.opt))
                 simtools.mdTrajConvert(simulation, outfname=self.opt['outfname'],
-                                    trajectory_selection=self.opt['trajectory_selection'],
-                                    trajectory_filetype=self.opt['trajectory_filetype'])
+                                       trajectory_selection=self.opt['trajectory_selection'],
+                                       trajectory_filetype=self.opt['trajectory_filetype'])
 
             packedmol = utils.PackageOEMol.pack(mol, simulation)
-            packedmol.SetData(oechem.OEGetTag('outfname'), self.opt['outfname'])
+            packedmol.SetData(oechem.OEGetTag(
+                'outfname'), self.opt['outfname'])
 
             # Create a tar.xz archive of the generic data and trajectories
             if self.opt['tarxz']:
-                utils.PackageOEMol.dump(packedmol, outfname=self.opt['outfname'], tarxz=self.opt['tarxz'])
+                utils.PackageOEMol.dump(
+                    packedmol, outfname=self.opt['outfname'], tarxz=self.opt['tarxz'])
             self.success.emit(packedmol)
 
         except Exception as e:
                 # Attach error message to the molecule that failed
-                self.log.error(traceback.format_exc())
-                mol.SetData('error', str(e))
-                # Return failed mol
-                self.failure.emit(mol)
+            self.log.error(traceback.format_exc())
+            mol.SetData('error', str(e))
+            # Return failed mol
+            self.failure.emit(mol)

@@ -1,38 +1,37 @@
-import io, os, traceback, string, random, parmed
-import subprocess
-import openmoltools
-import tempfile
+import io, os, random, string, subprocess, tempfile, traceback
+import openmoltools, parmed
 from openeye import oechem, oedocking, oeomega
-from floe.api import (
-    parameter, ParallelOEMolComputeCube, OEMolComputeCube, SinkCube, MoleculeInputPort,
-    StringParameter, MoleculeOutputPort
-)
-from floe.api.orion import in_orion, StreamingDataset
-from floe.constants import BYTES
-
-from LigPrepCubes.ports import (
-    CustomMoleculeInputPort, CustomMoleculeOutputPort)
-from OpenMMCubes.ports import ( ParmEdStructureInput, ParmEdStructureOutput,
-    OpenMMSystemOutput, OpenMMSystemInput )
-
-from smarty.forcefield import ForceField
-from smarty.forcefield_utils import create_system_from_molecule
-from OpenMMCubes.utils import download_dataset_to_file, get_data_filename
-from openmoltools.openeye import get_charges
 import OpenMMCubes.utils as utils
+from LigPrepCubes import ff_utils
+from floe.api import OEMolComputeCube, parameter
+
 def _generateRandomID(size=5, chars=string.ascii_uppercase + string.digits):
     return ''.join(random.choice(chars) for _ in range(size))
 
-
 class ChargeMCMol(OEMolComputeCube):
-    title = "ChargeMCMol"
-    classification = [["Ligand Preparation"]]
-    tags = ['OpenMM', 'IDTagging', 'AtomTyping']
+    title = "Charge Multiconf. Molecules"
+    version = "0.0.1"
+    classification = [ ["Ligand Preparation", "OEChem", "Add Hydrogen"],
+    ["Ligand Preparation", "OEChem", "Check Aromaticity"],
+    ["Ligand Preparation", "OEChem", "IUPAC"],
+    ["Ligand Preparation", "OMEGA", "Conformer Generation"],
+    ["Ligand Preparation", "QUACPAC", "Charge Assignment"]]
+    tags = ['Openmoltools', 'OMEGA', 'QUACPAC']
     description = """
-    Uses openmoltools to perform the following:
-    (1) 'normalize_molecule': checks aromaticity, add explicit hydrogens and renaming by IUPAC
-    (2) Generate conformers with OMEGA
-    (3) Assigns partial charges with oequacpac.OEAssignPartialCharges
+    Calls openmoltools to perform the following:
+    (1) 'normalize_molecule': checks aromaticity, add explicit hydrogens and renaming by IUPAC.
+    (2) Generate multiple conformers with OMEGA.
+    (3) Assigns partial charges with oequacpac.OEAssignCharges (req: OpenEye-toolkits: 2017.2.1).
+
+    Input:
+    -------
+    oechem.OEMol - Streamed-in uncharged molecule with no hydrogens.
+
+    Output:
+    -------
+    oechem.OEMCMol - Emits a charged multi-conformer molecule with attachments:
+        - SDData Tags: { IUPAC : str, IDTag : str }
+        - Generic Tags: { IDTag: str }
     """
 
     def process(self, mol, port):
@@ -45,7 +44,7 @@ class ChargeMCMol(OEMolComputeCube):
                 idtag = mol.GetTitle()
 
             #Generate the charged molecule, keeping the first conf.
-            charged_mol = get_charges(mol, max_confs=800, strictStereo=True,
+            charged_mol = ff_utils.assignCharges(mol, max_confs=800, strictStereo=True,
                                       normalize=True, keep_confs=-1)
             # Store the IUPAC name from normalize_molecule
             iupac = [ charged_mol.GetTitle().strip() ]
@@ -59,6 +58,7 @@ class ChargeMCMol(OEMolComputeCube):
             oechem.OESetSDData(charged_mol, 'IDTag', idtag)
 
             self.success.emit(charged_mol)
+
         except Exception as e:
             # Attach error message to the molecule that failed
             self.log.error(traceback.format_exc())
@@ -66,38 +66,50 @@ class ChargeMCMol(OEMolComputeCube):
             # Return failed molecule
             self.failure.emit(mol)
 
-class SMIRNOFFParameterization(OEMolComputeCube):
-    title = "SMIRNOFFParameterization"
-    classification = [["Ligand Preparation"]]
-    tags = ['OpenMM', 'SMIRNOFF', 'Forcefields']
-    description = """Parameterize the ligand with the SMIRNOFF parameters, Attach the ParmEd Structure to the OEMol.
+class LigandParameterization(OEMolComputeCube):
+    title = "Ligand Parameterization"
+    version = "0.0.1"
+    classification = [ ["Ligand Preparation", "SMARTY", "Forcefield Assignment"],
+    ["Ligand Preparation", "AMBER", "Forcefield Assignment"]]
+    tags = ['Openmoltools', 'ParmEd', 'SMARTY', 'SMIRNOFF', 'GAFF']
+    description = """
+    Parameterize the ligand with the chosen forcefield.
+    Supports GAFF/GAFF2/SMIRNOFF.
+    Generate a parameterized parmed Structure of the molecule.
+
+    Input:
+    -------
+    oechem.OEMol - Streamed-in charged molecule with explicit hydrogens.
+
+    Output:
+    -------
+    oechem.OEMol - Emits molecule with attachments:
+        - SDData Tags: { NumAtoms : str, FF : str, Structure: str <parmed.Structure> }
+        - Generic Tags: { Structure : parmed.Structure (base64-encoded) }
     """
 
-    molecule_forcefield = parameter.DataSetInputParameter(
+    molecule_forcefield = parameter.StringParameter(
         'molecule_forcefield',
-        default='SMIRNOFF',
-        help_text='Forcefield FFXML file for molecule')
-
-    def begin(self):
-        try:
-            ff = utils.get_data_filename('smirff99Frosst','smirff99Frosst.ffxml')
-            with open(ff) as ffxml:
-                self.mol_ff = ForceField(ffxml)
-        except:
-            raise RuntimeError('Error opening {}'.format(ff))
+        required=True,
+        default='GAFF2',
+        choices=['GAFF', 'GAFF2', 'SMIRNOFF'],
+        help_text='Forcefield to parameterize the molecule')
 
     def process(self, mol, port):
         try:
-            mol_top, mol_sys, mol_pos = create_system_from_molecule(self.mol_ff, mol)
-            molecule_structure = parmed.openmm.load_topology(mol_top, mol_sys, xyz=mol_pos)
+            pmd = ff_utils.ParamLigStructure(mol, self.args.molecule_forcefield)
+            molecule_structure = pmd.parameterize()
             molecule_structure.residues[0].name = "LIG"
+            self.log.info(str(molecule_structure))
 
             oechem.OESetSDData(mol, 'NumAtoms', str(mol.NumAtoms()))
             oechem.OESetSDData(mol, 'Structure', str(molecule_structure))
             oechem.OESetSDData(mol, 'FF', str(self.args.molecule_forcefield) )
             mol.SetData(oechem.OEGetTag('IDTag'), mol.GetTitle())
             packedmol = utils.PackageOEMol.pack(mol, molecule_structure)
+
             self.success.emit(packedmol)
+
         except Exception as e:
             # Attach error message to the molecule that failed
             self.log.error(traceback.format_exc())
@@ -105,115 +117,27 @@ class SMIRNOFFParameterization(OEMolComputeCube):
             # Return failed molecule
             self.failure.emit(mol)
 
-class GAFFParameterization(OEMolComputeCube):
-    title = "Attach GAFF parameters to OE molecules"
-    description = """
-    Parameterize a molecule with GAFF or GAFF2 parameters via AmberTools.
-    Attach the resulting ParmEd Structure to the OEMol.
-    """
-
-    # TO DO: add ambermini to manifest/requirements/install as appropriate
-
-    classification = [["Testing", "Ligand Preparation"]]
-    tags = [tag for lists in classification for tag in lists]
-
-    #molecule_forcefield = parameter.DataSetInputParameter(
-    molecule_forcefield = parameter.StringParameter('molecule_forcefield',
-        default='GAFF',
-        help_text="GAFF forcefield to use: 'GAFF' or 'GAFF2'. Default: 'GAFF'")
-
-    def begin(self):
-        #Make sure here that selected forcefield is GAFF or GAFF2
-        ff = self.args.molecule_forcefield
-        if not ff in ['GAFF', 'GAFF2']:
-            raise RuntimeError('Selected forcefield %s is not GAFF or GAFF2' % ff)
-
-        #TO DO: Is there anything else I should do here to die early if this is going to fail?
-
-        #Try to check if tleap is going to fail
-        tleapin = """source leaprc.%s
-quit
-""" % ff.lower()
-        file_handle = open('tleap_commands', 'w')
-        file_handle.writelines(tleapin)
-        file_handle.close()
-
-        tmp = subprocess.getoutput('tleap -f tleap_commands')
-        elements = tmp.split('\n')
-        for elem in elements:
-            if 'Could not open file' in elem:
-                raise(RuntimeError('Error encountered trying to load %s in tleap.') % ff)
-            if 'command not found' in elem:
-                raise(RuntimeError('Error: requires tleap.'))
-
-
-    def process(self, mol, port):
-        ff = self.args.molecule_forcefield
-        try:
-            # Check that molecule is charged.
-            is_charged = False
-            for atom in mol.GetAtoms():
-                if atom.GetPartialCharge() != 0.0:
-                    is_charged = True
-            if not is_charged:
-                raise Exception('Molecule %s has no charges; input molecules must be charged.' % mol.GetTitle())
-
-
-            # Determine formal charge (antechamber needs as argument)
-            chg = 0
-            for atom in mol.GetAtoms():
-                chg+=atom.GetFormalCharge()
-
-            # Write out mol to a mol2 file to process via AmberTools
-            mol2file = tempfile.NamedTemporaryFile(suffix='.mol2')
-            mol2filename = mol2file.name
-            with oechem.oemolostream(mol2filename) as ofs:
-                res = oechem.OEWriteConstMolecule(ofs, mol)
-                if res != oechem.OEWriteMolReturnCode_Success:
-                    raise RuntimeError("Error writing molecule %s to mol2." % mol.GetTitle())
-
-            # Run antechamber to type and parmchk for frcmod
-            # requires openmoltools 0.7.5 or later, which should be conda-installable via omnia
-            gaff_mol2_filename, frcmod_filename = openmoltools.amber.run_antechamber( 'ligand', mol2filename, gaff_version = ff.lower(), net_charge = chg)
-
-            # Run tleap using specified forcefield
-            prmtop, inpcrd = openmoltools.amber.run_tleap('ligand', gaff_mol2_filename, frcmod_filename, leaprc = 'leaprc.%s' % ff.lower() )
-
-            # Load via ParmEd
-            molecule_structure = parmed.amber.AmberParm( prmtop, inpcrd )
-            molecule_structure.residues[0].name = "LIG"
-
-            # Pack parameters back into OEMol
-            oechem.OESetSDData(mol, 'NumAtoms', str(mol.NumAtoms()))
-            oechem.OESetSDData(mol, 'Structure', str(molecule_structure))
-            oechem.OESetSDData(mol, 'FF', ff.upper() )
-            mol.SetData(oechem.OEGetTag('IDTag'), mol.GetTitle())
-            packedmol = utils.PackageOEMol.pack(mol, molecule_structure)
-            self.success.emit(packedmol)
-
-            # Emit
-            self.success.emit(packedmol)
-
-            # close file
-            mol2file.close()
-
-        except Exception as e:
-            # Attach error message to the molecule that failed
-            self.log.error(traceback.format_exc())
-            mol.SetData('error', str(e))
-            # Return failed molecule
-            self.failure.emit(mol)
 
 class FREDDocking(OEMolComputeCube):
-    title = "FREDDocking"
-    description = "Dock OE molecules"
-    classification = [["Ligand Preparation"]]
-    tags = ['Docking', 'FRED']
-    #tags = [tag for lists in classification for tag in lists]
+    title = "FRED Docking"
+    version = "0.0.1"
+    classification = [ ["Ligand Preparation", "OEDock", "FRED"],
+    ["Ligand Preparation", "OEDock", "ChemGauss4"]]
+    tags = ['OEDock', 'FRED']
+    description = """
+    Dock molecules using the FRED docking engine against a prepared receptor file.
+    Return the top scoring pose.
 
-    #Define Custom Ports to handle oeb.gz files
-    intake = CustomMoleculeInputPort('intake')
-    success = CustomMoleculeOutputPort('success')
+    Input:
+    -------
+    receptor - Requires a prepared receptor (oeb.gz) file of the protein to dock molecules against.
+    oechem.OEMCMol - Expects a charged multi-conformer molecule on input port.
+
+    Output:
+    -------
+    oechem.OEMol - Emits the top scoring pose of the molecule with attachments:
+        - SDData Tags: { ChemGauss4 : pose score }
+    """
 
     receptor = parameter.DataSetInputParameter(
         'receptor',
@@ -222,7 +146,7 @@ class FREDDocking(OEMolComputeCube):
 
     def begin(self):
         receptor = oechem.OEGraphMol()
-        self.args.receptor = download_dataset_to_file(self.args.receptor)
+        self.args.receptor = utils.download_dataset_to_file(self.args.receptor)
         if not oedocking.OEReadReceptorFile(receptor, str(self.args.receptor)):
             raise Exception("Unable to read receptor from {0}".format(self.args.receptor))
 
@@ -262,7 +186,6 @@ class FREDDocking(OEMolComputeCube):
             mcmol.SetData('error', str(e))
             # Return failed molecule
             self.failure.emit(mcmol)
-        #return dockedMol
 
     def end(self):
         pass
