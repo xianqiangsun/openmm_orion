@@ -19,7 +19,7 @@ def genProteinStructure(proteinpdb, **opt):
     ----------
     proteinpdb : openmm.app.PDBFile object,
         Loaded PDBFile object of the protein.
-    protein_forcefield : (opt), xml file, default='amber99sbildn9sbildn.xml'
+    protein_forcefield : (opt), xml file, default='amber99sbildn.xml'
         Forcefield parameters for protein
     solvent_forcefield : opt), xml file, default='tip3p.xml'
         Forcefield parameters for solvent

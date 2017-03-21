@@ -26,7 +26,7 @@ complex_setup.promote_parameter('protein_forcefield', promoted_name='protein_for
 complex_setup.promote_parameter('solvent_forcefield', promoted_name='solvent_forcefield')
 
 md = OpenMMSimulation('md')
-md.set_parameters(steps=10)
+md.set_parameters(steps=500) #1ps
 
 ofs = OEMolOStreamCube('ofs', title='OFS-Success')
 ofs.set_parameters(backend='s3')
