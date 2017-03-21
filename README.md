@@ -12,6 +12,7 @@
   * `OpenMMSimulation` - Runs and OpenMM MD simulation. Minimizes or restarts from saved State.
 * `YankCubes/` - YANK cubes
   * `YankHydrationCube` - YANK hydration free energy calculations
+  * `YankBindingCube` - YANK absolute binding free energy calculations
 
 ## Workfloes
 * Testing Floes:
