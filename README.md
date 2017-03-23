@@ -90,7 +90,7 @@ Molecules (with the `parmed.Structure` attached) are then passed to OpenEye's `O
 ![ComplexMin Floe](examples/imgs/minimizecomplex_floe.png)
 ```bash
 # Launch from command line
-python floes/openmm_complex_min.py --ligand JF6_1-gaff2.oeb.gz --protein examples/data/epox_hydrolase_apo-protein.pdb \
+python floes/openmm_complex_min.py --ligand JF6_1-gaff2.oeb.gz --protein examples/data/epox_hydrolase_apo-protein.pdb --complex_setup-pH 8.5 \
 --ofs-data_out JF6_1-min.oeb.gz --fail-data_out fail.oeb.gz
 ```
 

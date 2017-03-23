@@ -203,9 +203,10 @@ class PackageOEMol(object):
             for name in totar:
                 tar.add(name)
             tar.close()
-
-            #### MUST upload tar file directly back to Orion or they disappear.
-            upload_file(tarname, tarname, tags=['TAR'])
+            
+            if in_orion:
+                #### MUST upload tar file directly back to Orion or they disappear.
+                upload_file(tarname, tarname, tags=['TAR'])
             # Clean up files that have been added to tar.
             cleanup(totar)
 
