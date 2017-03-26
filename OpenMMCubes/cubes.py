@@ -261,7 +261,7 @@ class OpenMMSimulation(ParallelOEMolComputeCube):
                 self.opt['outfname'] = '{}-{}'.format(gd['IDTag'], self.opt['outfname'])
 
             # Generate Simulation from Structure
-            simulation = simtools.genSimFromStruct(gd['Structure'], 'OpenCL', **self.opt)
+            simulation = simtools.genSimFromStruct(gd['Structure'], **self.opt)
 
             # Check if mol has State data attached
             if 'State' in gd.keys():

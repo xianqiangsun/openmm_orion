@@ -226,7 +226,7 @@ def genSimFromStruct(structure, platform=None, **opt):
         simulation = app.Simulation(structure.topology, system, integrator)
     else:
         platform = openmm.Platform.getPlatformByName(platform)
-        prop = dict(DeviceIndex='2')
+        #prop = dict(DeviceIndex='2')
         simulation = app.Simulation(structure.topology, system, integrator, platform, prop)
 
     # OpenMM platform information
