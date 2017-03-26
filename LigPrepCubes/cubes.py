@@ -95,6 +95,10 @@ class LigandParameterization(OEMolComputeCube):
         choices=['GAFF', 'GAFF2', 'SMIRNOFF'],
         help_text='Forcefield to parameterize the molecule')
 
+    def begin(self):
+        if self.args.molecule_forcefield != 'SMIRNOFF':
+            ff_utils.ParamLigStructure(oechem.OEMol(), self.args.molecule_forcefield).checkTleap
+
     def process(self, mol, port):
         try:
             pmd = ff_utils.ParamLigStructure(mol, self.args.molecule_forcefield)
