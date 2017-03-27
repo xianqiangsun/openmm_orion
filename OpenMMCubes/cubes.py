@@ -136,7 +136,7 @@ class OpenMMComplexSetup(ParallelOEMolComputeCube):
 
 class OpenMMSimulation(ParallelOEMolComputeCube):
     title = "OpenMM MD Simulation"
-    version = "0.0.1"
+    version = "0.0.2"
     classification = [["Simulation", "OpenMM", "Minimization"],
     ["Simulation", "OpenMM", "Molecular Dynamics"]]
     tags = ['OpenMM', 'MDTraj', 'Parallel Cube']
