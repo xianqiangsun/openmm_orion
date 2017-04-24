@@ -37,7 +37,7 @@ def genProteinStructure(proteinpdb, **opt):
                                                     xyz=proteinpdb.positions)
     return protein_structure
 
-def combinePostions(proteinPositions, molPositions):
+def combinePositions(proteinPositions, molPositions):
     """
     Loops through the positions from the ParmEd structures of the protein and ligand,
     divides by unit.angstroms which will ensure both positions arrays are in the same units.
@@ -90,7 +90,7 @@ def mergeStructure(proteinStructure, molStructure):
         The parametrized structure of the protein:ligand complex.
     """
     structure = proteinStructure + molStructure
-    positions = combinePostions(proteinStructure.positions, molStructure.positions)
+    positions = combinePositions(proteinStructure.positions, molStructure.positions)
     # Concatenate positions arrays (ensures same units)
     structure.positions = positions
     # Restore original box vectors

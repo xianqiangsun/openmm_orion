@@ -34,6 +34,17 @@ class ChargeMCMol(OEMolComputeCube):
         - Generic Tags: { IDTag: str }
     """
 
+    
+    max_conformers = parameter.IntegerParameter(
+        'max_conformers',
+        default=800,
+        help_text="Max number of conformers")
+
+    
+    def begin(self):
+        self.opt = vars(self.args)
+
+    
     def process(self, mol, port):
         try:
             if not mol.GetTitle():
@@ -44,8 +55,8 @@ class ChargeMCMol(OEMolComputeCube):
                 idtag = mol.GetTitle()
 
             #Generate the charged molecule, keeping the first conf.
-            charged_mol = ff_utils.assignCharges(mol, max_confs=800, strictStereo=True,
-                                      normalize=True, keep_confs=-1)
+            charged_mol = ff_utils.assignCharges(mol, max_confs=self.opt['max_conformers'], strictStereo=True,
+                                                 normalize=True, keep_confs=None)
             # Store the IUPAC name from normalize_molecule
             iupac = [ charged_mol.GetTitle().strip() ]
             # Pack as list incase of commas in IUPUC
