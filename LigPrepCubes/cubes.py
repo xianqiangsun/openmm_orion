@@ -10,7 +10,7 @@ def _generateRandomID(size=5, chars=string.ascii_uppercase + string.digits):
 
 class ChargeMCMol(OEMolComputeCube):
     title = "Charge Multiconf. Molecules"
-    version = "0.0.1"
+    version = "0.0.2"
     classification = [ ["Ligand Preparation", "OEChem", "Add Hydrogen"],
     ["Ligand Preparation", "OEChem", "Check Aromaticity"],
     ["Ligand Preparation", "OEChem", "IUPAC"],
@@ -34,6 +34,23 @@ class ChargeMCMol(OEMolComputeCube):
         - Generic Tags: { IDTag: str }
     """
 
+    
+    max_conformers = parameter.IntegerParameter(
+        'max_conformers',
+        default=800,
+        help_text="Max number of conformers")
+
+
+    keep_conformers = parameter.IntegerParameter(
+        'keep_conformers',
+        default=None,
+        help_text="Select the number of conformers to keep")
+
+    
+    def begin(self):
+        self.opt = vars(self.args)
+
+    
     def process(self, mol, port):
         try:
             if not mol.GetTitle():
@@ -44,8 +61,8 @@ class ChargeMCMol(OEMolComputeCube):
                 idtag = mol.GetTitle()
 
             #Generate the charged molecule, keeping the first conf.
-            charged_mol = ff_utils.assignCharges(mol, max_confs=800, strictStereo=True,
-                                      normalize=True, keep_confs=-1)
+            charged_mol = ff_utils.assignCharges(mol, max_confs=self.opt['max_conformers'], strictStereo=True,
+                                                 normalize=True, keep_confs=self.opt['keep_conformers'])
             # Store the IUPAC name from normalize_molecule
             iupac = [ charged_mol.GetTitle().strip() ]
             # Pack as list incase of commas in IUPUC

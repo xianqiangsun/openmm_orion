@@ -19,6 +19,8 @@ ifs = OEMolIStreamCube("ifs")
 ifs.promote_parameter("data_in", promoted_name="ligand", description="PDB of docked ligand")
 
 charge = ChargeMCMol('charge')
+charge.promote_parameter('max_conformers', promoted_name='max_conformers', description="Set the max number of conformers per ligand")
+charge.promote_parameter('keep_conformers', promoted_name='keep_conformers', description="Set the number of conformers to keep")
 
 lig_param = LigandParameterization('lig_param')
 lig_param.promote_parameter('molecule_forcefield', promoted_name='molecule_forcefield', description='Forcefield for molecule')
