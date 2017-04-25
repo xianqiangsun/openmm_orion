@@ -115,7 +115,7 @@ class OpenMMComplexSetup(ParallelOEMolComputeCube):
             self.log.info('\tBox = {}'.format(full_structure.box))
 
             
-            # Attach to OEMol the Structure
+            # Attach the Structure to OEMol
             oechem.OESetSDData(mol, 'Structure', str(full_structure))
             packedmol = utils.PackageOEMol.pack(mol, full_structure)
             packedmol.SetData(oechem.OEGetTag(

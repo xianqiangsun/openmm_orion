@@ -3,7 +3,7 @@ from openeye import oechem, oequacpac
 import openmoltools
 from openmoltools.openeye import *
 from OpenMMCubes.utils import get_data_filename
-
+import logging 
 
 def assignCharges(molecule, max_confs=800, strictStereo=True, normalize=True, keep_confs=None):
     """Generate charges for an OpenEye OEMol molecule.
@@ -74,6 +74,9 @@ def assignCharges(molecule, max_confs=800, strictStereo=True, normalize=True, ke
         #Copy coordinates to single conformer
         charged_copy.SetCoords( original )
     elif keep_confs > 0:
+        
+        logging.warning("Keep_conformers is set to: None. Docking may be required")
+        
         #Otherwise if a number is provided, return this many confs if available
         for k, conf in enumerate( charged_copy.GetConfs() ):
             if k > keep_confs - 1:
