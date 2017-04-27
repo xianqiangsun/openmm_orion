@@ -262,33 +262,49 @@ class OpenMMSimulation(ParallelOEMolComputeCube):
                 gd = utils.PackageOEMol.unpack(mol)
                 self.opt['outfname'] = '{}-{}'.format(gd['IDTag'], self.opt['outfname'])
 
-            # Generate Simulation from Structure
-            simulation = simtools.genSimFromStruct(gd['Structure'], **self.opt)
-
-            # Check if mol has State data attached
-            if 'State' in gd.keys():
-                self.log.info('%s RESTARTING from saved State' % gd['IDTag'])
-                simulation.context.setState(gd['State'])
-            else:
+            mdData = utils.MDData(mol)
+            
+            if mdData.velocities is None:
                 self.log.info('%s MINIMIZING System' % gd['IDTag'])
-                minene, simulation = simtools.minimizeSimulation(simulation, **self.opt)
-                oechem.OESetSDData(mol, 'Minimized Energy', str(minene))
+                simtools.minimization(mdData, **self.opt)
 
-            for rep in simtools.getReporters(**self.opt):
-                simulation.reporters.append(rep)
+            self.log.info('%s START SIMULATION from saved State' % gd['IDTag'])    
+            simtools.production(mdData, **self.opt)
+            
+                
+                
+            # GAC COMMENTED OUT    
+            # # Generate Simulation from Structure
+            # simulation = simtools.genSimFromStruct(gd['Structure'], **self.opt)
 
-            self.log.info('{} running {steps} MD steps at {temperature}K'.format(
-                gd['IDTag'], **self.opt))
-            simulation.step(self.args.steps)
+            # # Check if mol has State data attached
+            # if 'State' in gd.keys():
+            #     self.log.info('%s RESTARTING from saved State' % gd['IDTag'])
+            #     simulation.context.setState(gd['State'])
+            # else:
+            #     self.log.info('%s MINIMIZING System' % gd['IDTag'])
+            #     minene, simulation = simtools.minimizeSimulation(simulation, **self.opt)
+            #     oechem.OESetSDData(mol, 'Minimized Energy', str(minene))
 
-            if self.opt['convert']:
-                self.log.info(
-                    'Converting trajectories to: {trajectory_filetype}'.format(**self.opt))
-                simtools.mdTrajConvert(simulation, outfname=self.opt['outfname'],
-                                       trajectory_selection=self.opt['trajectory_selection'],
-                                       trajectory_filetype=self.opt['trajectory_filetype'])
+            # for rep in simtools.getReporters(**self.opt):
+            #     simulation.reporters.append(rep)
 
-            packedmol = utils.PackageOEMol.pack(mol, simulation)
+            # self.log.info('{} running {steps} MD steps at {temperature}K'.format(
+            #     gd['IDTag'], **self.opt))
+            # simulation.step(self.args.steps)
+
+            # if self.opt['convert']:
+            #     self.log.info(
+            #         'Converting trajectories to: {trajectory_filetype}'.format(**self.opt))
+            #     simtools.mdTrajConvert(simulation, outfname=self.opt['outfname'],
+            #                            trajectory_selection=self.opt['trajectory_selection'],
+            #                            trajectory_filetype=self.opt['trajectory_filetype'])
+
+
+
+            packedmol = mdData.packMDData(mol)
+            #packedmol = utils.PackageOEMol.pack(mol, simulation)
+
             packedmol.SetData(oechem.OEGetTag(
                 'outfname'), self.opt['outfname'])
 
