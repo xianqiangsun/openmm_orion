@@ -189,142 +189,15 @@ def solvateComplexStructure(structure, **opt):
 
     return solv_structure
 
-# def genSimFromStruct(structure, platform=None, **opt):
-#     """
-#     Uses ParmEd Structure to generate the OpenMM System,
-#     required to create the OpenMM Simulation. ParmEd Structures are used to keep
-#     the SMIRFF parameters on the molecule, but aren't necessary after storing the State.
-#     (Keep it anyways.)
 
-#     Parameters
-#     ----------
-#     structure : parmed.structure.Structure
-#         The parametrized structure of the solvated protein:ligand complex
-#     nonbondedMethod : (opt), str
-#         Can be: NoCutoff, CutoffNonPeriodic, CutoffPeriodic, PME, or Ewald.
-#     nonbondedCutoff : (opt), float
-#         The nonbonded cutoff (in unit.angstroms), ignored if nonbondedMethod is NoCutoff.
-#     constraints : (opt), str
-#         Can be: None, HBonds, HAngles, or AllBonds.
-
-#     Returns
-#     -------
-#     simulation : openmm.app.simulation.Simulation
-#         The OpenMM Simulation object generated from the ParmEd Structure.
-#     """
-#     system = structure.createSystem(nonbondedMethod=eval("app.%s" % opt['nonbondedMethod']),
-#                                     nonbondedCutoff=opt['nonbondedCutoff']*unit.angstroms,
-#                                     constraints=eval("app.%s" % opt['constraints']))
-#     integrator = openmm.LangevinIntegrator(opt['temperature']*unit.kelvin, 1/unit.picoseconds, 0.002*unit.picoseconds)
-
-#     if opt['Logger'] is None:
-#         printfile = sys.stdout
-#     else:
-#         printfile = opt['Logger'].file
-
-#     if platform is None:
-#         #Use the fastest available platform
-#         simulation = app.Simulation(structure.topology, system, integrator)
-#     else:
-#         Platform = openmm.Platform.getPlatformByName(platform)
-#         #prop = dict(DeviceIndex='2')
-#         simulation = app.Simulation(structure.topology, system, integrator, platform, prop)
-
-#     # OpenMM platform information
-#     mmver = openmm.version.version
-#     mmplat = simulation.context.getPlatform()
-#     if opt['verbose']:
-#         # Host information
-#         from platform import uname
-#         for k,v in uname()._asdict().items():
-#             print(k, ':', v, file=printfile)
-#         # Platform properties
-#         for prop in mmplat.getPropertyNames():
-#             val = mmplat.getPropertyValue(simulation.context, prop)
-#             print(prop, ':', val, file=printfile)
-
-#     print('OpenMM({}) simulation generated for {} platform'.format(mmver, mmplat.getName()), file=printfile)
-#     integrator = openmm.LangevinIntegrator(opt['temperature']*unit.kelvin, 1/unit.picoseconds, 0.002*unit.picoseconds)
-#     simulation = app.Simulation(structure.topology, system, integrator)
-#     # Set initial positions/velocities
-#     # Will get overwritten from saved State.
-#     simulation.context.setPositions(structure.positions)
-#     simulation.context.setVelocitiesToTemperature(opt['temperature']*unit.kelvin)
-#     return simulation
-
-def minimization(mdData, **opt):
+def simulation(mdData, **opt):
     """
-    Minimizes the OpenMM Simulations.
+    Minimization, NVT and NPT MD run
 
     Parameters
     ----------
     mdData : MDData data object
         The object which recovers the Parmed structure data relevant for MD
-
-  
-    """
-    if opt['Logger'] is None:
-        printfile = sys.stdout
-    else:
-        printfile = opt['Logger'].file
-
-    structure = mdData.structure
-    topology = mdData.topology
-    positions = mdData.positions
-    box = mdData.box
-    
-    system = structure.createSystem(nonbondedMethod=eval("app.%s" % opt['nonbondedMethod']),
-                                    nonbondedCutoff=opt['nonbondedCutoff']*unit.angstroms,
-                                    constraints=eval("app.%s" % opt['constraints']))
-    
-    integrator = openmm.LangevinIntegrator(opt['temperature']*unit.kelvin, 1/unit.picoseconds, 0.002*unit.picoseconds)
-    # platform = openmm.Platform.getPlatformByName('Reference')
-    # simulation = app.Simulation(topology, system, integrator, platform)
-
-    simulation = app.Simulation(topology, system, integrator)
-    # Set starting positions
-    simulation.context.setPositions(positions)
-
-    state_i = simulation.context.getState(getEnergy=True)
-    print('Initial energy = {}'.format(state_i.getPotentialEnergy()), file=printfile)
-
-    simulation.minimizeEnergy()
-
-    state_f = simulation.context.getState(getPositions=True, getEnergy=True)
-    print('Minimized energy = {}'.format(state_f.getPotentialEnergy()), file=printfile)
-    
-    # Set the velocities drawing from the Boltzmann distribution at the selected temperature
-    simulation.context.setVelocitiesToTemperature(opt['temperature']*unit.kelvin)
-    state = simulation.context.getState(getPositions=True, getVelocities=True, getEnergy=True, enforcePeriodicBox=True)
-
-    # import logging
-    # logging.warning('Final Potential energy = {}'.format(state.getPotentialEnergy()))
-    # logging.warning('Final Kinetic energy = {}'.format(state.getKineticEnergy()))
-
-    
-    # OpenMM Quantity object
-    structure.positions = state.getPositions(asNumpy=False)
-    # numpy array in units of angstrom/picosecond
-    structure.velocities = state.getVelocities(asNumpy=False)
-    # OpenMM Quantity object
-    structure.box_vectors = state.getPeriodicBoxVectors()
-        
-    return 
-
-
-def production(mdData, platform=None, **opt):
-    """
-    NVT production run.
-
-    Parameters
-    ----------
-    mdData : MDData data object
-        The object which recovers the Parmed structure data relevant for MD
-
-    platform : a python string
-        The platform where to run the simulation. Possible choises:
-        Reference, CPU, CUDA, OpenCL
-
     """
     
     if opt['Logger'] is None:
@@ -337,38 +210,53 @@ def production(mdData, platform=None, **opt):
     positions = mdData.positions
     velocities = mdData.velocities
     box = mdData.box
+    stepLen = 0.002
 
     system = structure.createSystem(nonbondedMethod=eval("app.%s" % opt['nonbondedMethod']),
                                     nonbondedCutoff=opt['nonbondedCutoff']*unit.angstroms,
                                     constraints=eval("app.%s" % opt['constraints']))
     
-    integrator = openmm.LangevinIntegrator(opt['temperature']*unit.kelvin, 1/unit.picoseconds, 0.002*unit.picoseconds)
-
-    if platform is None:
-        #Use the fastest available platform
-        simulation = app.Simulation(structure.topology, system, integrator)
+    integrator = openmm.LangevinIntegrator(opt['temperature']*unit.kelvin, 1/unit.picoseconds, stepLen*unit.picoseconds)
+    
+    if opt['SimType'] == 'npt':
+        # Add Force Barostat to the system
+        system.addForce(openmm.MonteCarloBarostat(opt['pressure']*unit.atmospheres, opt['temperature']*unit.kelvin, 25))
+    
+    if opt['platform'] == 'Auto':
+        simulation = app.Simulation(topology, system, integrator)
     else:
-        plt = openmm.Platform.getPlatformByName(platform)
-        simulation = app.Simulation(structure.topology, system, integrator, plt)
-
+        try :
+            platform = openmm.Platform.getPlatformByName(opt['platform'])
+            simulation = app.Simulation(topology, system, integrator, platform)
+        except Exception as e:
+            raise ValueError('The selected platform is invalid: {}'.format(str(e)))
+    
     # Set starting position and velocities
     simulation.context.setPositions(positions)
-    simulation.context.setVelocities(velocities) 
 
     # Set Box dimension
     simulation.context.setPeriodicBoxVectors(box[0],box[1],box[2])
-    
-    # Set Reportes
-    for rep in getReporters(**opt):
-        simulation.reporters.append(rep)
 
-    #simulation.reporters.append(PDBReporter('output.pdb', 1))
+    if opt['SimType'] in ['nvt', 'npt']:
+        if velocities is not None:
+            opt['Logger'].info('RESTARTING simulaiton from the previous State')
+            simulation.context.setVelocities(velocities)
+        else:
+            # Set the velocities drawing from the Boltzmann distribution at the selected temperature
+            opt['Logger'].info('GENERATING a new starting State')
+            simulation.context.setVelocitiesToTemperature(opt['temperature']*unit.kelvin)
+
+        # Convert simulation time in steps
+        opt['steps'] = int(round(opt['time']/stepLen))
         
-    opt['Logger'].info('Running {steps} MD steps at {temperature}K'.format(**opt))
-
+        # Set Reportes
+        for rep in getReporters(**opt):
+            simulation.reporters.append(rep)
+            
     # OpenMM platform information
     mmver = openmm.version.version
     mmplat = simulation.context.getPlatform()
+
     if opt['verbose']:
         # Host information
         from platform import uname
@@ -378,31 +266,49 @@ def production(mdData, platform=None, **opt):
         for prop in mmplat.getPropertyNames():
             val = mmplat.getPropertyValue(simulation.context, prop)
             print(prop, ':', val, file=printfile)
-
+            
     print('OpenMM({}) simulation generated for {} platform'.format(mmver, mmplat.getName()), file=printfile)
- 
-    simulation.step(opt['steps'])
 
-    if opt['convert']:
-        opt['Logger'].log.info('Converting trajectories to: {trajectory_filetype}'.format(**opt))
-        simtools.mdTrajConvert(simulation, outfname=opt['outfname'],
+    if opt['SimType'] in ['nvt', 'npt']:
+
+        opt['Logger'].info('Running {time} ps = {steps} steps of {SimType} MD at {temperature}K'.format( **opt))
+        
+        # Start Simulation
+        simulation.step(opt['steps'])
+
+        if opt['convert']:
+            opt['Logger'].info('Converting trajectories to: {trajectory_filetype}'.format(**opt))
+            simtools.mdTrajConvert(simulation, outfname=opt['outfname'],
                                trajectory_selection=opt['trajectory_selection'],
                                trajectory_filetype=opt['trajectory_filetype'])
 
-    state = simulation.context.getState(getPositions=True, getVelocities=True, getEnergy=True, enforcePeriodicBox=True)
+        state = simulation.context.getState(getPositions=True, getVelocities=True, getEnergy=True, enforcePeriodicBox=True)
+        
+    elif opt['SimType'] == 'min':
+        # Start Simulation
+        
+        state = simulation.context.getState(getEnergy=True)
 
+        print('Initial energy = {}'.format(state.getPotentialEnergy()), file=printfile)
+
+        simulation.minimizeEnergy(maxIterations=opt['steps'])
+
+        state = simulation.context.getState(getPositions=True, getEnergy=True)
+        print('Minimized energy = {}'.format(state.getPotentialEnergy()), file=printfile)
+
+    
     # OpenMM Quantity object
     structure.positions = state.getPositions(asNumpy=False)
-    # numpy array in units of angstrom/picosecond
-    structure.velocities = state.getVelocities(asNumpy=False)
     # OpenMM Quantity object
     structure.box_vectors = state.getPeriodicBoxVectors()
-    
-    # state = simulation.context.getState(getEnergy=True)
-    # logging.warning('Initial Potential energy = {}'.format(state.getPotentialEnergy()))
-    # logging.warning('Initial Kinetic energy = {}'.format(state.getKineticEnergy()))
-    
+
+    if opt['SimType'] in ['nvt', 'npt']:
+        # numpy array in units of angstrom/picosecond
+        structure.velocities = state.getVelocities(asNumpy=False)
+ 
     return
+
+
 
 def getReporters(totalSteps=None, outfname=None, **opt):
     """
