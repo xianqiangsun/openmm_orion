@@ -172,10 +172,16 @@ class OpenMMminimizeCube(ParallelOEMolComputeCube):
                   If 0 the mimimization will continue 
                   until convergence""")
 
-    # restraintWt = parameter.DecimalParameter(
-    #     'restraintWt',
-    #     default=5.0,
-    #     help_text="Restraint weight for xyz atom restraints")
+    restraints = parameter.StringParameter(
+        'restraints',
+        default='',
+        help_text="Mask selection to apply restraints")
+
+    
+    restraintWt = parameter.DecimalParameter(
+        'restraintWt',
+        default=5.0,
+        help_text="Restraint weight for xyz atom restraints")
 
     temperature = parameter.DecimalParameter(
         'temperature',
@@ -294,12 +300,19 @@ class OpenMMnvtCube(ParallelOEMolComputeCube):
         default = 10.0,
         help_text="NVT simulation time in picoseconds")
 
-    # restraintWt = parameter.DecimalParameter(
-    #     'restraintWt',
-    #     default=2.0,
-    #     help_text="Restraint weight in kcal/mol/ang^2 for xyz atom restraints")
 
+    restraints = parameter.StringParameter(
+        'restraints',
+        default='',
+        help_text="Mask selection to apply restraints")
 
+    
+    restraintWt = parameter.DecimalParameter(
+        'restraintWt',
+        default=2.0,
+        help_text="Restraint weight in kcal/mol/ang^2 for xyz atom restraints")
+
+    
     nonbondedMethod = parameter.StringParameter(
         'nonbondedMethod',
         default='PME',
@@ -307,6 +320,7 @@ class OpenMMnvtCube(ParallelOEMolComputeCube):
                  'CutoffPeriodic', 'PME', 'Ewald'],
         help_text="NoCutoff, CutoffNonPeriodic, CutoffPeriodic, PME, or Ewald.")
 
+    
     nonbondedCutoff = parameter.DecimalParameter(
         'nonbondedCutoff',
         default=10,
@@ -452,10 +466,16 @@ class OpenMMnptCube(ParallelOEMolComputeCube):
         default = 10.0,
         help_text="NPT simulation time in picoseconds")
 
-    # restraintWt = parameter.DecimalParameter(
-    #     'restraintWt',
-    #     default=2.0,
-    #     help_text="Restraint weight in kcal/mol/ang^2 for xyz atom restraints")
+    restraints = parameter.StringParameter(
+        'restraints',
+        default='',
+        help_text="Mask selection to apply restraints")
+
+    
+    restraintWt = parameter.DecimalParameter(
+        'restraintWt',
+        default=2.0,
+        help_text="Restraint weight in kcal/mol/ang^2 for xyz atom restraints")
 
 
     nonbondedMethod = parameter.StringParameter(

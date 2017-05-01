@@ -5,6 +5,9 @@ from openeye import oechem
 from simtk import unit, openmm
 from simtk.openmm import app
 import OpenMMCubes.utils as utils
+import pyparsing as pyp
+
+
 try:
     import cPickle as pickle
 except ImportError:
@@ -221,7 +224,29 @@ def simulation(mdData, **opt):
     if opt['SimType'] == 'npt':
         # Add Force Barostat to the system
         system.addForce(openmm.MonteCarloBarostat(opt['pressure']*unit.atmospheres, opt['temperature']*unit.kelvin, 25))
-    
+
+    if opt['restraints']:
+        opt['Logger'].info("RESTRAINTS mask applied to: {}".format(opt['restraints']))
+        #Select atom to restrain
+        res_atom_set = restraints(structure, res_mask=opt['restraints'])
+        opt['Logger'].info("Number of restainst atoms: {}".format(len(res_atom_set)))
+        # define the custom force to restrain atoms to their starting positions
+        force_restr = openmm.CustomExternalForce('k_restr*( (x-x0)^2 + (y-y0)^2 + (z-z0)^2 )')
+        # Add the restraint weight as a global parameter in kcal/mol/A^2
+        force_restr.addGlobalParameter("k_restr", opt['restraintWt']*unit.kilocalories_per_mole/unit.angstroms**2)
+        # Define the target xyz coords for the restraint as per-atom (per-particle) parameters
+        force_restr.addPerParticleParameter("x0")
+        force_restr.addPerParticleParameter("y0")
+        force_restr.addPerParticleParameter("z0")
+
+        for idx in range(0,len(positions)):
+            if idx in res_atom_set:
+                xyz = positions[idx].in_units_of(unit.nanometers)/unit.nanometers
+                force_restr.addParticle(idx, xyz)
+        
+        system.addForce(force_restr)
+
+        
     if opt['platform'] == 'Auto':
         simulation = app.Simulation(topology, system, integrator)
     else:
@@ -402,3 +427,130 @@ def mdTrajConvert(simulation=None, outfname=None, trajectory_selection=None, tra
     print("\tTrajectory subset: '{}'\n\t{}".format(trajectory_selection, traj), file=printfile)
     print("\tConverted trajectory to %s" % (outfile), file=printfile)
     traj.save(outfile)
+
+
+def restraints(structure, res_mask=''):
+    """
+    This functions select the atom indexes to apply harmonic restarins
+    
+    Parameters
+    ----------
+    structure : Parmed structure object
+        The Parmed structure 
+     
+    res_mask : python string
+        A string used to select the atom to restraints. A BNF grammar is defined
+        by using the tokens: "ligand", "protein", "water", "ions", "excipients".
+        Operator tokens are "not" and "and".
+      
+    Returns
+    -------
+    atom_set : python set
+        the select atom indexes to apply harmonic restraints
+   
+    Notes
+    -----
+    Example of selection string:
+        res_mask = "ligand and protein"
+        res_mask = "not water and not ions"
+        res_mask = "ligand and protein and excipients"
+    """
+
+    def build_set(ls, dsets):
+        # Terminal Literal return the related set
+        if isinstance(ls, str):
+            return dsets[ls]
+        # Not
+        if len(ls) == 2:
+            return system - build_set(ls[1], dsets)
+        # And
+        if len(ls) == 3:
+            return build_set(ls[0], dsets) | build_set(ls[2], dsets)
+        else:
+            raise ValueError("The passed list {} cannot have more than 3 tokens".format(ls))
+
+    # Parse Action-Maker
+    def makeLRlike(numterms):
+        if numterms is None:
+            # None operator can only by binary op
+            initlen = 2
+            incr = 1
+        else:
+            initlen = {0: 1, 1: 2, 2: 3, 3: 5}[numterms]
+            incr = {0: 1, 1: 1, 2: 2, 3: 4}[numterms]
+
+        # Define parse action for this number of terms,
+        # to convert flat list of tokens into nested list
+        def pa(s, l, t):
+            t = t[0]
+            if len(t) > initlen:
+                ret = pyp.ParseResults(t[:initlen])
+                i = initlen
+                while i < len(t):
+                    ret = pyp.ParseResults([ret] + t[i:i + incr])
+                    i += incr
+                return pyp.ParseResults([ret])
+
+        return pa
+
+    operand = pyp.Literal("protein") | pyp.Literal("ligand") | \
+              pyp.Literal("water") | pyp.Literal("ions") | \
+              pyp.Literal("excipients")
+
+    # BNF Grammar definition with parseAction makeLRlike
+    expr = pyp.operatorPrecedence(operand,
+                              [
+                                  (None, 2, pyp.opAssoc.LEFT, makeLRlike(None)),
+                                  (pyp.Literal("not"), 1, pyp.opAssoc.RIGHT, makeLRlike(1)),
+                                  (pyp.Literal("and"), 2, pyp.opAssoc.LEFT, makeLRlike(2)),
+                              ])
+
+    proteinResidues = ['ALA', 'ASN', 'CYS', 'GLU', 'HIS', 'LEU', 'MET', 'PRO',
+                       'THR', 'TYR', 'ARG', 'ASP', 'GLN', 'GLY', 'ILE', 'LYS',
+                       'PHE', 'SER', 'TRP', 'VAL']
+
+    ligand = set()
+    protein = set()
+    water = set()
+    ions = set()
+    excipients = set()
+    system = set()
+    
+    for res in structure.residues:
+        if res.name == 'LIG':
+            for at in res.atoms:
+                ligand.add(at.idx)
+        elif res.name == 'HOH':
+            for at in res.atoms:
+                water.add(at.idx)
+        elif len(res.atoms) == 1:
+            for at in res.atoms:
+                ions.add(at.idx)
+        elif res.name in proteinResidues:
+            for at in res.atoms:
+                protein.add(at.idx)
+        else:
+            for at in res.atoms:
+                excipients.add(at.idx)
+
+    dic_set = {'ligand':ligand, 'protein':protein, 'water':water, 'ions':ions, 'excipients':excipients}
+
+    for k in dic_set:
+        system = system | dic_set[k]
+
+    # print("ligand = {}".format(len(ligand)))
+    # print("protein = {}".format(len(protein)))
+    # print("water = {}".format(len(water)))
+    # print("ions = {}".format(len(ions)))
+    # print("excipients = {}".format(len(excipients)))
+    #
+    # print("system = {}".format(len(system)))
+    try:
+        ls = expr.parseString(res_mask, parseAll=True)
+    except Exception as e:
+        raise ValueError("The passed restarint mask is not valid: {}".format(str(e)))
+
+    atom_set = build_set(ls[0], dic_set)
+
+    return atom_set
+    
