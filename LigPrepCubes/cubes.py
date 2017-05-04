@@ -88,7 +88,7 @@ class ChargeMCMol(OEMolComputeCube):
 
 class LigandParameterization(OEMolComputeCube):
     title = "Ligand Parameterization"
-    version = "0.0.2"
+    version = "0.0.3"
     classification = [ ["Ligand Preparation", "SMARTY", "Forcefield Assignment"],
     ["Ligand Preparation", "AMBER", "Forcefield Assignment"]]
     tags = ['Openmoltools', 'ParmEd', 'SMARTY', 'SMIRNOFF', 'GAFF']
@@ -144,7 +144,7 @@ class LigandParameterization(OEMolComputeCube):
 
 class FREDDocking(OEMolComputeCube):
     title = "FRED Docking"
-    version = "0.0.1"
+    version = "0.0.2"
     classification = [ ["Ligand Preparation", "OEDock", "FRED"],
     ["Ligand Preparation", "OEDock", "ChemGauss4"]]
     tags = ['OEDock', 'FRED']
