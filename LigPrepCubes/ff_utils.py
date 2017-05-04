@@ -113,6 +113,7 @@ def assignCharges(molecule, max_confs=800, strictStereo=True, normalize=True, ke
 
     return charged_copy
 
+
 def checkTleap(forcefield):
     # Try to check if tleap is going to fail
     with open('tleap_commands', 'w') as cmd:
@@ -126,6 +127,7 @@ def checkTleap(forcefield):
         if 'command not found' in elem:
             raise RuntimeError('Error: requires tleap.')
     return True
+
 
 class ParamLigStructure(object):
     """
