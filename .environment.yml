@@ -1,0 +1,26 @@
+name: floes
+channels:
+    - omnia
+    - omnia/label/dev
+    - mobleylab
+    - conda-forge
+dependencies:
+    - python=3.5
+    - openmm=7.1.0
+    - openmoltools=0.7.5
+    - ambermini=16.16.0
+    - parmed=2.7.1
+    - alchemy=1.2.3
+    - pdbfixer=1.4
+    - openforcefield=0.0.1
+    - smirnoff99frosst=1.0.5
+    - yank=0.15.2
+    - pytest
+    - invoke
+    - pip
+    - pip:
+        - "--editable=git+https://github.com/open-forcefield-group/openforcefield.git#egg=openforcefield"
+        - "--index-url=https://pypi.anaconda.org/OpenEye/simple"
+        - "OpenEye-toolkits"
+        - "OpenEye-floe-0.2.148.tar.gz"
+        - "--editable=."
