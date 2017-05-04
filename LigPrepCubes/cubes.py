@@ -34,7 +34,7 @@ class ChargeMCMol(OEMolComputeCube):
         - Generic Tags: { IDTag: str }
     """
 
-    
+
     max_conformers = parameter.IntegerParameter(
         'max_conformers',
         default=800,
@@ -46,11 +46,11 @@ class ChargeMCMol(OEMolComputeCube):
         default=None,
         help_text="Select the number of conformers to keep")
 
-    
+
     def begin(self):
         self.opt = vars(self.args)
 
-    
+
     def process(self, mol, port):
         try:
             if not mol.GetTitle():
@@ -61,8 +61,11 @@ class ChargeMCMol(OEMolComputeCube):
                 idtag = mol.GetTitle()
 
             #Generate the charged molecule, keeping the first conf.
-            charged_mol = ff_utils.assignCharges(mol, max_confs=self.opt['max_conformers'], strictStereo=True,
-                                                 normalize=True, keep_confs=self.opt['keep_conformers'])
+            charged_mol = ff_utils.assignCharges(mol,
+                            max_confs=self.opt['max_conformers'],
+                            strictStereo=True, normalize=True,
+                            keep_confs=self.opt['keep_conformers'])
+
             # Store the IUPAC name from normalize_molecule
             iupac = [ charged_mol.GetTitle().strip() ]
             # Pack as list incase of commas in IUPUC
@@ -114,7 +117,7 @@ class LigandParameterization(OEMolComputeCube):
 
     def begin(self):
         if self.args.molecule_forcefield in ['GAFF', 'GAFF2']:
-            ff_utils.ParamLigStructure(oechem.OEMol(), self.args.molecule_forcefield).checkTleap
+            ff_utils.checkTleap(self.args.molecule_forcefield)
 
     def process(self, mol, port):
         try:
@@ -192,6 +195,7 @@ class FREDDocking(OEMolComputeCube):
         try:
             dockedMol = oechem.OEMol()
             res = self.dock.DockMultiConformerMolecule(dockedMol, mcmol)
+
             if res == oedocking.OEDockingReturnCode_Success:
                 oedocking.OESetSDScore(dockedMol, self.dock, self.sdtag)
                 self.dock.AnnotatePose(dockedMol)
@@ -200,6 +204,8 @@ class FREDDocking(OEMolComputeCube):
                 oechem.OESetSDData(dockedMol, self.sdtag, "{}".format(score))
                 self.clean(dockedMol)
                 self.success.emit(dockedMol)
+            else:
+                self.log.error('{} - {}'.format(res, oedocking.OEDockingReturnCodeGetName(res)) )
 
         except Exception as e:
             # Attach error message to the molecule that failed
