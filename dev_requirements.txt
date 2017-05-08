@@ -3,6 +3,8 @@
 
 # Dev requirements
 pytest
+invoke
+-e git+https://github.com/open-forcefield-group/openforcefield.git#egg=openforcefield
 
 # Local Dev Setup
 -e .
