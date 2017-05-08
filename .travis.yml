@@ -23,17 +23,16 @@ before_install:
 
 install:
 - conda env create -f .environment.yml
-#- floe_env --no-pip openmm_linux
-- source activate openmm_linux
 - pip install --extra-index-url https://pypi.anaconda.org/t/$CONDA_TOKEN/OpenEye/label/Orion/simple OpenEye-floe-pkg-tools
+- source activate openmm_linux
 - pip install --extra-index-url https://pypi.anaconda.org/OpenEye/simple
-  --extra-index-url https://pypi.anaconda.org/t/$CONDA_TOKEN/OpenEye/label/Orion/simple -r dev_requirements.txt
+    --extra-index-url https://pypi.anaconda.org/t/$CONDA_TOKEN/OpenEye/label/Orion/simple -r dev_requirements.txt
 
 script:
 # Test cubes
 - py.test -v -s PlatformTestCubes
 - py.test -v -s LigPrepCubes
 - py.test -v -s OpenMMCubes
-- py.test -v -s YankCubes
+#- py.test -v -s YankCubes
 # Test floes
 #- py.test -v -s floes/floe_tests/
