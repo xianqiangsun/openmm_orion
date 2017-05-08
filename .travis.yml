@@ -28,7 +28,6 @@ install:
 #- source activate openmm_linux
 #- pip install --extra-index-url https://pypi.anaconda.org/OpenEye/simple
 #    --extra-index-url https://pypi.anaconda.org/t/$CONDA_TOKEN/OpenEye/label/Orion/simple -r dev_requirements.txt
-
 script:
 # Test cubes
 - py.test -v -s PlatformTestCubes
