@@ -34,13 +34,16 @@
 git clone git@github.com:openeye-private/openmm_orion.git
 cd openmm_orion
 
-#Download the latest floe package and place into the openmm_orion directory
-# Latest package as of April, 28th
-cp OpenEye-floe-0.2.148.tar.gz openmm_orion/
-
 #Create a new local conda environment and install dependencies
 conda env create -f .environment.yml -n dev
 source activate dev
+
+#Download the latest floe package and place into the openmm_orion directory
+# Latest package as of April, 28th
+cp OpenEye-floe-0.2.148.tar.gz openmm_orion/
+pip install OpenEye-floe-0.2.148.tar.gz
+
+pip install -r dev_requirements.txt
 
 # Run the tests.
 py.test -v -s PlatformTestCubes
