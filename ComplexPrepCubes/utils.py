@@ -116,7 +116,24 @@ def delete_shell(core_mol, del_mol, cut_off, in_out='in'):
 
 
 def oemol_to_openmmTop(mol):
-
+    """
+    This function converts an OEMol to an openmm topology
+    The OEMol coordinates are assumed to be in Angstrom unit
+      
+    Parameters:
+    -----------
+    mol: OEMol molecule
+        The molecule to convert 
+        
+    Return:
+    -------
+    topology : OpenMM Topology 
+        The generated OpenMM topology
+    positions : OpenMM Quantity
+        The molecule atom positions associated wuth the 
+        generated topology in Angstrom units
+    """
+    # OE Hierarchical molecule view
     hv = oechem.OEHierView(mol)
 
     # Create empty OpenMM Topology
@@ -130,14 +147,13 @@ def oemol_to_openmmTop(mol):
         openmm_chain = topology.addChain(chain.GetChainID())
 
         for frag in chain.GetFragments():
-
+            
             for hres in frag.GetResidues():
                 
                 # Get OE residue
                 oe_res = hres.GetOEResidue()
                 # Create OpenMM residue
                 openmm_res = topology.addResidue(oe_res.GetName(), openmm_chain)
-
                 
                 for oe_at in hres.GetAtoms():
                     # Select atom element based on the atomic number
@@ -148,9 +164,9 @@ def oemol_to_openmmTop(mol):
                     # Add atom to the mapping dictionary
                     oe_atom_to_openmm_at[oe_at] = openmm_at
 
-    # Create bonds
+    # Create bonds preserving the bond ordering assessed by the OE Toolkit
     for bond in mol.GetBonds():
-        topology.addBond(oe_atom_to_openmm_at[bond.GetBgn()], oe_atom_to_openmm_at[bond.GetEnd()])
+        topology.addBond(oe_atom_to_openmm_at[bond.GetBgn()], oe_atom_to_openmm_at[bond.GetEnd()], order=bond.GetOrder())
 
     dic = mol.GetCoords()
     positions = [Vec3(v[0], v[1], v[2]) for k, v in dic.items()] * unit.angstrom
@@ -159,40 +175,77 @@ def oemol_to_openmmTop(mol):
 
 
 def openmmTop_to_oemol(topology, positions):
+    """
+    This function converts an OpenMM topology in an OEMol
 
+    Parameters:
+    -----------
+    topology : OpenMM Topology 
+        The OpenMM topology
+    positions : OpenMM Quantity
+        The molecule atom positions associated wuth the 
+        topology
+
+        
+    Return:
+    -------
+    oe_mol : OEMol 
+        The generated OEMol molecule
+    """
+
+    # Create an empty OEMol
     oe_mol = oechem.OEMol()
+
+    # Mapping dictionary between openmm atoms and oe atoms
     openmm_atom_to_oe_atom={}
 
+    # Python set used to identify atoms that are not in protein residues
     keep = set(proteinResidues).union(dnaResidues).union(rnaResidues)
-
+    
     for chain in topology.chains():
+        
         for res in chain.residues():
+            # Create an OEResidue
             oe_res = oechem.OEResidue()
+            # Set OEResidue name
             oe_res.SetName(res.name)
+            # If the atom is not a protein atom then set its heteroatom
+            # flag to True
             if res.name not in keep:
                 oe_res.SetHetAtom(True)
+            # Set OEResidue Chain ID    
             oe_res.SetChainID(chain.id)
             #res_idx = int(res.id) - chain.index * len(chain._residues)
+            # Set OEResidue number
             oe_res.SetResidueNumber(int(res.id))
+            
             for openmm_at in res.atoms():
+                # Create an OEAtom  based on the atomic number
                 oe_atom = oe_mol.NewAtom(openmm_at.element._atomic_number)
+                # Set atom name
                 oe_atom.SetName(openmm_at.name)
+                # Set Atom index
                 oe_res.SetSerialNumber(openmm_at.index+1)
+                # Commit the changes
                 oechem.OEAtomSetResidue(oe_atom, oe_res)
-
+                # Update the dictionary OpenMM to OE 
                 openmm_atom_to_oe_atom[openmm_at] = oe_atom
 
+    # Create the bonds
     for bond in topology.bonds():
         at0 = bond[0]
         at1 = bond[1]
-        oe_mol.NewBond(openmm_atom_to_oe_atom[at0], openmm_atom_to_oe_atom[at1], 1)
+        # Read in the bond order from the OpenMM topology
+        bond_order = bond.order
+        # If bond order info are not present set the bond order to one
+        if bond_order == None:
+            bond_order = 1
+        # Create the bond
+        oe_mol.NewBond(openmm_atom_to_oe_atom[at0], openmm_atom_to_oe_atom[at1], bond_order)
 
-    #oe_coords = oechem.OEFloatArray(oe_mol.GetMaxAtomIdx() * 3)
-
+    # Set the OEMol positions    
     pos = positions.in_units_of(unit.angstrom)/unit.angstrom
-
     pos = list(itertools.chain.from_iterable(pos))
-
     oe_mol.SetCoords(pos)
 
     return oe_mol

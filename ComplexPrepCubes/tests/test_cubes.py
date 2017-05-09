@@ -23,18 +23,41 @@ class ConversionTester(unittest.TestCase):
 
         top, omm_pos = utils.oemol_to_openmmTop(mol)
 
-        # Assert 
+        # Assert Atom numbers
         self.assertEqual(top.getNumAtoms(), mol.NumAtoms())
 
         for (op_at, oe_at) in zip(top.atoms(), mol.GetAtoms()):
+            # Assert atom indexes
             self.assertEqual(op_at.index, oe_at.GetIdx())
 
-
         oe_pos = [v for k,v in mol.GetCoords().items()]
+        # Assert atom positions
         self.assertEqual(oe_pos, omm_pos.in_units_of(unit.angstrom)/unit.angstrom)
 
+        # Assert bond order
+        dic_bond_openmm = {}
+        for bond in top.bonds():
+            # OpenMM atoms
+            at0_idx=bond[0].index
+            at1_idx=bond[1].index
+            if at0_idx < at1_idx:
+                dic_bond_openmm[(at0_idx, at1_idx)] = bond.order
+            else:
+                dic_bond_openmm[(at1_idx, at0_idx)] = bond.order
 
+        dic_bond_oe = {}
+        for bond in mol.GetBonds():
+            # OE atoms
+            at0_idx = bond.GetBgnIdx()
+            at1_idx = bond.GetEndIdx()
+            if at0_idx < at1_idx: 
+                dic_bond_oe[(at0_idx, at1_idx)] = bond.GetOrder()
+            else:
+                dic_bond_oe[(at1_idx, at0_idx)] = bond.GetOrder()
 
+        self.assertEqual(dic_bond_openmm, dic_bond_oe)
+
+        
     def test_openmmTop_to_oemol(self):
         protein = OpenMMCubes.utils.get_data_filename('examples','data/T4-protein.pdb')
         
