@@ -22,12 +22,6 @@
         "parmed",
         "pytest",
         "pip",
-        {
-            "pip": [
-                "--index-url=https://pypi.anaconda.org/OpenEye/simple",
-                "OpenEye-toolkits"
-            ]
-        }
     ],
     "requirements": "requirements.txt"
 }
