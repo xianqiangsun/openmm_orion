@@ -13,7 +13,7 @@ class YankHydrationCubeTester(unittest.TestCase):
     def setUp(self):
         self.cube = YankHydrationCube("yank_hydration")
         self.cube.args.timestep = 2 # fs
-        self.cube.args.nsteps_per_iteration = 5
+        self.cube.args.nsteps_per_iteration = 2
         self.cube.args.simulation_time = 0.0001 # ns/replica
         self.cube.args.verbose = True
         self.runner = CubeTestRunner(self.cube)
@@ -85,7 +85,7 @@ class YankBindingCubeTester(unittest.TestCase):
         self.cube = YankBindingCube("yank_binding")
         self.cube.args.receptor = get_data_filename('T4-protein.pdb')
         self.cube.args.timestep = 2 # fs
-        self.cube.args.nsteps_per_iteration = 5
+        self.cube.args.nsteps_per_iteration = 2
         self.cube.args.simulation_time = 0.0001 # ns/replica
         self.cube.args.minimize = False # don't minimize for testing
         self.cube.args.verbose = True
