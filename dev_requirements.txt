@@ -1,10 +1,12 @@
-# Normal requirements
--r requirements.txt
-
 # Dev requirements
 pytest
 invoke
 -e git+https://github.com/open-forcefield-group/openforcefield.git#egg=openforcefield
+-e git+https://github.com/choderalab/openmoltools.git#egg=openmoltools
+
+
+# Normal requirements
+# -r requirements.txt
 
 # Local Dev Setup
 -e .

@@ -38,6 +38,9 @@ cd openmm_orion
 conda env create -f .environment.yml -n dev
 source activate dev
 
+#Install latest OpenEye-toolkits
+pip install -i https://pypi.anaconda.org/OpenEye/simple OpenEye-toolkits
+
 #Download the latest floe package and place into the openmm_orion directory
 # Latest package as of April, 28th
 cp OpenEye-floe-0.2.148.tar.gz openmm_orion/

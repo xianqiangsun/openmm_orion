@@ -1,27 +1,25 @@
 {
     "name": "OpenMMCubes",
-    "conda_channels": [
-        "omnia",
-        "omnia/label/dev",
-        "mobleylab"
-    ],
-    "python_version": "3.5",
-    "version": "0.1.6",
+    "requirements": "requirements.txt",
     "conda_dependencies": [
         "python=3.5",
         "openmm=7.1.0",
-        "openmoltools=0.7.5",
         "ambermini=16.16.0",
         "alchemy=1.2.3",
         "pdbfixer=1.4",
-        "openforcefield=0.0.1",
         "smirnoff99frosst=1.0.5",
         "yank=0.15.2",
         "numpy",
         "mdtraj",
         "parmed",
         "pytest",
-        "pip",
+        "pip"
     ],
-    "requirements": "requirements.txt"
+    "version": "0.1.6",
+    "conda_channels": [
+        "omnia",
+        "omnia/label/dev",
+        "mobleylab"
+    ],
+    "python_version": "3.5"
 }
