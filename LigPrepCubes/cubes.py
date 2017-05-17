@@ -35,21 +35,24 @@ class ChargeMCMol(OEMolComputeCube):
     """
 
 
-    max_conformers = parameter.IntegerParameter(
-        'max_conformers',
+    max_conf = parameter.IntegerParameter(
+        'max_conf',
         default=800,
         help_text="Max number of conformers")
 
 
-    keep_conformers = parameter.IntegerParameter(
+    keep_conf = parameter.IntegerParameter(
         'keep_conformers',
         default=None,
         help_text="Select the number of conformers to keep")
 
+    legacy = parameter.BooleanParameter(
+        'legacy',
+        default=True,
+        help_text="(Default=True) Use legacy charging engine OEAssignPartialCharges. False to use OEAssignCharges (Requires: OEToolkits 2017.2.1).")
 
     def begin(self):
         self.opt = vars(self.args)
-
 
     def process(self, mol, port):
         try:
@@ -59,12 +62,17 @@ class ChargeMCMol(OEMolComputeCube):
             else:
                 # Store the IDTag from the SMILES file.
                 idtag = mol.GetTitle()
-
-            #Generate the charged molecule, keeping the first conf.
-            charged_mol = ff_utils.assignCharges(mol,
-                            max_confs=self.opt['max_conformers'],
+            import openmoltools
+            charged_mol = openmoltools.openeye.get_charges(mol,
+                            max_confs=self.opt['max_conf'],
                             strictStereo=True, normalize=True,
-                            keep_confs=self.opt['keep_conformers'])
+                            keep_confs=self.opt['keep_conf'],
+                            legacy=False)
+            #Generate the charged molecule, keeping the first conf.
+            #charged_mol = ff_utils.assignCharges(mol,
+            #                max_confs=self.opt['max_conformers'],
+            #                strictStereo=True, normalize=True,
+            #                keep_confs=self.opt['keep_conformers'])
 
             # Store the IUPAC name from normalize_molecule
             iupac = [ charged_mol.GetTitle().strip() ]
