@@ -52,7 +52,6 @@ pip install -r dev_requirements.txt
 py.test -v -s PlatformTestCubes
 py.test -v -s LigPrepCubes
 py.test -v -s OpenMMCubes
-py.test -v -s YankCubes
 ```
 ## Walkthrough from SMILES to Simulation
 
