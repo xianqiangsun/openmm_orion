@@ -8,6 +8,7 @@ from pdbfixer import PDBFixer
 import parmed
 from LigPrepCubes import ff_utils
 from OpenMMCubes import utils
+import logging
 
 proteinResidues = ['ALA', 'ASN', 'CYS', 'GLU', 'HIS',
                    'LEU', 'MET', 'PRO', 'THR', 'TYR',
@@ -137,7 +138,7 @@ def oemol_to_openmmTop(mol):
     topology : OpenMM Topology 
         The generated OpenMM topology
     positions : OpenMM Quantity
-        The molecule atom positions associated wuth the 
+        The molecule atom positions associated with the 
         generated topology in Angstrom units
     """
     # OE Hierarchical molecule view
@@ -254,9 +255,9 @@ def openmmTop_to_oemol(topology, positions):
 
         # If bond order info are not present set the bond order to one
         if not bond_order:
-            raise RuntimeWarning("Bond order info missing between atom indexes: {}-{}".format(at0.index, at1.index))
+            logging.info("WARNING: Bond order info missing between atom indexes: {}-{}".format(at0.index, at1.index))
             bond_order = 1
-
+            
         # OE atoms
         oe_atom0 = openmm_atom_to_oe_atom[at0]
         oe_atom1 = openmm_atom_to_oe_atom[at1]
