@@ -3,7 +3,11 @@ from simtk.openmm import Vec3
 from simtk import unit
 from simtk.openmm import app
 import itertools
-
+from pkg_resources import resource_filename
+from pdbfixer import PDBFixer
+import parmed
+from LigPrepCubes import ff_utils
+from OpenMMCubes import utils
 
 proteinResidues = ['ALA', 'ASN', 'CYS', 'GLU', 'HIS',
                    'LEU', 'MET', 'PRO', 'THR', 'TYR',
@@ -12,7 +16,6 @@ proteinResidues = ['ALA', 'ASN', 'CYS', 'GLU', 'HIS',
 
 rnaResidues = ['A', 'G', 'C', 'U', 'I']
 dnaResidues = ['DA', 'DG', 'DC', 'DT', 'DI']
-
 
 
 def split(mol):
@@ -36,6 +39,7 @@ def split(mol):
         excipient molecules
     
     """
+
     # Set empty molecule containers
     prot = oechem.OEMol()
     lig = oechem.OEMol()
@@ -46,44 +50,47 @@ def split(mol):
     opt = oechem.OESplitMolComplexOptions()
 
     # The protein filter is set to avoid that multiple
-    # chains are separeted during the splitting
+    # chains are separated during the splitting
     pf = oechem.OEMolComplexFilterFactory(oechem.OEMolComplexFilterCategory_Protein)
+    # The ligand filter is set to recognize just the ligand
+    lf = oechem.OEMolComplexFilterFactory(oechem.OEMolComplexFilterCategory_Ligand)
+    # The water filter is set to recognize just water molecules
+    wf = oechem.OEMolComplexFilterFactory(oechem.OEMolComplexFilterCategory_Water)
     opt.SetProteinFilter(pf)
-
+    opt.SetLigandFilter(lf)
+    opt.SetWaterFilter(wf)
     
     # Splitting the system
     oechem.OESplitMolComplex(lig, prot, wat, other, mol, opt)
     
-    # At this point prot contains the protein, lig contains the ligand and
-    # wat contains the water and excipients
+    # At this point prot contains the protein, lig contains the ligand,
+    # wat contains the water and excipients contains the excipients
 
-    return prot, wat, other
+    return prot, lig, wat, other
 
 
 def delete_shell(core_mol, del_mol, cut_off, in_out='in'):
     """
-    This function keeps the molecules in del_mol that are 
-    inside or outside (in_out) a shell built around the 
-    core_mol. The cutoff distance (in A) select the shell 
-    threshold distance between the core_mol and the 
-    del_mol atoms.
-      
+    This function deletes molecules present in the passed argument
+    del_mol that are far (in_out=out) or close (in_out=in) than the
+    selected cutoff distance (in A) from the passed molecules core_mol
+       
     Parameters:
     -----------
     core_mol: OEMol molecule
-        The core molecule 
+        The core molecules 
     del_mol: OEMol molecule
-        The molecule to delete atoms inside or outside the shell
+        The molecules to be deleted if their distances from the core_mol
+        molecules are greater or closer that the selected cutoff distance
     cut_off: python float number
         The threshold distance in A used to mark atom for deletion
     in_out: python string
-        A flag used to select which atoms to delete. 'in' and 'out' 
-        will respectively delete all the atoms that are inside or 
-        outside the shell.
+        A flag used to select if delete molecules far or close than 
+        the cutoff distance from the core_mol
     
     Return:
     -------
-    to_del: the copy of del_mol where atoms have been deleted 
+    to_del: copy of del_mol where atoms have been deleted 
     """
 
     if in_out not in ['in', 'out']:
@@ -119,12 +126,12 @@ def oemol_to_openmmTop(mol):
     """
     This function converts an OEMol to an openmm topology
     The OEMol coordinates are assumed to be in Angstrom unit
-      
+
     Parameters:
     -----------
     mol: OEMol molecule
         The molecule to convert 
-        
+
     Return:
     -------
     topology : OpenMM Topology 
@@ -134,7 +141,7 @@ def oemol_to_openmmTop(mol):
         generated topology in Angstrom units
     """
     # OE Hierarchical molecule view
-    hv = oechem.OEHierView(mol)
+    hv = oechem.OEHierView(mol, oechem.OEAssumption_BondedResidue + oechem.OEAssumption_ResPerceived)
 
     # Create empty OpenMM Topology
     topology = app.Topology()
@@ -147,14 +154,14 @@ def oemol_to_openmmTop(mol):
         openmm_chain = topology.addChain(chain.GetChainID())
 
         for frag in chain.GetFragments():
-            
+
             for hres in frag.GetResidues():
-                
+
                 # Get OE residue
                 oe_res = hres.GetOEResidue()
                 # Create OpenMM residue
                 openmm_res = topology.addResidue(oe_res.GetName(), openmm_chain)
-                
+
                 for oe_at in hres.GetAtoms():
                     # Select atom element based on the atomic number
                     element = app.element.Element.getByAtomicNumber(oe_at.GetAtomicNum())
@@ -166,7 +173,14 @@ def oemol_to_openmmTop(mol):
 
     # Create bonds preserving the bond ordering assessed by the OE Toolkit
     for bond in mol.GetBonds():
-        topology.addBond(oe_atom_to_openmm_at[bond.GetBgn()], oe_atom_to_openmm_at[bond.GetEnd()], order=bond.GetOrder())
+        aromatic = None
+
+        # Set the bond aromaticity
+        if bond.IsAromatic():
+            aromatic = 'Aromatic'
+
+        topology.addBond(oe_atom_to_openmm_at[bond.GetBgn()], oe_atom_to_openmm_at[bond.GetEnd()],
+                         type=aromatic, order=bond.GetOrder())
 
     dic = mol.GetCoords()
     positions = [Vec3(v[0], v[1], v[2]) for k, v in dic.items()] * unit.angstrom
@@ -186,7 +200,7 @@ def openmmTop_to_oemol(topology, positions):
         The molecule atom positions associated wuth the 
         topology
 
-        
+
     Return:
     -------
     oe_mol : OEMol 
@@ -197,13 +211,12 @@ def openmmTop_to_oemol(topology, positions):
     oe_mol = oechem.OEMol()
 
     # Mapping dictionary between openmm atoms and oe atoms
-    openmm_atom_to_oe_atom={}
+    openmm_atom_to_oe_atom = {}
 
     # Python set used to identify atoms that are not in protein residues
     keep = set(proteinResidues).union(dnaResidues).union(rnaResidues)
-    
+
     for chain in topology.chains():
-        
         for res in chain.residues():
             # Create an OEResidue
             oe_res = oechem.OEResidue()
@@ -212,23 +225,24 @@ def openmmTop_to_oemol(topology, positions):
             # If the atom is not a protein atom then set its heteroatom
             # flag to True
             if res.name not in keep:
+                oe_res.SetFragmentNumber(chain.index + 1)
                 oe_res.SetHetAtom(True)
-            # Set OEResidue Chain ID    
+            # Set OEResidue Chain ID
             oe_res.SetChainID(chain.id)
-            #res_idx = int(res.id) - chain.index * len(chain._residues)
+            # res_idx = int(res.id) - chain.index * len(chain._residues)
             # Set OEResidue number
             oe_res.SetResidueNumber(int(res.id))
-            
+
             for openmm_at in res.atoms():
                 # Create an OEAtom  based on the atomic number
                 oe_atom = oe_mol.NewAtom(openmm_at.element._atomic_number)
                 # Set atom name
                 oe_atom.SetName(openmm_at.name)
                 # Set Atom index
-                oe_res.SetSerialNumber(openmm_at.index+1)
+                oe_res.SetSerialNumber(openmm_at.index + 1)
                 # Commit the changes
                 oechem.OEAtomSetResidue(oe_atom, oe_res)
-                # Update the dictionary OpenMM to OE 
+                # Update the dictionary OpenMM to OE
                 openmm_atom_to_oe_atom[openmm_at] = oe_atom
 
     # Create the bonds
@@ -237,15 +251,35 @@ def openmmTop_to_oemol(topology, positions):
         at1 = bond[1]
         # Read in the bond order from the OpenMM topology
         bond_order = bond.order
-        # If bond order info are not present set the bond order to one
-        if bond_order == None:
-            bond_order = 1
-        # Create the bond
-        oe_mol.NewBond(openmm_atom_to_oe_atom[at0], openmm_atom_to_oe_atom[at1], bond_order)
 
-    # Set the OEMol positions    
-    pos = positions.in_units_of(unit.angstrom)/unit.angstrom
+        # If bond order info are not present set the bond order to one
+        if not bond_order:
+            raise RuntimeWarning("Bond order info missing between atom indexes: {}-{}".format(at0.index, at1.index))
+            bond_order = 1
+
+        # OE atoms
+        oe_atom0 = openmm_atom_to_oe_atom[at0]
+        oe_atom1 = openmm_atom_to_oe_atom[at1]
+
+        # Set OE atom aromaticity
+        if bond.type:
+            oe_atom0.SetAromatic(True)
+            oe_atom1.SetAromatic(True)
+
+        # Create the bond
+        oe_bond = oe_mol.NewBond(oe_atom0, oe_atom1, bond_order)
+
+        if bond.type:
+            oe_bond.SetAromatic(True)
+
+    # Set the OEMol positions
+    pos = positions.in_units_of(unit.angstrom) / unit.angstrom
     pos = list(itertools.chain.from_iterable(pos))
     oe_mol.SetCoords(pos)
 
     return oe_mol
+
+
+
+
+
