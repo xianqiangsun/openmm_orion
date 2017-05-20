@@ -13,8 +13,8 @@ class YankHydrationCubeTester(unittest.TestCase):
     def setUp(self):
         self.cube = YankHydrationCube("yank_hydration")
         self.cube.args.timestep = 2 # fs
-        self.cube.args.nsteps_per_iteration = 5
-        self.cube.args.simulation_time = 0.0001 # ns/replica
+        self.cube.args.nsteps_per_iteration = 50
+        self.cube.args.simulation_time = 0.001 # ns/replica
         self.cube.args.verbose = True
         self.runner = CubeTestRunner(self.cube)
         self.runner.start()

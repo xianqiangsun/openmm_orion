@@ -37,7 +37,7 @@ setup(
     include_package_data=True,
     package_data={ 'examples' : find_package_data('examples/data', 'examples'),
                    'smirff99Frosst' : find_package_data('', 'smirff99Frosst')},
-    author="Christopher Bayly, Nathan M. Lim, John Chodera",
+    author="Christopher Bayly, Nathan M. Lim, John Chodera, Gaetano Calabro",
     author_email="bayly@eyesopen.com",
     description='Prepare complex for MD with OpenMM',
     install_requires=install_reqs,

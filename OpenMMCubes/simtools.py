@@ -5,11 +5,15 @@ from openeye import oechem
 from simtk import unit, openmm
 from simtk.openmm import app
 import OpenMMCubes.utils as utils
+import pyparsing as pyp
+
+
 try:
     import cPickle as pickle
 except ImportError:
     import pickle
 
+    
 def genProteinStructure(proteinpdb, **opt):
     """
     Starting from OpenMM PDBFile, generates the OpenMM System for the protein and
@@ -188,50 +192,96 @@ def solvateComplexStructure(structure, **opt):
 
     return solv_structure
 
-def genSimFromStruct(structure, platform=None, **opt):
+
+def simulation(mdData, **opt):
     """
-    Uses ParmEd Structure to generate the OpenMM System,
-    required to create the OpenMM Simulation. ParmEd Structures are used to keep
-    the SMIRFF parameters on the molecule, but aren't necessary after storing the State.
-    (Keep it anyways.)
+    Minimization, NVT and NPT MD run
 
     Parameters
     ----------
-    structure : parmed.structure.Structure
-        The parametrized structure of the solvated protein:ligand complex
-    nonbondedMethod : (opt), str
-        Can be: NoCutoff, CutoffNonPeriodic, CutoffPeriodic, PME, or Ewald.
-    nonbondedCutoff : (opt), float
-        The nonbonded cutoff (in unit.angstroms), ignored if nonbondedMethod is NoCutoff.
-    constraints : (opt), str
-        Can be: None, HBonds, HAngles, or AllBonds.
-
-    Returns
-    -------
-    simulation : openmm.app.simulation.Simulation
-        The OpenMM Simulation object generated from the ParmEd Structure.
+    mdData : MDData data object
+        The object which recovers the Parmed structure data relevant for MD
     """
-    system = structure.createSystem(nonbondedMethod=eval("app.%s" % opt['nonbondedMethod']),
-                                    nonbondedCutoff=opt['nonbondedCutoff']*unit.angstroms,
-                                    constraints=eval("app.%s" % opt['constraints']))
-    integrator = openmm.LangevinIntegrator(opt['temperature']*unit.kelvin, 1/unit.picoseconds, 0.002*unit.picoseconds)
-
+    
     if opt['Logger'] is None:
         printfile = sys.stdout
     else:
         printfile = opt['Logger'].file
 
-    if platform is None:
-        #Use the fastest available platform
-        simulation = app.Simulation(structure.topology, system, integrator)
-    else:
-        platform = openmm.Platform.getPlatformByName(platform)
-        #prop = dict(DeviceIndex='2')
-        simulation = app.Simulation(structure.topology, system, integrator, platform, prop)
+    structure = mdData.structure
+    topology = mdData.topology
+    positions = mdData.positions
+    velocities = mdData.velocities
+    box = mdData.box
+    stepLen = 0.002
 
+    system = structure.createSystem(nonbondedMethod=eval("app.%s" % opt['nonbondedMethod']),
+                                    nonbondedCutoff=opt['nonbondedCutoff']*unit.angstroms,
+                                    constraints=eval("app.%s" % opt['constraints']))
+    
+    integrator = openmm.LangevinIntegrator(opt['temperature']*unit.kelvin, 1/unit.picoseconds, stepLen*unit.picoseconds)
+    
+    if opt['SimType'] == 'npt':
+        # Add Force Barostat to the system
+        system.addForce(openmm.MonteCarloBarostat(opt['pressure']*unit.atmospheres, opt['temperature']*unit.kelvin, 25))
+
+    if opt['restraints']:
+        opt['Logger'].info("RESTRAINTS mask applied to: {}".format(opt['restraints']))
+        #Select atom to restrain
+        res_atom_set = restraints(structure, res_mask=opt['restraints'])
+        opt['Logger'].info("Number of restainst atoms: {}".format(len(res_atom_set)))
+        # define the custom force to restrain atoms to their starting positions
+        force_restr = openmm.CustomExternalForce('k_restr*( (x-x0)^2 + (y-y0)^2 + (z-z0)^2 )')
+        # Add the restraint weight as a global parameter in kcal/mol/A^2
+        force_restr.addGlobalParameter("k_restr", opt['restraintWt']*unit.kilocalories_per_mole/unit.angstroms**2)
+        # Define the target xyz coords for the restraint as per-atom (per-particle) parameters
+        force_restr.addPerParticleParameter("x0")
+        force_restr.addPerParticleParameter("y0")
+        force_restr.addPerParticleParameter("z0")
+
+        for idx in range(0,len(positions)):
+            if idx in res_atom_set:
+                xyz = positions[idx].in_units_of(unit.nanometers)/unit.nanometers
+                force_restr.addParticle(idx, xyz)
+        
+        system.addForce(force_restr)
+
+        
+    if opt['platform'] == 'Auto':
+        simulation = app.Simulation(topology, system, integrator)
+    else:
+        try :
+            platform = openmm.Platform.getPlatformByName(opt['platform'])
+            simulation = app.Simulation(topology, system, integrator, platform)
+        except Exception as e:
+            raise ValueError('The selected platform is invalid: {}'.format(str(e)))
+    
+    # Set starting position and velocities
+    simulation.context.setPositions(positions)
+
+    # Set Box dimension
+    simulation.context.setPeriodicBoxVectors(box[0],box[1],box[2])
+
+    if opt['SimType'] in ['nvt', 'npt']:
+        if velocities is not None:
+            opt['Logger'].info('RESTARTING simulaiton from the previous State')
+            simulation.context.setVelocities(velocities)
+        else:
+            # Set the velocities drawing from the Boltzmann distribution at the selected temperature
+            opt['Logger'].info('GENERATING a new starting State')
+            simulation.context.setVelocitiesToTemperature(opt['temperature']*unit.kelvin)
+
+        # Convert simulation time in steps
+        opt['steps'] = int(round(opt['time']/stepLen))
+        
+        # Set Reportes
+        for rep in getReporters(**opt):
+            simulation.reporters.append(rep)
+            
     # OpenMM platform information
     mmver = openmm.version.version
     mmplat = simulation.context.getPlatform()
+
     if opt['verbose']:
         # Host information
         from platform import uname
@@ -241,41 +291,49 @@ def genSimFromStruct(structure, platform=None, **opt):
         for prop in mmplat.getPropertyNames():
             val = mmplat.getPropertyValue(simulation.context, prop)
             print(prop, ':', val, file=printfile)
-
+            
     print('OpenMM({}) simulation generated for {} platform'.format(mmver, mmplat.getName()), file=printfile)
-    integrator = openmm.LangevinIntegrator(opt['temperature']*unit.kelvin, 1/unit.picoseconds, 0.002*unit.picoseconds)
-    simulation = app.Simulation(structure.topology, system, integrator)
-    # Set initial positions/velocities
-    # Will get overwritten from saved State.
-    simulation.context.setPositions(structure.positions)
-    simulation.context.setVelocitiesToTemperature(opt['temperature']*unit.kelvin)
-    return simulation
 
-def minimizeSimulation(simulation, **opt):
-    """
-    Minimizes the OpenMM Simulations.
+    if opt['SimType'] in ['nvt', 'npt']:
 
-    Parameters
-    ----------
-    simulation : openmm.app.simulation.Simulation
-        The OpenMM Simulation object generated from the ParmEd Structure to be minimized.
+        opt['Logger'].info('Running {time} ps = {steps} steps of {SimType} MD at {temperature}K'.format( **opt))
+        
+        # Start Simulation
+        simulation.step(opt['steps'])
 
-    Returns
-    -------
-    simulation : openmm.app.simulation.Simulation
-        The OpenMM Simulation after minimization.
-    """
-    if opt['Logger'] is None:
-        printfile = sys.stdout
-    else:
-        printfile = opt['Logger'].file
+        if opt['convert']:
+            opt['Logger'].info('Converting trajectories to: {trajectory_filetype}'.format(**opt))
+            simtools.mdTrajConvert(simulation, outfname=opt['outfname'],
+                               trajectory_selection=opt['trajectory_selection'],
+                               trajectory_filetype=opt['trajectory_filetype'])
 
-    init = simulation.context.getState(getEnergy=True)
-    print('Initial energy = {}'.format(init.getPotentialEnergy()), file=printfile)
-    simulation.minimizeEnergy()
-    minene = simulation.context.getState(getPositions=True,getEnergy=True).getPotentialEnergy()
-    print('Minimized energy = {}'.format(minene), file=printfile)
-    return minene, simulation
+        state = simulation.context.getState(getPositions=True, getVelocities=True, getEnergy=True, enforcePeriodicBox=True)
+        
+    elif opt['SimType'] == 'min':
+        # Start Simulation
+        
+        state = simulation.context.getState(getEnergy=True)
+
+        print('Initial energy = {}'.format(state.getPotentialEnergy()), file=printfile)
+
+        simulation.minimizeEnergy(maxIterations=opt['steps'])
+
+        state = simulation.context.getState(getPositions=True, getEnergy=True)
+        print('Minimized energy = {}'.format(state.getPotentialEnergy()), file=printfile)
+
+    
+    # OpenMM Quantity object
+    structure.positions = state.getPositions(asNumpy=False)
+    # OpenMM Quantity object
+    structure.box_vectors = state.getPeriodicBoxVectors()
+
+    if opt['SimType'] in ['nvt', 'npt']:
+        # numpy array in units of angstrom/picosecond
+        structure.velocities = state.getVelocities(asNumpy=False)
+ 
+    return
+
+
 
 def getReporters(totalSteps=None, outfname=None, **opt):
     """
@@ -321,6 +379,7 @@ def getReporters(totalSteps=None, outfname=None, **opt):
 
     reporters = [state_reporter, progress_reporter, traj_reporter]
     return reporters
+
 
 def mdTrajConvert(simulation=None, outfname=None, trajectory_selection=None, trajectory_filetype='NetCDF'):
     """
@@ -368,3 +427,130 @@ def mdTrajConvert(simulation=None, outfname=None, trajectory_selection=None, tra
     print("\tTrajectory subset: '{}'\n\t{}".format(trajectory_selection, traj), file=printfile)
     print("\tConverted trajectory to %s" % (outfile), file=printfile)
     traj.save(outfile)
+
+
+def restraints(structure, res_mask=''):
+    """
+    This functions select the atom indexes to apply harmonic restarins
+    
+    Parameters
+    ----------
+    structure : Parmed structure object
+        The Parmed structure 
+     
+    res_mask : python string
+        A string used to select the atom to restraints. A BNF grammar is defined
+        by using the tokens: "ligand", "protein", "water", "ions", "excipients".
+        Operator tokens are "not" and "and".
+      
+    Returns
+    -------
+    atom_set : python set
+        the select atom indexes to apply harmonic restraints
+   
+    Notes
+    -----
+    Example of selection string:
+        res_mask = "ligand and protein"
+        res_mask = "not water and not ions"
+        res_mask = "ligand and protein and excipients"
+    """
+
+    def build_set(ls, dsets):
+        # Terminal Literal return the related set
+        if isinstance(ls, str):
+            return dsets[ls]
+        # Not
+        if len(ls) == 2:
+            return system - build_set(ls[1], dsets)
+        # And
+        if len(ls) == 3:
+            return build_set(ls[0], dsets) | build_set(ls[2], dsets)
+        else:
+            raise ValueError("The passed list {} cannot have more than 3 tokens".format(ls))
+
+    # Parse Action-Maker
+    def makeLRlike(numterms):
+        if numterms is None:
+            # None operator can only by binary op
+            initlen = 2
+            incr = 1
+        else:
+            initlen = {0: 1, 1: 2, 2: 3, 3: 5}[numterms]
+            incr = {0: 1, 1: 1, 2: 2, 3: 4}[numterms]
+
+        # Define parse action for this number of terms,
+        # to convert flat list of tokens into nested list
+        def pa(s, l, t):
+            t = t[0]
+            if len(t) > initlen:
+                ret = pyp.ParseResults(t[:initlen])
+                i = initlen
+                while i < len(t):
+                    ret = pyp.ParseResults([ret] + t[i:i + incr])
+                    i += incr
+                return pyp.ParseResults([ret])
+
+        return pa
+
+    operand = pyp.Literal("protein") | pyp.Literal("ligand") | \
+              pyp.Literal("water") | pyp.Literal("ions") | \
+              pyp.Literal("excipients")
+
+    # BNF Grammar definition with parseAction makeLRlike
+    expr = pyp.operatorPrecedence(operand,
+                              [
+                                  (None, 2, pyp.opAssoc.LEFT, makeLRlike(None)),
+                                  (pyp.Literal("not"), 1, pyp.opAssoc.RIGHT, makeLRlike(1)),
+                                  (pyp.Literal("and"), 2, pyp.opAssoc.LEFT, makeLRlike(2)),
+                              ])
+
+    proteinResidues = ['ALA', 'ASN', 'CYS', 'GLU', 'HIS', 'LEU', 'MET', 'PRO',
+                       'THR', 'TYR', 'ARG', 'ASP', 'GLN', 'GLY', 'ILE', 'LYS',
+                       'PHE', 'SER', 'TRP', 'VAL']
+
+    ligand = set()
+    protein = set()
+    water = set()
+    ions = set()
+    excipients = set()
+    system = set()
+    
+    for res in structure.residues:
+        if res.name == 'LIG':
+            for at in res.atoms:
+                ligand.add(at.idx)
+        elif res.name == 'HOH':
+            for at in res.atoms:
+                water.add(at.idx)
+        elif len(res.atoms) == 1:
+            for at in res.atoms:
+                ions.add(at.idx)
+        elif res.name in proteinResidues:
+            for at in res.atoms:
+                protein.add(at.idx)
+        else:
+            for at in res.atoms:
+                excipients.add(at.idx)
+
+    dic_set = {'ligand':ligand, 'protein':protein, 'water':water, 'ions':ions, 'excipients':excipients}
+
+    for k in dic_set:
+        system = system | dic_set[k]
+
+    # print("ligand = {}".format(len(ligand)))
+    # print("protein = {}".format(len(protein)))
+    # print("water = {}".format(len(water)))
+    # print("ions = {}".format(len(ions)))
+    # print("excipients = {}".format(len(excipients)))
+    #
+    # print("system = {}".format(len(system)))
+    try:
+        ls = expr.parseString(res_mask, parseAll=True)
+    except Exception as e:
+        raise ValueError("The passed restarint mask is not valid: {}".format(str(e)))
+
+    atom_set = build_set(ls[0], dic_set)
+
+    return atom_set
+    
