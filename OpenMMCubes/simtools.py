@@ -6,7 +6,7 @@ from simtk import unit, openmm
 from simtk.openmm import app
 import OpenMMCubes.utils as utils
 import pyparsing as pyp
-
+from ComplexPrepCubes import utils as prep_utils
 
 try:
     import cPickle as pickle
@@ -41,6 +41,7 @@ def genProteinStructure(proteinpdb, **opt):
                                                     xyz=proteinpdb.positions)
     return protein_structure
 
+
 def combinePositions(proteinPositions, molPositions):
     """
     Loops through the positions from the ParmEd structures of the protein and ligand,
@@ -74,6 +75,7 @@ def combinePositions(proteinPositions, molPositions):
     positions = unit.Quantity(positions, positions_unit)
     return positions
 
+
 def mergeStructure(proteinStructure, molStructure):
     """
     Combines the parametrized ParmEd structures of the protein and ligand to
@@ -100,6 +102,7 @@ def mergeStructure(proteinStructure, molStructure):
     # Restore original box vectors
     structure.box = proteinStructure.box
     return structure
+
 
 def solvateComplexStructure(structure, **opt):
     """
@@ -215,6 +218,24 @@ def simulation(mdData, **opt):
     box = mdData.box
     stepLen = 0.002
 
+    if opt['SimType'] in ['nvt', 'npt']:
+        # Center the system to the OpenMM Unit Cell
+        if opt['center']:
+            opt['Logger'].info("Centering is On")
+            # Numpy array in A
+            coords = structure.coordinates
+            # System Center of Geometry
+            cog = np.mean(coords, axis=0)
+            # System box vectors
+            box_v = structure.box_vectors.in_units_of(unit.angstrom)/unit.angstrom
+            box_v = np.array([box_v[0][0], box_v[1][1], box_v[2][2]])
+            # Translation vector
+            delta = box_v/2 -cog
+            # New Coordinates
+            new_coords = coords + delta
+            structure.coordinates = new_coords
+            positions = structure.positions
+
     system = structure.createSystem(nonbondedMethod=eval("app.%s" % opt['nonbondedMethod']),
                                     nonbondedCutoff=opt['nonbondedCutoff']*unit.angstroms,
                                     constraints=eval("app.%s" % opt['constraints']))
@@ -228,10 +249,10 @@ def simulation(mdData, **opt):
     if opt['restraints']:
         opt['Logger'].info("RESTRAINTS mask applied to: {}".format(opt['restraints']))
         #Select atom to restrain
-        res_atom_set = restraints(structure, res_mask=opt['restraints'])
+        res_atom_set = restraints(opt['molecule'], mask=opt['restraints'])
         opt['Logger'].info("Number of restainst atoms: {}".format(len(res_atom_set)))
         # define the custom force to restrain atoms to their starting positions
-        force_restr = openmm.CustomExternalForce('k_restr*( (x-x0)^2 + (y-y0)^2 + (z-z0)^2 )')
+        force_restr = openmm.CustomExternalForce('k_restr*periodicdistance(x, y, z, x0, y0, z0)^2')
         # Add the restraint weight as a global parameter in kcal/mol/A^2
         force_restr.addGlobalParameter("k_restr", opt['restraintWt']*unit.kilocalories_per_mole/unit.angstroms**2)
         # Define the target xyz coords for the restraint as per-atom (per-particle) parameters
@@ -239,7 +260,7 @@ def simulation(mdData, **opt):
         force_restr.addPerParticleParameter("y0")
         force_restr.addPerParticleParameter("z0")
 
-        for idx in range(0,len(positions)):
+        for idx in range(0, len(positions)):
             if idx in res_atom_set:
                 xyz = positions[idx].in_units_of(unit.nanometers)/unit.nanometers
                 force_restr.addParticle(idx, xyz)
@@ -256,11 +277,11 @@ def simulation(mdData, **opt):
         except Exception as e:
             raise ValueError('The selected platform is invalid: {}'.format(str(e)))
     
-    # Set starting position and velocities
+    # Set starting positions and velocities
     simulation.context.setPositions(positions)
 
-    # Set Box dimension
-    simulation.context.setPeriodicBoxVectors(box[0],box[1],box[2])
+    # Set Box dimensions
+    simulation.context.setPeriodicBoxVectors(box[0], box[1], box[2])
 
     if opt['SimType'] in ['nvt', 'npt']:
         if velocities is not None:
@@ -303,7 +324,7 @@ def simulation(mdData, **opt):
 
         if opt['convert']:
             opt['Logger'].info('Converting trajectories to: {trajectory_filetype}'.format(**opt))
-            simtools.mdTrajConvert(simulation, outfname=opt['outfname'],
+            mdTrajConvert(simulation, outfname=opt['outfname'],
                                trajectory_selection=opt['trajectory_selection'],
                                trajectory_filetype=opt['trajectory_filetype'])
 
@@ -311,7 +332,8 @@ def simulation(mdData, **opt):
         
     elif opt['SimType'] == 'min':
         # Start Simulation
-        
+        opt['Logger'].info('Minimization steps: {steps}'.format(**opt))
+
         state = simulation.context.getState(getEnergy=True)
 
         print('Initial energy = {}'.format(state.getPotentialEnergy()), file=printfile)
@@ -321,7 +343,6 @@ def simulation(mdData, **opt):
         state = simulation.context.getState(getPositions=True, getEnergy=True)
         print('Minimized energy = {}'.format(state.getPotentialEnergy()), file=printfile)
 
-    
     # OpenMM Quantity object
     structure.positions = state.getPositions(asNumpy=False)
     # OpenMM Quantity object
@@ -332,7 +353,6 @@ def simulation(mdData, **opt):
         structure.velocities = state.getVelocities(asNumpy=False)
  
     return
-
 
 
 def getReporters(totalSteps=None, outfname=None, **opt):
@@ -429,40 +449,203 @@ def mdTrajConvert(simulation=None, outfname=None, trajectory_selection=None, tra
     traj.save(outfile)
 
 
-def restraints(structure, res_mask=''):
+def restraints(system, mask=''):
     """
-    This functions select the atom indexes to apply harmonic restarins
-    
+    This functions select the atom indexes to apply harmonic restraints
+
     Parameters
     ----------
-    structure : Parmed structure object
-        The Parmed structure 
-     
-    res_mask : python string
-        A string used to select the atom to restraints. A BNF grammar is defined
-        by using the tokens: "ligand", "protein", "water", "ions", "excipients".
+    system : OEMol with the attached Parmed structure
+        The system to apply restraints to
+
+    mask : python string
+        A string used to select the atom to restraints. A Backus–Naur Form grammar
+        (https://en.wikipedia.org/wiki/Backus–Naur_form) is defined by using pyparsing. 
+        The defined tokens are: "ligand", "protein", "water", "ions", "excipients".
         Operator tokens are "not" and "and".
-      
+
     Returns
     -------
     atom_set : python set
         the select atom indexes to apply harmonic restraints
-   
+
     Notes
     -----
-    Example of selection string:
-        res_mask = "ligand and protein"
-        res_mask = "not water and not ions"
-        res_mask = "ligand and protein and excipients"
+        Example of selection string:
+        mask = "ligand and protein"
+        mask = "not water and not ions"
+        mask = "ligand and protein and excipients"
     """
+
+    def split(mol):
+        """
+        This function splits the passed molecule in components and tracks the
+        mapping between the original molecule and the split components. The
+        mapping is created as separated atom component index sets.
+
+        Parameters:
+        -----------
+        mol: OEMol 
+            The molecule to split in components. The components are:
+                the protein atoms, 
+                the protein carbon alpha atoms
+                the water atoms,
+                the ion atoms,
+                the cofactor atoms
+        Returns:
+        --------
+        dic_set: python dictionary
+            The dictionary has a key a token word and for value the related
+            atom set. The token keywords are:
+                protein,
+                ca_protein,
+                ligand,
+                water,
+                ions,
+                cofactors,
+                system
+        """
+
+        # Define Empty sets
+        lig_set = set()
+        prot_set = set()
+        ca_prot_set = set()
+        wat_set = set()
+        excp_set = set()
+        ion_set = set()
+        cofactor_set = set()
+        system_set = set()
+
+        # Atom Bond Set vector used to contains the whole system
+        frags = oechem.OEAtomBondSetVector()
+
+        # Define Options for the Filter
+        opt = oechem.OESplitMolComplexOptions()
+
+        # The protein filter is set to avoid that multiple
+        # chains are separated during the splitting
+        pf = oechem.OEMolComplexFilterFactory(oechem.OEMolComplexFilterCategory_Protein)
+
+        # The ligand filter is set to recognize just the ligand
+        lf = oechem.OEMolComplexFilterFactory(oechem.OEMolComplexFilterCategory_Ligand)
+
+        # The water filter is set to recognize just water molecules
+        wf = oechem.OEMolComplexFilterFactory(oechem.OEMolComplexFilterCategory_Water)
+
+        # Set options based on the defined filters
+        opt.SetProteinFilter(pf)
+        opt.SetLigandFilter(lf)
+        opt.SetWaterFilter(wf)
+
+        # Define the system fragments
+        if not oechem.OEGetMolComplexFragments(frags, system, opt):
+            oechem.OEThrow.Fatal('Unable to generate the system fragments')
+
+        # Set empty OEMol containers
+        prot = oechem.OEMol()
+        lig = oechem.OEMol()
+        wat = oechem.OEMol()
+        excp = oechem.OEMol()
+        import logging
+        # Split the protein from the system
+        atommap = oechem.OEAtomArray(system.GetMaxAtomIdx())
+        if not oechem.OECombineMolComplexFragments(prot, frags, opt, opt.GetProteinFilter(), atommap):
+            oechem.OEThrow.Fatal('Unable to split the Protein')
+        # Populate the protein set and the protein carbon alpha set
+        pred = oechem.OEIsAlphaCarbon()
+        for sys_at in system.GetAtoms():
+            sys_idx = sys_at.GetIdx()
+            at_idx = atommap[sys_idx]
+            if at_idx:
+                prot_set.add(sys_idx)
+                at = system.GetAtom(oechem.OEHasAtomIdx(sys_idx))
+                if pred(at):
+                    ca_prot_set.add(sys_idx)
+                # print(sys_idx, '->', at_idx)
+
+        # Split the ligand from the system
+        atommap = oechem.OEAtomArray(system.GetMaxAtomIdx())
+        if not oechem.OECombineMolComplexFragments(lig, frags, opt, opt.GetLigandFilter(), atommap):
+            oechem.OEThrow.Fatal('Unable to split the Ligand')
+        # Populate the ligand set
+        for sys_at in system.GetAtoms():
+            sys_idx = sys_at.GetIdx()
+            at_idx = atommap[sys_idx]
+            if at_idx:
+                lig_set.add(sys_idx)
+                # print(sys_idx, '->', at_idx)
+
+        # Split the water from the system
+        atommap = oechem.OEAtomArray(system.GetMaxAtomIdx())
+        if not oechem.OECombineMolComplexFragments(wat, frags, opt, opt.GetWaterFilter(), atommap):
+            oechem.OEThrow.Fatal('Unable to split the Water')
+        # Populate the water set
+        for sys_at in system.GetAtoms():
+            sys_idx = sys_at.GetIdx()
+            at_idx = atommap[sys_idx]
+            if at_idx:
+                wat_set.add(sys_idx)
+                # print(sys_idx, '->', at_idx)
+
+        # Split the excipients from the system
+        atommap = oechem.OEAtomArray(system.GetMaxAtomIdx())
+        if not oechem.OECombineMolComplexFragments(excp, frags, opt, opt.GetOtherFilter(), atommap):
+             oechem.OEThrow.Fatal('Unable to split the Excipients')
+        # Populate the excipient set
+        for sys_at in system.GetAtoms():
+            sys_idx = sys_at.GetIdx()
+            at_idx = atommap[sys_idx]
+            if at_idx:
+                excp_set.add(sys_idx)
+                # print(sys_idx, '->', at_idx)
+
+        # Create the ions set
+        for exc_idx in excp_set:
+            atom = system.GetAtom(oechem.OEHasAtomIdx(exc_idx))
+            if atom.GetDegree() == 0:
+                ion_set.add(exc_idx)
+
+        # Create the cofactor set
+        cofactor_set = excp_set - ion_set
+
+        # Create the system set
+        system_set = prot_set | lig_set | excp_set | wat_set
+
+        if len(system_set) != system.NumAtoms():
+            oechem.OEThrow.Fatal("The total system atom number {} is different "
+                                 "from its set representation {}".format(system.NumAtoms(), system_set))
+
+        # The dictionary is used to link the token keywords to the created molecule sets
+        dic_set = {'ligand': lig_set, 'protein': prot_set, 'ca_protein': ca_prot_set,
+                   'water': wat_set,  'ions': ion_set,     'cofactors': cofactor_set, 'system': system_set}
+
+
+        return dic_set
+
+    def noh(ls, dsets):
+
+        data_set = build_set(ls[1], dsets)
+
+        noh_set = set()
+        pred = oechem.OEIsHydrogen()
+
+        for idx in data_set:
+            atom = system.GetAtom(oechem.OEHasAtomIdx(idx))
+            if not pred(atom):
+                noh_set.add(idx)
+
+        return noh_set
 
     def build_set(ls, dsets):
         # Terminal Literal return the related set
         if isinstance(ls, str):
             return dsets[ls]
-        # Not
+        # Not or Noh
         if len(ls) == 2:
-            return system - build_set(ls[1], dsets)
+            if ls[0] == 'noh':
+                return noh(ls, dsets)
+            else:  # Not case
+                return dsets['system'] - build_set(ls[1], dsets)
         # And
         if len(ls) == 3:
             return build_set(ls[0], dsets) | build_set(ls[2], dsets)
@@ -493,64 +676,29 @@ def restraints(structure, res_mask=''):
 
         return pa
 
-    operand = pyp.Literal("protein") | pyp.Literal("ligand") | \
-              pyp.Literal("water") | pyp.Literal("ions") | \
-              pyp.Literal("excipients")
+    # Define the tokens for the BNF grammar
+    operand = pyp.Literal("protein") | pyp.Literal("ca_protein") | \
+              pyp.Literal("ligand") | pyp.Literal("water") | \
+              pyp.Literal("ions") | pyp.Literal("cofactors")
 
     # BNF Grammar definition with parseAction makeLRlike
     expr = pyp.operatorPrecedence(operand,
-                              [
-                                  (None, 2, pyp.opAssoc.LEFT, makeLRlike(None)),
-                                  (pyp.Literal("not"), 1, pyp.opAssoc.RIGHT, makeLRlike(1)),
-                                  (pyp.Literal("and"), 2, pyp.opAssoc.LEFT, makeLRlike(2)),
-                              ])
-
-    proteinResidues = ['ALA', 'ASN', 'CYS', 'GLU', 'HIS', 'LEU', 'MET', 'PRO',
-                       'THR', 'TYR', 'ARG', 'ASP', 'GLN', 'GLY', 'ILE', 'LYS',
-                       'PHE', 'SER', 'TRP', 'VAL']
-
-    ligand = set()
-    protein = set()
-    water = set()
-    ions = set()
-    excipients = set()
-    system = set()
-    
-    for res in structure.residues:
-        if res.name == 'LIG':
-            for at in res.atoms:
-                ligand.add(at.idx)
-        elif res.name == 'HOH':
-            for at in res.atoms:
-                water.add(at.idx)
-        elif len(res.atoms) == 1:
-            for at in res.atoms:
-                ions.add(at.idx)
-        elif res.name in proteinResidues:
-            for at in res.atoms:
-                protein.add(at.idx)
-        else:
-            for at in res.atoms:
-                excipients.add(at.idx)
-
-    dic_set = {'ligand':ligand, 'protein':protein, 'water':water, 'ions':ions, 'excipients':excipients}
-
-    for k in dic_set:
-        system = system | dic_set[k]
-
-    # print("ligand = {}".format(len(ligand)))
-    # print("protein = {}".format(len(protein)))
-    # print("water = {}".format(len(water)))
-    # print("ions = {}".format(len(ions)))
-    # print("excipients = {}".format(len(excipients)))
-    #
-    # print("system = {}".format(len(system)))
+                                    [
+                                        (None, 2, pyp.opAssoc.LEFT, makeLRlike(None)),
+                                        (pyp.Literal("not"), 1, pyp.opAssoc.RIGHT, makeLRlike(1)),
+                                        (pyp.Literal("noh"), 1, pyp.opAssoc.RIGHT, makeLRlike(1)),
+                                        (pyp.Literal("and"), 2, pyp.opAssoc.LEFT, makeLRlike(2)),
+                                    ])
+    # Parse the input string
     try:
-        ls = expr.parseString(res_mask, parseAll=True)
+        ls = expr.parseString(mask, parseAll=True)
     except Exception as e:
-        raise ValueError("The passed restarint mask is not valid: {}".format(str(e)))
+        raise ValueError("The passed restraint mask is not valid: {}".format(str(e)))
 
-    atom_set = build_set(ls[0], dic_set)
+    # Split the system
+    dic_sets = split(system)
+
+    # Select the atom index to restraints
+    atom_set = build_set(ls[0], dic_sets)
 
     return atom_set
-    

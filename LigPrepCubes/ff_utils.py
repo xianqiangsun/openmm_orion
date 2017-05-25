@@ -90,6 +90,66 @@ def assignCharges(molecule, max_confs=800, strictStereo=True, normalize=True, ke
 
     return charged_copy
 
+
+def assignELF10charges(molecule, max_confs=800, strictStereo=True):
+
+    mol_copy = molecule.CreateCopy()
+
+    if not mol_copy.GetMaxConfIdx() > max_confs:
+        # Generate up to max_confs conformers
+        mol_copy = generate_conformers(mol_copy, max_confs=max_confs, strictStereo=strictStereo)
+
+    # Assign MMFF Atom types
+    if not oechem.OEMMFFAtomTypes(mol_copy):
+        raise RuntimeError("MMFF atom type assignment returned errors")
+
+    # ELF10 charges
+    status = oequacpac.OEAssignCharges(mol_copy, oequacpac.OEAM1BCCELF10Charges())
+
+    if not status:
+        raise RuntimeError("OEAssignCharges returned error code %d" % status)
+
+    return mol_copy
+
+
+
+def sanitize(molecule):
+    """
+    This function checks if the molecule has coordinates,
+    explicit hydrogens and aromaticity. If the molecule
+    does not have coordinates a fatal error is raised. 
+    If the molecule does not have hydrogens or aramatic
+    flags are missing then a copy of the molecule is fixed
+
+    Parameters:
+    -----------
+    molecule: OEMol
+        The molecule to be checked 
+
+    Return:
+    -------
+    mol: OEMol
+        A copy of the checked molecule with fixed aromaticity 
+        and hydrogens
+    """
+    mol_copy = molecule.CreateCopy()
+
+    # Check if the molecule has 3D coordinates
+    if not oechem.OEGetDimensionFromCoords(mol_copy):
+        oechem.OEThrow.Fatal("The molecule coordinates are set to zero")
+    # Check if the molecule has hydrogens
+    if not oechem.OEHasExplicitHydrogens(mol_copy):
+        oechem.OEAddExplicitHydrogens(mol_copy)
+    # Check if the molecule has assigned aromaticity
+    if not mol_copy.HasPerceived(oechem.OEPerceived_Aromaticity):
+        oechem.OEAssignAromaticFlags(mol_copy, oechem.OEAroModelOpenEye)
+    # Check for any missing atom names, if found reassign all of them.
+    if any([atom.GetName() == '' for atom in mol_copy.GetAtoms()]):
+        oechem.OETriposAtomNames(mol_copy)
+
+    return mol_copy
+
+
 class ParamLigStructure(object):
     """
     Generates parameterized ParmEd structure of the molecule with a chosen forcefield

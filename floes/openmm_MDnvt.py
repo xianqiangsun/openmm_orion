@@ -5,9 +5,10 @@ from OpenMMCubes.cubes import OpenMMnvtCube
 job = WorkFloe("NVT")
 
 job.description = """
-**NVT simulation of an OpenMM-ready solvated complex**
+NVT simulation of an OpenMM-ready solvated complex
 
-Ex. `data='examples/data'; python floes/openmm_MDnvt.py --complex $data/9PC1X-complex.oeb.gz --picosec 10`
+Ex. `data='examples/data'; python floes/openmm_MDnvt.py --complex $data/9PC1X-complex.oeb.gz 
+--ofs-data_out $data/nvt.oeb --picosec 10`
 
 Parameters:
 -----------
@@ -31,6 +32,11 @@ ifs.promote_parameter("data_in", promoted_name="complex", description="OEB of th
 
 nvt = OpenMMnvtCube('nvt')
 nvt.promote_parameter('time', promoted_name='picosec')
+nvt.promote_parameter('restraints', promoted_name='restraints', default='ca_protein')
+nvt.promote_parameter('restraintWt', promoted_name='restraintWt', default=100.0)
+nvt.promote_parameter('trajectory_interval', promoted_name='trajectory_interval', default=10)
+
+
 
 ofs = OEMolOStreamCube('ofs', title='OFS-Success')
 ofs.set_parameters(backend='s3')

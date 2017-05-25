@@ -296,11 +296,11 @@ def dump_query(prefix, name, qmol, receptor):
     """
     tag = "{0}_{1}.query".format(prefix, name)
     query_file = "{0}.oeb.gz".format(tag)
-    with oemolostream(query_file) as ofs:
-        OEWriteConstMolecule(ofs, qmol)
+    with oechem.oemolostream(query_file) as ofs:
+        oechem.OEWriteConstMolecule(ofs, qmol)
     if receptor.IsValid():
         receptor_file = "{0}.receptor.oeb.gz".format(tag)
-        OEWriteReceptorFile(receptor, receptor_file)
+        oechem.OEWriteReceptorFile(receptor, receptor_file)
     return tag, query_file
 
 
@@ -358,7 +358,7 @@ class MDData(object):
             # Reference Positions are a list of OpenMM Quantity objects
             self.ref_positions = dic['OEMDDataRefPositions']
         except:
-            logging.warning('The molecular system does not have any Reference Positions attached')
+            RuntimeWarning('The molecular system does not have any Reference Positions attached')
             
     def __getattr__(self, attrname):
         if attrname == "structure":
@@ -398,7 +398,7 @@ class MDData(object):
             # Try to attach the Parmed structure to the molecule. The molecule is changed in place
             mol = PackageOEMol.pack(mol, self.__parmed_structure__)
         except Exception as e:
-            logging.warning('It was not possible to attached the parmed structure to the molecule {}'.format(e))
+            raise RuntimeError('It was not possible to attached the parmed structure to the molecule {}'.format(e))
             
         if self.ref_positions:
             packedpos = PackageOEMol.encodePyObj(self.ref_positions)

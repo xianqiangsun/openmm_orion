@@ -1,3 +1,3 @@
 """
-Copyright (C) 2015 OpenEye Scientific Software, Inc.
+Copyright (C) 2017 OpenEye Scientific Software, Inc.
 """
