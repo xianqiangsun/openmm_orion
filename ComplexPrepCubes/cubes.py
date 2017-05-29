@@ -1,12 +1,13 @@
 from ComplexPrepCubes import utils
 from OpenMMCubes import utils as pack_utils
 from floe.api import OEMolComputeCube, ParallelOEMolComputeCube, parameter, OEMolIStreamCube, MoleculeInputPort
+from floe.api.orion import StreamingDataset, config_from_env
 from openeye import oechem
 from LigPrepCubes import ff_utils
 
 
 class Reader(OEMolIStreamCube):
-    title = "Reader Cube"
+    title = "Protein Reader Cube"
     version = "0.0.0"
     classification = [["Reader Cube", "OEChem", "Reader Cube"]]
     tags = ['OEChem']
@@ -29,10 +30,29 @@ class Reader(OEMolIStreamCube):
         self.opt = vars(self.args)
 
     def __iter__(self):
-        ifs = oechem.oemolistream(self.opt['data_in'])
-        for mol in ifs.GetOEMols():
-            mol.SetTitle(self.opt['protein_suffix'])
-            yield mol
+        max_idx = self.args.limit
+        if max_idx is not None:
+            max_idx = int(max_idx)
+        count = 0
+        self.config = config_from_env()
+        in_orion = self.config is not None
+        if not in_orion:
+            with oechem.oemolistream(str(self.args.data_in)) as ifs:
+                for mol in ifs.GetOEMols():
+                    mol.SetTitle(self.opt['protein_suffix'])
+                    yield mol
+                    count += 1
+                    if max_idx is not None and count == max_idx:
+                        break
+        else:
+            stream = StreamingDataset(self.args.data_in,
+                                      input_format=self.args.download_format)
+            for mol in stream:
+                mol.SetTitle(self.opt['protein_suffix'])
+                yield mol
+                count += 1
+                if max_idx is not None and count == max_idx:
+                    break
 
 
 class Splitter(OEMolComputeCube):
@@ -279,7 +299,6 @@ class ForceFieldPrep(OEMolComputeCube):
         self.ProcessExcipients = True
 
     def process(self, mol, port):
-
         protein, ligand, water, excipients = utils.split(mol)
 
         if self.ProcessProtein:
@@ -300,7 +319,6 @@ class ForceFieldPrep(OEMolComputeCube):
         if excipients.NumAtoms() > 0:
             complex_structure = self.protein_structure + self.ligand_structure + \
                                 self.excipient_structure + self.water_structure
-
         else:
             complex_structure = self.protein_structure + self.ligand_structure + \
                                 self.water_structure
@@ -334,5 +352,6 @@ class ForceFieldPrep(OEMolComputeCube):
         # oechem.OEWriteMolecule(ofs, packed_complex)
 
         #utils.order_check(packed_complex, 'ff.log')
+
 
         self.success.emit(packed_complex)

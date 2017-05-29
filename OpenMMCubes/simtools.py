@@ -250,7 +250,7 @@ def simulation(mdData, **opt):
         opt['Logger'].info("RESTRAINTS mask applied to: {}".format(opt['restraints']))
         #Select atom to restrain
         res_atom_set = restraints(opt['molecule'], mask=opt['restraints'])
-        opt['Logger'].info("Number of restainst atoms: {}".format(len(res_atom_set)))
+        opt['Logger'].info("Number of restraint atoms: {}".format(len(res_atom_set)))
         # define the custom force to restrain atoms to their starting positions
         force_restr = openmm.CustomExternalForce('k_restr*periodicdistance(x, y, z, x0, y0, z0)^2')
         # Add the restraint weight as a global parameter in kcal/mol/A^2
@@ -267,7 +267,6 @@ def simulation(mdData, **opt):
         
         system.addForce(force_restr)
 
-        
     if opt['platform'] == 'Auto':
         simulation = app.Simulation(topology, system, integrator)
     else:
@@ -285,7 +284,7 @@ def simulation(mdData, **opt):
 
     if opt['SimType'] in ['nvt', 'npt']:
         if velocities is not None:
-            opt['Logger'].info('RESTARTING simulaiton from the previous State')
+            opt['Logger'].info('RESTARTING simulation from a previous State')
             simulation.context.setVelocities(velocities)
         else:
             # Set the velocities drawing from the Boltzmann distribution at the selected temperature
@@ -295,7 +294,7 @@ def simulation(mdData, **opt):
         # Convert simulation time in steps
         opt['steps'] = int(round(opt['time']/stepLen))
         
-        # Set Reportes
+        # Set Reporters
         for rep in getReporters(**opt):
             simulation.reporters.append(rep)
             
@@ -379,6 +378,7 @@ def getReporters(totalSteps=None, outfname=None, **opt):
         totalSteps = opt['steps']
     if outfname is None:
         outfname = opt['outfname']
+
     progress_reporter = app.StateDataReporter(stdout, separator="\t",
                                         reportInterval=opt['reporter_interval'],
                                         step=True, totalSteps=totalSteps,

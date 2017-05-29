@@ -30,7 +30,12 @@ ifs = OEMolIStreamCube("ifs")
 ifs.promote_parameter("data_in", promoted_name="complex", description="OEB of the protein:ligand complex")
 
 npt = OpenMMnptCube('npt')
-npt.promote_parameter('time', promoted_name='picosec')
+npt.promote_parameter('time', promoted_name='picosec', default=10.0, description='Length of MD run in picoseconds')
+npt.promote_parameter('restraints', promoted_name='restraints', default="ca_protein and (noh ligand)", description='Select mask to apply restarints')
+npt.promote_parameter('restraintWt', promoted_name='restraintWt', default=2.0, description='Restraint weight')
+npt.promote_parameter('trajectory_interval', promoted_name='trajectory_interval', default=10, description='Trajectory saving interval')
+npt.promote_parameter('reporter_interval', promoted_name='reporter_interval', default=100, description='Reporter saving interval')
+npt.promote_parameter('outfname', promoted_name='outfname', default='npt', description='Equilibration suffix name')
 
 ofs = OEMolOStreamCube('ofs', title='OFS-Success')
 ofs.set_parameters(backend='s3')

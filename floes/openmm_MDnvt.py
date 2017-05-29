@@ -31,12 +31,11 @@ ifs = OEMolIStreamCube("ifs")
 ifs.promote_parameter("data_in", promoted_name="complex", description="OEB of the protein:ligand complex")
 
 nvt = OpenMMnvtCube('nvt')
-nvt.promote_parameter('time', promoted_name='picosec')
-nvt.promote_parameter('restraints', promoted_name='restraints', default='ca_protein')
-nvt.promote_parameter('restraintWt', promoted_name='restraintWt', default=100.0)
+nvt.promote_parameter('time', promoted_name='picosec', default=10)
+nvt.promote_parameter('restraints', promoted_name='restraints', default='noh (ligand and protein)')
+nvt.promote_parameter('restraintWt', promoted_name='restraintWt', default=2.0)
 nvt.promote_parameter('trajectory_interval', promoted_name='trajectory_interval', default=10)
-
-
+nvt.promote_parameter('reporter_interval', promoted_name='w_reporter_interval', default=100, description='Reporter saving interval')
 
 ofs = OEMolOStreamCube('ofs', title='OFS-Success')
 ofs.set_parameters(backend='s3')

@@ -188,17 +188,14 @@ def solvate(system, opt):
 
 
 def applyffProtein(protein, opt):
-    #
+
     # ofs = oechem.oemolostream("protein.oeb")
     # oechem.OEWriteMolecule(ofs, protein)
-    #
-    # # import sys
-    # # sys.exit(-1)
+
+    # import sys
+    # sys.exit(-1)
 
     topology, positions = oemol_to_openmmTop(protein)
-
-    #opt['Logger'].info("{}".format(topology))
-
 
     forcefield = app.ForceField(opt['protein_forcefield'])
     unmatched_residues = forcefield.getUnmatchedResidues(topology)

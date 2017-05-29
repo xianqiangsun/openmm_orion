@@ -244,7 +244,7 @@ class OpenMMminimizeCube(ParallelOEMolComputeCube):
 
             self.opt['molecule'] = mol
 
-            self.log.info('%s MINIMIZING System' % gd['IDTag'])
+            self.log.info('MINIMIZING System: %s' % gd['IDTag'])
             simtools.simulation(mdData, **self.opt)
         
             packedmol = mdData.packMDData(mol)
@@ -255,8 +255,8 @@ class OpenMMminimizeCube(ParallelOEMolComputeCube):
             new_pos = new_temp_mol.GetCoords()
             packedmol.SetCoords(new_pos)
 
-            packedmol.SetData(oechem.OEGetTag(
-                'outfname'), self.opt['outfname'])
+            # packedmol.SetData(oechem.OEGetTag(
+            #     'outfname'), self.opt['outfname'])
 
             self.success.emit(packedmol)
 
@@ -284,7 +284,7 @@ class OpenMMnvtCube(ParallelOEMolComputeCube):
 
     Input parameters:
     ----------------
-      picosec (int): Number of picoseconds to warm up the complex.
+      picosec (decimal): Number of picoseconds to warm up the complex.
       temperature (decimal): target temperature.
     """
 
@@ -297,7 +297,7 @@ class OpenMMnvtCube(ParallelOEMolComputeCube):
     
     temperature = parameter.DecimalParameter(
         'temperature',
-        default= 300,
+        default=300.0,
         help_text="Temperature (Kelvin)")
 
     time = parameter.DecimalParameter(
@@ -371,7 +371,7 @@ class OpenMMnvtCube(ParallelOEMolComputeCube):
 
     center = parameter.BooleanParameter(
         'center',
-        default='True',
+        default=True,
         description='Center the system to the OpenMM unit cell')
 
     verbose = parameter.BooleanParameter(
@@ -409,7 +409,7 @@ class OpenMMnvtCube(ParallelOEMolComputeCube):
 
             self.opt['molecule'] = mol
 
-            self.log.info('%s START NVT SIMULATION' % gd['IDTag'])
+            self.log.info('START NVT SIMULATION: %s' % gd['IDTag'])
             simtools.simulation(mdData, **self.opt)
                 
             packedmol = mdData.packMDData(mol)
@@ -580,7 +580,7 @@ class OpenMMnptCube(ParallelOEMolComputeCube):
 
             self.opt['molecule'] = mol
 
-            self.log.info('%s START NPT SIMULATION' % gd['IDTag'])    
+            self.log.info('START NPT SIMULATION %s' % gd['IDTag'])
             simtools.simulation(mdData, **self.opt)
                 
             packedmol = mdData.packMDData(mol)
