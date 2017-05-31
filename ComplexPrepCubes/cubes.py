@@ -12,19 +12,19 @@ class Reader(OEMolIStreamCube):
     classification = [["Reader Cube", "OEChem", "Reader Cube"]]
     tags = ['OEChem']
     description = """
-        A Reader Cube 
+        A Protein Reader Cube 
         Input:
         -------
         oechem.OEMCMol - Streamed-in of the bio-molecular system.
 
         Output:
         -------
-        oechem.OEMCMol - Emits the biomolecular system
+        oechem.OEMCMol - Emits the bio-molecular system
         """
     protein_suffix = parameter.StringParameter(
         'protein_suffix',
         default='PRT',
-        help_text='The protein suffix name to be used to identify the protein')
+        help_text='The protein suffix name used to identify the protein')
 
     def begin(self):
         self.opt = vars(self.args)
@@ -61,9 +61,9 @@ class Splitter(OEMolComputeCube):
     classification = [["Protein Preparation", "OEChem", "Split Molecule"]]
     tags = ['OEChem', 'OEBio']
     description = """
-        A starting  bio-molecular system is read in and split in three
-        components: the protein, the ligand and the excipients by using
-        OEBio functions
+        A starting  bio-molecular system is read in and split in four
+        components: the protein, the ligand, the water and the excipients 
+        by using OEBio functions
 
         Input:
         -------

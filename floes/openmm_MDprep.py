@@ -38,7 +38,7 @@ job.tags = [tag for lists in job.classification for tag in lists]
 
 # Ligand setting
 iligs = OEMolIStreamCube("Ligands")
-#iligs.promote_parameter("data_in", promoted_name="ligand", description="PDB of docked ligand")
+# iligs.promote_parameter("data_in", promoted_name="ligand", description="PDB of docked ligand")
 chargelig = LigChargeCube("LigCharge")
 
 chargelig.promote_parameter('max_conformers', promoted_name='max_conformers',
@@ -72,7 +72,6 @@ minComplex.promote_parameter('steps', promoted_name='steps', default=30000)
 minComplex.promote_parameter('restraints', promoted_name='w_restraints', default="noh (ligand and protein)", description='Select mask to apply restarints')
 minComplex.promote_parameter('restraintWt', promoted_name='w_restraintWt', default=5.0, description='Restraint weight')
 
-
 warmup = OpenMMnvtCube('warmup', title='warmup')
 warmup.promote_parameter('time', promoted_name='warm_psec', default=2.0,  description='Length of MD run in picoseconds')
 warmup.promote_parameter('restraints', promoted_name='w_restraints', default="noh (ligand and protein)", description='Select mask to apply restarints')
@@ -80,7 +79,6 @@ warmup.promote_parameter('restraintWt', promoted_name='w_restraintWt', default=2
 warmup.promote_parameter('trajectory_interval', promoted_name='w_trajectory_interval', default=1000, description='Trajectory saving interval')
 warmup.promote_parameter('reporter_interval', promoted_name='w_reporter_interval', default=10000, description='Reporter saving interval')
 warmup.promote_parameter('outfname', promoted_name='w_outfname', default='warmup', description='Equilibration suffix name')
-
 
 equil1 = OpenMMnptCube('equil1', title='equil1')
 equil1.promote_parameter('time', promoted_name='equil1_psec', default=2.0, description='Length of MD run in picoseconds')

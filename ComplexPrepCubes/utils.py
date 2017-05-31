@@ -307,7 +307,7 @@ def oemol_to_openmmTop(mol):
                     # Add atom to the mapping dictionary
                     oe_atom_to_openmm_at[oe_at] = openmm_at
 
-    # Create bonds preserving the bond ordering assessed by the OE Toolkit
+    # Create bonds preserving the bond ordering
     for bond in mol.GetBonds():
         aromatic = None
 

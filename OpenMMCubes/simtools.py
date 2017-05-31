@@ -14,196 +14,200 @@ except ImportError:
     import pickle
 
     
-def genProteinStructure(proteinpdb, **opt):
-    """
-    Starting from OpenMM PDBFile, generates the OpenMM System for the protein and
-    then create the parametrized ParmEd Structure of the protein.
-
-    Parameters
-    ----------
-    proteinpdb : openmm.app.PDBFile object,
-        Loaded PDBFile object of the protein.
-    protein_forcefield : (opt), xml file, default='amber99sbildn.xml'
-        Forcefield parameters for protein
-    solvent_forcefield : opt), xml file, default='tip3p.xml'
-        Forcefield parameters for solvent
-
-    Returns
-    -------
-    solv_structure : parmed.structure.Structure
-        The parameterized Structure of the protein with solvent molecules. (No ligand).
-    """
-    #Generate protein Structure object
-    forcefield = app.ForceField(opt['protein_forcefield'], opt['solvent_forcefield'])
-    protein_system = forcefield.createSystem( proteinpdb.topology )
-    protein_structure = parmed.openmm.load_topology(proteinpdb.topology,
-                                                    protein_system,
-                                                    xyz=proteinpdb.positions)
-    return protein_structure
-
-
-def combinePositions(proteinPositions, molPositions):
-    """
-    Loops through the positions from the ParmEd structures of the protein and ligand,
-    divides by unit.angstroms which will ensure both positions arrays are in the same units.
-
-    Parameters
-    ----------
-    proteinPositions : list of 3-element Quantity tuples.
-        Positions list taken directly from the protein Structure.
-    molPositions : list of 3-element Quantity tuples.
-        Positions list taken directly from the molecule Structure.
-
-    Returns
-    -------
-    positions : list of 3-element Quantity tuples.
-        ex. unit.Quantity(positions, positions_unit)
-        Combined positions of the protein and molecule Structures.
-    """
-    positions_unit = unit.angstroms
-    positions0_dimensionless = np.array(proteinPositions / positions_unit)
-    positions1_dimensionless = np.array(molPositions / positions_unit)
-    coordinates = np.vstack(
-        (positions0_dimensionless, positions1_dimensionless))
-    natoms = len(coordinates)
-    positions = np.zeros([natoms, 3], np.float32)
-    for index in range(natoms):
-            (x, y, z) = coordinates[index]
-            positions[index, 0] = x
-            positions[index, 1] = y
-            positions[index, 2] = z
-    positions = unit.Quantity(positions, positions_unit)
-    return positions
-
-
-def mergeStructure(proteinStructure, molStructure):
-    """
-    Combines the parametrized ParmEd structures of the protein and ligand to
-    create the Structure for the protein:ligand complex, while retaining the SMIRFF
-    parameters on the ligand. Preserves positions and box vectors.
-    (Not as easily achieved using native OpenMM tools).
-
-    Parameters
-    ----------
-    proteinStructure : parmed.structure.Structure
-        The parametrized structure of the protein.
-    moleculeStructure : parmed.structure.Structure
-        The parametrized structure of the ligand.
-
-    Returns
-    -------
-    structure : parmed.structure.Structure
-        The parametrized structure of the protein:ligand complex.
-    """
-    structure = proteinStructure + molStructure
-    positions = combinePositions(proteinStructure.positions, molStructure.positions)
-    # Concatenate positions arrays (ensures same units)
-    structure.positions = positions
-    # Restore original box vectors
-    structure.box = proteinStructure.box
-    return structure
-
-
-def solvateComplexStructure(structure, **opt):
-    """
-    Uses PDBFixer to add missing atoms, assign protonation states, and solvate
-    the parametrized ParmEd Structure of the protein:ligand complex. Returns the
-    parametrized Structure without the ligand present.
-    We initially combine the ligand with the protein to prevent PDBFixer
-    from adding solvent into the binding pocket.
-
-    Parameters
-    ----------
-    structure : parmed.structure.Structure
-        The parametrized structure of the protein:ligand complex
-    pH : (opt), float, default=7.4
-        Solvent pH used to select appropriate protein protonation state.
-    solvent_padding : (opt), float, default=10
-        Padding around protein for solvent box (unit.angstroms)
-    salt_concentration : (opt), float, default=10
-        Salt concentration (millimolar)
-    protein_forcefield : (opt), xml file, default='amber99sbildn9sbildn.xml'
-        Forcefield parameters for protein
-    solvent_forcefield : opt), xml file, default='tip3p.xml'
-        Forcefield parameters for solvent
-
-    Returns
-    -------
-    solv_structure : parmed.structure.Structure
-        The parameterized Structure of the protein with solvent molecules. (No ligand).
-    """
-    if opt['Logger'] is None:
-        printfile = sys.stdout
-    else:
-        printfile = opt['Logger'].file
-
-    tmpfile = opt['outfname']+'-pl.tmp'
-    structure.save(tmpfile,format='pdb')
-
-    seqres = False
-    with open(tmpfile, 'r') as infile:
-        for line in infile:
-            if 'SEQRES' in line:
-                seqres = True
-                break
-    if not seqres:
-        print('Did not find SEQRES in PDB. PDBFixer will not find missing Residues.', file=printfile)
-
-    # Solvate with PDBFixer
-    print('PDBFixer settings for {}'.format(opt['outfname']), file=printfile)
-    print('\tpH = {}'.format(opt['pH']), file=printfile)
-    print('\tpadding = {}'.format(unit.Quantity(opt['solvent_padding'], unit.angstroms)), file=printfile)
-    print('\tsalt conc. = {}'.format(unit.Quantity(opt['salt_concentration'], unit.millimolar)), file=printfile)
-    fixer = pdbfixer.PDBFixer(tmpfile)
-    fixer.findMissingResidues()
-    fixer.findNonstandardResidues()
-    fixer.findMissingAtoms()
-
-    if fixer.missingAtoms:
-        print('Found missing Atoms:', fixer.missingAtoms, file=printfile)
-    if fixer.missingTerminals:
-        print('Found missing Terminals:', fixer.missingTerminals, file=printfile)
-    if fixer.nonstandardResidues:
-        print('Found nonstandard Residues:', fixer.nonstandardResidues, file=printfile)
-
-    fixer.replaceNonstandardResidues()
-    #fixer.removeHeterogens(False)
-    fixer.addMissingAtoms()
-    fixer.addMissingHydrogens(opt['pH'])
-    fixer.addSolvent(padding=unit.Quantity(opt['solvent_padding'], unit.angstroms),
-                ionicStrength=unit.Quantity(opt['salt_concentration'], unit.millimolar))
-
-    # Load PDBFixer object back to Structure
-    tmp = parmed.openmm.load_topology(fixer.topology, xyz=fixer.positions)
-
-    # Remove ligand from protein Structure by AmberMask selection
-    tmp.strip(":LIG")
-    tmp.save(opt['outfname']+'-nomol.tmp',format='pdb')
-    # Reload PDBFile
-    nomol = app.PDBFile(opt['outfname']+'-nomol.tmp')
-    forcefield = app.ForceField(opt['protein_forcefield'], opt['solvent_forcefield'])
-    nomol_system = forcefield.createSystem(nomol.topology, rigidWater=False)
-    # Regenerate parameterized solvated protein structure
-    solv_structure = parmed.openmm.load_topology(nomol.topology,
-                                                nomol_system,
-                                                xyz=nomol.positions)
-    # Restore box vectors
-    solv_structure.box = tmp.box
-
-    tmpfiles = [ opt['outfname']+'-pl.tmp', opt['outfname']+'-nomol.tmp' ]
-    utils.cleanup(tmpfiles)
-
-    return solv_structure
+# def genProteinStructure(proteinpdb, **opt):
+#     """
+#     Starting from OpenMM PDBFile, generates the OpenMM System for the protein and
+#     then create the parametrized ParmEd Structure of the protein.
+#
+#     Parameters
+#     ----------
+#     proteinpdb : openmm.app.PDBFile object,
+#         Loaded PDBFile object of the protein.
+#     protein_forcefield : (opt), xml file, default='amber99sbildn.xml'
+#         Forcefield parameters for protein
+#     solvent_forcefield : opt), xml file, default='tip3p.xml'
+#         Forcefield parameters for solvent
+#
+#     Returns
+#     -------
+#     solv_structure : parmed.structure.Structure
+#         The parameterized Structure of the protein with solvent molecules. (No ligand).
+#     """
+#     #Generate protein Structure object
+#     forcefield = app.ForceField(opt['protein_forcefield'], opt['solvent_forcefield'])
+#     protein_system = forcefield.createSystem( proteinpdb.topology )
+#     protein_structure = parmed.openmm.load_topology(proteinpdb.topology,
+#                                                     protein_system,
+#                                                     xyz=proteinpdb.positions)
+#     return protein_structure
+#
+#
+# def combinePositions(proteinPositions, molPositions):
+#     """
+#     Loops through the positions from the ParmEd structures of the protein and ligand,
+#     divides by unit.angstroms which will ensure both positions arrays are in the same units.
+#
+#     Parameters
+#     ----------
+#     proteinPositions : list of 3-element Quantity tuples.
+#         Positions list taken directly from the protein Structure.
+#     molPositions : list of 3-element Quantity tuples.
+#         Positions list taken directly from the molecule Structure.
+#
+#     Returns
+#     -------
+#     positions : list of 3-element Quantity tuples.
+#         ex. unit.Quantity(positions, positions_unit)
+#         Combined positions of the protein and molecule Structures.
+#     """
+#     positions_unit = unit.angstroms
+#     positions0_dimensionless = np.array(proteinPositions / positions_unit)
+#     positions1_dimensionless = np.array(molPositions / positions_unit)
+#     coordinates = np.vstack(
+#         (positions0_dimensionless, positions1_dimensionless))
+#     natoms = len(coordinates)
+#     positions = np.zeros([natoms, 3], np.float32)
+#     for index in range(natoms):
+#             (x, y, z) = coordinates[index]
+#             positions[index, 0] = x
+#             positions[index, 1] = y
+#             positions[index, 2] = z
+#     positions = unit.Quantity(positions, positions_unit)
+#     return positions
+#
+#
+# def mergeStructure(proteinStructure, molStructure):
+#     """
+#     Combines the parametrized ParmEd structures of the protein and ligand to
+#     create the Structure for the protein:ligand complex, while retaining the SMIRFF
+#     parameters on the ligand. Preserves positions and box vectors.
+#     (Not as easily achieved using native OpenMM tools).
+#
+#     Parameters
+#     ----------
+#     proteinStructure : parmed.structure.Structure
+#         The parametrized structure of the protein.
+#     moleculeStructure : parmed.structure.Structure
+#         The parametrized structure of the ligand.
+#
+#     Returns
+#     -------
+#     structure : parmed.structure.Structure
+#         The parametrized structure of the protein:ligand complex.
+#     """
+#     structure = proteinStructure + molStructure
+#     positions = combinePositions(proteinStructure.positions, molStructure.positions)
+#     # Concatenate positions arrays (ensures same units)
+#     structure.positions = positions
+#     # Restore original box vectors
+#     structure.box = proteinStructure.box
+#     return structure
+#
+#
+# def solvateComplexStructure(structure, **opt):
+#     """
+#     Uses PDBFixer to add missing atoms, assign protonation states, and solvate
+#     the parametrized ParmEd Structure of the protein:ligand complex. Returns the
+#     parametrized Structure without the ligand present.
+#     We initially combine the ligand with the protein to prevent PDBFixer
+#     from adding solvent into the binding pocket.
+#
+#     Parameters
+#     ----------
+#     structure : parmed.structure.Structure
+#         The parametrized structure of the protein:ligand complex
+#     pH : (opt), float, default=7.4
+#         Solvent pH used to select appropriate protein protonation state.
+#     solvent_padding : (opt), float, default=10
+#         Padding around protein for solvent box (unit.angstroms)
+#     salt_concentration : (opt), float, default=10
+#         Salt concentration (millimolar)
+#     protein_forcefield : (opt), xml file, default='amber99sbildn9sbildn.xml'
+#         Forcefield parameters for protein
+#     solvent_forcefield : opt), xml file, default='tip3p.xml'
+#         Forcefield parameters for solvent
+#
+#     Returns
+#     -------
+#     solv_structure : parmed.structure.Structure
+#         The parameterized Structure of the protein with solvent molecules. (No ligand).
+#     """
+#     if opt['Logger'] is None:
+#         printfile = sys.stdout
+#     else:
+#         printfile = opt['Logger'].file
+#
+#     tmpfile = opt['outfname']+'-pl.tmp'
+#     structure.save(tmpfile,format='pdb')
+#
+#     seqres = False
+#     with open(tmpfile, 'r') as infile:
+#         for line in infile:
+#             if 'SEQRES' in line:
+#                 seqres = True
+#                 break
+#     if not seqres:
+#         print('Did not find SEQRES in PDB. PDBFixer will not find missing Residues.', file=printfile)
+#
+#     # Solvate with PDBFixer
+#     print('PDBFixer settings for {}'.format(opt['outfname']), file=printfile)
+#     print('\tpH = {}'.format(opt['pH']), file=printfile)
+#     print('\tpadding = {}'.format(unit.Quantity(opt['solvent_padding'], unit.angstroms)), file=printfile)
+#     print('\tsalt conc. = {}'.format(unit.Quantity(opt['salt_concentration'], unit.millimolar)), file=printfile)
+#     fixer = pdbfixer.PDBFixer(tmpfile)
+#     fixer.findMissingResidues()
+#     fixer.findNonstandardResidues()
+#     fixer.findMissingAtoms()
+#
+#     if fixer.missingAtoms:
+#         print('Found missing Atoms:', fixer.missingAtoms, file=printfile)
+#     if fixer.missingTerminals:
+#         print('Found missing Terminals:', fixer.missingTerminals, file=printfile)
+#     if fixer.nonstandardResidues:
+#         print('Found nonstandard Residues:', fixer.nonstandardResidues, file=printfile)
+#
+#     fixer.replaceNonstandardResidues()
+#     #fixer.removeHeterogens(False)
+#     fixer.addMissingAtoms()
+#     fixer.addMissingHydrogens(opt['pH'])
+#     fixer.addSolvent(padding=unit.Quantity(opt['solvent_padding'], unit.angstroms),
+#                 ionicStrength=unit.Quantity(opt['salt_concentration'], unit.millimolar))
+#
+#     # Load PDBFixer object back to Structure
+#     tmp = parmed.openmm.load_topology(fixer.topology, xyz=fixer.positions)
+#
+#     # Remove ligand from protein Structure by AmberMask selection
+#     tmp.strip(":LIG")
+#     tmp.save(opt['outfname']+'-nomol.tmp',format='pdb')
+#     # Reload PDBFile
+#     nomol = app.PDBFile(opt['outfname']+'-nomol.tmp')
+#     forcefield = app.ForceField(opt['protein_forcefield'], opt['solvent_forcefield'])
+#     nomol_system = forcefield.createSystem(nomol.topology, rigidWater=False)
+#     # Regenerate parameterized solvated protein structure
+#     solv_structure = parmed.openmm.load_topology(nomol.topology,
+#                                                 nomol_system,
+#                                                 xyz=nomol.positions)
+#     # Restore box vectors
+#     solv_structure.box = tmp.box
+#
+#     tmpfiles = [ opt['outfname']+'-pl.tmp', opt['outfname']+'-nomol.tmp' ]
+#     utils.cleanup(tmpfiles)
+#
+#     return solv_structure
 
 
 def simulation(mdData, **opt):
     """
-    Minimization, NVT and NPT MD run
+    This supporting function performs: OpenMM Minimization, NVT and NPT
+    Molecular Dynamics (MD) simulations
 
     Parameters
     ----------
     mdData : MDData data object
-        The object which recovers the Parmed structure data relevant for MD
+        The object which recovers the relevant Parmed structure data
+        to perform MD
+    opt: python dictionary
+        A dictionary containing all the MD setting info
     """
     
     if opt['Logger'] is None:
@@ -211,15 +215,18 @@ def simulation(mdData, **opt):
     else:
         printfile = opt['Logger'].file
 
+    # MD data extracted from Parmed
     structure = mdData.structure
     topology = mdData.topology
     positions = mdData.positions
     velocities = mdData.velocities
     box = mdData.box
-    stepLen = 0.002
+
+    # Time step in ps
+    stepLen = 0.002 * unit.picoseconds
 
     if opt['SimType'] in ['nvt', 'npt']:
-        # Center the system to the OpenMM Unit Cell
+        # Centering the system to the OpenMM Unit Cell
         if opt['center']:
             opt['Logger'].info("Centering is On")
             # Numpy array in A
@@ -236,19 +243,21 @@ def simulation(mdData, **opt):
             structure.coordinates = new_coords
             positions = structure.positions
 
+    # OpenMM system
     system = structure.createSystem(nonbondedMethod=eval("app.%s" % opt['nonbondedMethod']),
                                     nonbondedCutoff=opt['nonbondedCutoff']*unit.angstroms,
                                     constraints=eval("app.%s" % opt['constraints']))
-    
-    integrator = openmm.LangevinIntegrator(opt['temperature']*unit.kelvin, 1/unit.picoseconds, stepLen*unit.picoseconds)
+    # OpenMM Integrator
+    integrator = openmm.LangevinIntegrator(opt['temperature']*unit.kelvin, 1/unit.picoseconds, stepLen)
     
     if opt['SimType'] == 'npt':
         # Add Force Barostat to the system
         system.addForce(openmm.MonteCarloBarostat(opt['pressure']*unit.atmospheres, opt['temperature']*unit.kelvin, 25))
 
+    # Apply restraints
     if opt['restraints']:
         opt['Logger'].info("RESTRAINTS mask applied to: {}".format(opt['restraints']))
-        #Select atom to restrain
+        # Select atom to restraint
         res_atom_set = restraints(opt['molecule'], mask=opt['restraints'])
         opt['Logger'].info("Number of restraint atoms: {}".format(len(res_atom_set)))
         # define the custom force to restrain atoms to their starting positions
@@ -282,6 +291,9 @@ def simulation(mdData, **opt):
     # Set Box dimensions
     simulation.context.setPeriodicBoxVectors(box[0], box[1], box[2])
 
+    # If the velocities are not present in the Parmed structure
+    # new velocity vectors are generated otherwise the system is
+    # restarted from the previous State
     if opt['SimType'] in ['nvt', 'npt']:
         if velocities is not None:
             opt['Logger'].info('RESTARTING simulation from a previous State')
@@ -292,7 +304,7 @@ def simulation(mdData, **opt):
             simulation.context.setVelocitiesToTemperature(opt['temperature']*unit.kelvin)
 
         # Convert simulation time in steps
-        opt['steps'] = int(round(opt['time']/stepLen))
+        opt['steps'] = int(round(opt['time']/(stepLen.in_units_of(unit.picoseconds)/unit.picoseconds)))
         
         # Set Reporters
         for rep in getReporters(**opt):
@@ -316,7 +328,7 @@ def simulation(mdData, **opt):
 
     if opt['SimType'] in ['nvt', 'npt']:
 
-        opt['Logger'].info('Running {time} ps = {steps} steps of {SimType} MD at {temperature}K'.format( **opt))
+        opt['Logger'].info('Running {time} ps = {steps} steps of {SimType} MD at {temperature} K'.format( **opt))
         
         # Start Simulation
         simulation.step(opt['steps'])
@@ -451,7 +463,7 @@ def mdTrajConvert(simulation=None, outfname=None, trajectory_selection=None, tra
 
 def restraints(system, mask=''):
     """
-    This functions select the atom indexes to apply harmonic restraints
+    This function selects the atom indexes to apply harmonic restraints
 
     Parameters
     ----------
@@ -461,8 +473,11 @@ def restraints(system, mask=''):
     mask : python string
         A string used to select the atom to restraints. A Backus–Naur Form grammar
         (https://en.wikipedia.org/wiki/Backus–Naur_form) is defined by using pyparsing. 
-        The defined tokens are: "ligand", "protein", "water", "ions", "excipients".
-        Operator tokens are "not" and "and".
+        The defined tokens are: "ligand", "protein", "ca_protein" ,"water", "ions" and
+        "cofactors".
+
+        Operator tokens are: "not" = invert selection, "and" = add selections and
+        "noh" = remove hydrogens from the selection
 
     Returns
     -------
@@ -474,7 +489,8 @@ def restraints(system, mask=''):
         Example of selection string:
         mask = "ligand and protein"
         mask = "not water and not ions"
-        mask = "ligand and protein and excipients"
+        mask = "ligand and protein and cofactors"
+        mask = "noh protein"
     """
 
     def split(mol):
@@ -495,7 +511,7 @@ def restraints(system, mask=''):
         Returns:
         --------
         dic_set: python dictionary
-            The dictionary has a key a token word and for value the related
+            The dictionary has token words as keys and for value the related
             atom set. The token keywords are:
                 protein,
                 ca_protein,
@@ -642,7 +658,7 @@ def restraints(system, mask=''):
             return dsets[ls]
         # Not or Noh
         if len(ls) == 2:
-            if ls[0] == 'noh':
+            if ls[0] == 'noh':  # Noh case
                 return noh(ls, dsets)
             else:  # Not case
                 return dsets['system'] - build_set(ls[1], dsets)
