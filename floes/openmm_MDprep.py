@@ -68,7 +68,7 @@ minComplex.promote_parameter('restraintWt', promoted_name='w_restraintWt', defau
 
 # NVT simulation
 warmup = OpenMMnvtCube('warmup', title='warmup')
-warmup.promote_parameter('time', promoted_name='warm_psec', default=2.0,  description='Length of MD run in picoseconds')
+warmup.promote_parameter('time', promoted_name='warm_psec', default=10.0,  description='Length of MD run in picoseconds')
 warmup.promote_parameter('restraints', promoted_name='w_restraints', default="noh (ligand and protein)", description='Select mask to apply restarints')
 warmup.promote_parameter('restraintWt', promoted_name='w_restraintWt', default=2.0, description='Restraint weight')
 warmup.promote_parameter('trajectory_interval', promoted_name='w_trajectory_interval', default=1000, description='Trajectory saving interval')
@@ -77,7 +77,7 @@ warmup.promote_parameter('outfname', promoted_name='w_outfname', default='warmup
 
 # NPT Equilibration stage 1
 equil1 = OpenMMnptCube('equil1', title='equil1')
-equil1.promote_parameter('time', promoted_name='equil1_psec', default=2.0, description='Length of MD run in picoseconds')
+equil1.promote_parameter('time', promoted_name='equil1_psec', default=10.0, description='Length of MD run in picoseconds')
 equil1.promote_parameter('restraints', promoted_name='eq1_restraints', default="noh (ligand and protein)", description='Select mask to apply restarints')
 equil1.promote_parameter('restraintWt', promoted_name='eq1_restraintWt', default=2.0, description='Restraint weight')
 equil1.promote_parameter('trajectory_interval', promoted_name='eq_1trajectory_interval', default=1000, description='Trajectory saving interval')
@@ -86,7 +86,7 @@ equil1.promote_parameter('outfname', promoted_name='eq1_outfname', default='equi
 
 # NPT Equilibration stage 2
 equil2 = OpenMMnptCube('equil2', title='equil2')
-equil2.promote_parameter('time', promoted_name='equil2_psec', default=2.0, description='Length of MD run in picoseconds')
+equil2.promote_parameter('time', promoted_name='equil2_psec', default=10.0, description='Length of MD run in picoseconds')
 equil2.promote_parameter('restraints', promoted_name='eq2_restraints', default="noh (ligand and protein)", description='Select mask to apply restarints')
 equil2.promote_parameter('restraintWt', promoted_name='eq2_restraintWt', default=0.5, description='Restraint weight')
 equil2.promote_parameter('trajectory_interval', promoted_name='eq2_trajectory_interval', default=1000, description='Trajectory saving interval')
@@ -95,13 +95,12 @@ equil2.promote_parameter('outfname', promoted_name='eq2_outfname', default='equi
 
 # NPT Equilibration stage 3
 equil3 = OpenMMnptCube('equil3', title='equil3')
-equil3.promote_parameter('time', promoted_name='equil3_psec', default=2.0, description='Length of MD run in picoseconds')
+equil3.promote_parameter('time', promoted_name='equil3_psec', default=10.0, description='Length of MD run in picoseconds')
 equil3.promote_parameter('restraints', promoted_name='eq3_restraints', default="ca_protein and (noh ligand)", description='Select mask to apply restarints')
 equil3.promote_parameter('restraintWt', promoted_name='eq3_restraintWt', default=0.1, description='Restraint weight')
 equil3.promote_parameter('trajectory_interval', promoted_name='eq3_trajectory_interval', default=1000, description='Trajectory saving interval')
 equil3.promote_parameter('reporter_interval', promoted_name='eq3_reporter_interval', default=10000, description='Reporter saving interval')
 equil3.promote_parameter('outfname', promoted_name='eq3_outfname', default='equil3', description='Equilibration suffix name')
-
 
 ofs = OEMolOStreamCube('ofs', title='OFS-Success')
 ofs.set_parameters(backend='s3')

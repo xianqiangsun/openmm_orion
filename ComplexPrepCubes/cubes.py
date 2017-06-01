@@ -238,7 +238,7 @@ class ComplexPrep(OEMolComputeCube):
 
         if self.check_system:
             num_conf = 0
-            name = 'p' + self.system.GetTitle() + '_l' + str(self.count)
+            name = 'p' + self.system.GetTitle() + '_l' + mol.GetTitle()[0:12] + '_' + str(self.count)
             for conf in mol.GetConfs():
                 conf_mol = oechem.OEMol(conf)
                 complx = self.system.CreateCopy()
