@@ -232,7 +232,7 @@ class OpenMMminimizeCube(ParallelOEMolComputeCube):
         try:
             # The copy of the dictionary option as local variable
             # is necessary to avoid filename collisions due to
-            # the parallel cube instances
+            # the parallel cube processes
             opt = dict(self.opt)
             if utils.PackageOEMol.checkTags(mol, ['Structure']):
                 gd = utils.PackageOEMol.unpack(mol)
@@ -400,7 +400,7 @@ class OpenMMnvtCube(ParallelOEMolComputeCube):
         try:
             # The copy of the dictionary option as local variable
             # is necessary to avoid filename collisions due to
-            # the parallel cube instances
+            # the parallel cube processes
             opt = dict(self.opt)
             if utils.PackageOEMol.checkTags(mol, ['Structure']):
                 gd = utils.PackageOEMol.unpack(mol)
@@ -577,7 +577,7 @@ class OpenMMnptCube(ParallelOEMolComputeCube):
         try:
             # The copy of the dictionary option as local variable
             # is necessary to avoid filename collisions due to
-            # the parallel cube instances
+            # the parallel cube processes
             opt = dict(self.opt)
             if utils.PackageOEMol.checkTags(mol, ['Structure']):
                 gd = utils.PackageOEMol.unpack(mol)

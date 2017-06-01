@@ -21,8 +21,8 @@ dnaResidues = ['DA', 'DG', 'DC', 'DT', 'DI']
 
 def split(mol):
     """
-    This function splits the passed molecule in protein, ligand
-    and water
+    This function splits the passed system in protein, ligand,
+    water and excipients
 
     Parameters:
     ----------
@@ -35,9 +35,10 @@ def split(mol):
         The split protein
     ligand : oechem.OEMol
         The split ligand
-    wat : oechel.OEMol
-        The spit water which contenis the water and other
-        excipient molecules
+    wat : oechem.OEMol
+        The spit water
+    other : oechem.OEMol
+        The excipients
     
     """
 
@@ -47,7 +48,7 @@ def split(mol):
     wat = oechem.OEMol()
     other = oechem.OEMol()
 
-    # Define the Filter options before to split
+    # Define the Filter options before the splitting
     opt = oechem.OESplitMolComplexOptions()
 
     # The protein filter is set to avoid that multiple
@@ -125,6 +126,22 @@ def delete_shell(core_mol, del_mol, cut_off, in_out='in'):
 
 
 def solvate(system, opt):
+    """
+    This function solvates the system by using PDBFixer
+
+    Parameters:
+    -----------
+    system: OEMol molecule
+        The system to solvate
+    opt: python dictionary
+        The parameters used to solvate the system
+
+    Return:
+    -------
+    oe_mol: OEMol
+        The solvated system
+    """
+
     # Load a fake system to initialize PDBfixer
     filename = resource_filename('pdbfixer', 'tests/data/test.pdb')
     fixer = PDBFixer(filename=filename)
@@ -153,7 +170,7 @@ def solvate(system, opt):
 
     wat_ion_top = app.Topology()
 
-    # Atom dictionary between the the fixer topology and the water_ion topology
+    # Atom dictionary between the the PDBfixer topology and the water_ion topology
     fixer_atom_to_wat_ion_atom = {}
 
     for chain in fixer.topology.chains():
@@ -169,7 +186,8 @@ def solvate(system, opt):
         at0 = bond[0]
         at1 = bond[1]
         try:
-            wat_ion_top.addBond(fixer_atom_to_wat_ion_atom[at0], fixer_atom_to_wat_ion_atom[at1], type=None, order=1)
+            wat_ion_top.addBond(fixer_atom_to_wat_ion_atom[at0],
+                                fixer_atom_to_wat_ion_atom[at1], type=None, order=1)
         except:
             pass
 
@@ -188,12 +206,22 @@ def solvate(system, opt):
 
 
 def applyffProtein(protein, opt):
+    """
+    This function applies the selected force field to the
+    protein
 
-    # ofs = oechem.oemolostream("protein.oeb")
-    # oechem.OEWriteMolecule(ofs, protein)
+    Parameters:
+    -----------
+    protein: OEMol molecule
+        The protein to parametrize
+    opt: python dictionary
+        The options used to parametrize the protein
 
-    # import sys
-    # sys.exit(-1)
+    Return:
+    -------
+    protein_structure: Parmed structure instance
+        The parametrized protein parmed structure
+    """
 
     topology, positions = oemol_to_openmmTop(protein)
 
@@ -211,6 +239,22 @@ def applyffProtein(protein, opt):
 
 
 def applyffWater(water, opt):
+    """
+    This function applies the selected force field to the
+    water
+
+    Parameters:
+    -----------
+    water: OEMol molecule
+        The water molecules to parametrize
+    opt: python dictionary
+        The options used to parametrize the water
+
+    Return:
+    -------
+    water_structure: Parmed structure instance
+        The parametrized water parmed structure
+    """
 
     topology, positions = oemol_to_openmmTop(water)
 
@@ -228,6 +272,22 @@ def applyffWater(water, opt):
 
 
 def applyffExcipients(excipients, opt):
+    """
+    This function applies the selected force field to the
+    excipients
+
+    Parameters:
+    -----------
+    excipients: OEMol molecule
+        The excipients molecules to parametrize
+    opt: python dictionary
+        The options used to parametrize the excipients
+
+    Return:
+    -------
+    excipients_structure: Parmed structure instance
+        The parametrized excipient parmed structure
+    """
 
     topology, positions = oemol_to_openmmTop(excipients)
 
@@ -245,6 +305,22 @@ def applyffExcipients(excipients, opt):
 
 
 def applyffLigand(ligand, opt):
+    """
+    This function applies the selected force field to the
+    ligand
+
+    Parameters:
+    -----------
+    ligand: OEMol molecule
+        The ligand molecule to parametrize
+    opt: python dictionary
+        The options used to parametrize the ligand
+
+    Return:
+    -------
+    ligand_structure: Parmed structure instance
+        The parametrized ligand parmed structure
+    """
 
     # Check TLeap
     if opt['ligand_forcefield'] in ['GAFF', 'GAFF2']:
@@ -252,10 +328,10 @@ def applyffLigand(ligand, opt):
 
     # Parametrize the Ligand
     pmd = ff_utils.ParamLigStructure(ligand, opt['ligand_forcefield'])
-    molecule_structure = pmd.parameterize()
-    molecule_structure.residues[0].name = "LIG"
+    ligand_structure = pmd.parameterize()
+    ligand_structure.residues[0].name = "LIG"
 
-    return molecule_structure
+    return ligand_structure
 
 
 def oemol_to_openmmTop(mol):
@@ -417,6 +493,10 @@ def openmmTop_to_oemol(topology, positions):
 
 
 def order_check(mol, fname):
+    """
+    TO REMOVE
+    This function is used to debug
+    """
     import logging
     logger = logging.getLogger('Testing')
     hdlr = logging.FileHandler(fname)

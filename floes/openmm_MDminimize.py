@@ -7,7 +7,7 @@ job = WorkFloe("MDminimize")
 job.description = """
 Minimize an OpenMM-ready solvated complex
 
-Ex. `data='examples/data'; python floes/openmm_prepMDminimize.py --complex $data/9PC1X-complex.oeb.gz --ofs-data_out $data/min.oeb --steps 1000`
+Ex: python floes/openmm_prepMDminimize.py --complex complex.oeb --ofs-data_out min.oeb --steps 1000`
 
 Parameters:
 -----------
@@ -19,7 +19,7 @@ steps (int): Number of MD steps to minimize the system. If 0 until convergence w
 
 Outputs:
 --------
-ofs: Outputs to a <idtag>-simulation.oeb.gz file
+ofs: Outputs the minimized system
 """
 
 job.classification = [['Simulation']]
@@ -30,7 +30,6 @@ ifs.promote_parameter("data_in", promoted_name="complex", description="OEB of th
 
 minComplex = OpenMMminimizeCube('minComplex')
 minComplex.promote_parameter('steps', promoted_name='steps')
-
 
 ofs = OEMolOStreamCube('ofs', title='OFS-Success')
 ofs.set_parameters(backend='s3')

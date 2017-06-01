@@ -71,8 +71,8 @@ class Splitter(OEMolComputeCube):
 
         Output:
         -------
-        oechem.OEMCMol - Emits the molecules: protein, ligand
-                         and excipients
+        oechem.OEMCMol - Emits the assembled system made by the
+         protein, ligand, water and excipients
         """
 
     def begin(self):
@@ -94,8 +94,6 @@ class Splitter(OEMolComputeCube):
 
         system.SetTitle(mol.GetTitle())
 
-        #utils.order_check(system, 'splitter.log')
-
         # If the protein does not contain any atom emit a failure
         if not protein.NumAtoms():
             self.failure.emit(protein)
@@ -109,7 +107,7 @@ class LigChargeCube(ParallelOEMolComputeCube):
     classification = [["Ligand Preparation", "OEChem", "Ligand preparation"]]
     tags = ['OEChem', 'Quacpac']
     description = """
-           This cube charges the Ligand by using the AM1BCC method
+           This cube charges the Ligand by using the ELF10 charge method
 
            Input:
            -------
@@ -117,7 +115,7 @@ class LigChargeCube(ParallelOEMolComputeCube):
            
            Output:
            -------
-           oechem.OEMCMol - Emits the charge ligands
+           oechem.OEMCMol - Emits the charged ligands
            """
 
     # Override defaults for some parameters
@@ -165,11 +163,11 @@ class SolvationCube(OEMolComputeCube):
     classification = [["Complex Preparation", "OEChem", "Complex preparation"]]
     tags = ['OEChem', 'OpenMM', 'PDBFixer']
     description = """
-           This cube Solvate the passed molecule system
+           This cube solvate the molecular system
 
            Input:
            -------
-           oechem.OEMCMol - Streamed-in of the molecule system
+           oechem.OEMCMol - Streamed-in of the molecular system
 
            Output:
            -------
@@ -209,14 +207,13 @@ class ComplexPrep(OEMolComputeCube):
     classification = [["Complex Preparation", "OEChem", "Complex preparation"]]
     tags = ['OEChem']
     description = """
-        The Complex made of the protein, ligand, internal water and excipients
-        is assembled 
+        This cube assemble the complex made of the solvated system and the 
+        ligands. If a ligand presents multiple conformers, then each conformer 
+        is bonded to the protein to form the solvated complex. 
         
         Input:
         -------
-        oechem.OEMCMol - Streamed-in of the system molecules made of
-                         the protein, the ligand, the water and the 
-                         excipients 
+        oechem.OEMCMol - Streamed-in of the solvated system and the ligands
                          
         Output:
         -------
@@ -263,15 +260,15 @@ class ForceFieldPrep(OEMolComputeCube):
     classification = [["Force Field Preparation", "OEChem", "Force Field preparation"]]
     tags = ['OEChem', 'OEBio', 'OpenMM']
     description = """
-        The complex is parametrized by using the selected force fields
+        Each complex is parametrized by using the selected force fields
 
         Input:
         -------
-        oechem.OEMCMol - Streamed-in of the solvated complex
+        oechem.OEMCMol - Streamed-in of complexes
       
         Output:
         -------
-        oechem.OEMCMol - Emits force field parametrized complex
+        oechem.OEMCMol - Emits force field parametrized complexes
         """
 
     protein_forcefield = parameter.DataSetInputParameter(
@@ -337,9 +334,6 @@ class ForceFieldPrep(OEMolComputeCube):
         vec = pack_utils.PackageOEMol.decodePyObj(vec_data)
         complex_structure.box_vectors = vec
 
-        # Delete data from the complex
-        #complx.DeleteData(oechem.OEGetTag('box_vectors'))
-
         # Attach the Parmed structure to the complex
         packed_complex = pack_utils.PackageOEMol.pack(complx, complex_structure)
 
@@ -347,11 +341,5 @@ class ForceFieldPrep(OEMolComputeCube):
         ref_positions = complex_structure.positions
         packedpos = pack_utils.PackageOEMol.encodePyObj(ref_positions)
         packed_complex.SetData(oechem.OEGetTag('OEMDDataRefPositions'), packedpos)
-
-        # ofs = oechem.oemolostream(packed_complex.GetData('IDTag')+'.oeb')
-        # oechem.OEWriteMolecule(ofs, packed_complex)
-
-        #utils.order_check(packed_complex, 'ff.log')
-
 
         self.success.emit(packed_complex)
