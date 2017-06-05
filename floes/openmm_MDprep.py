@@ -28,7 +28,6 @@ ofs: Outputs a ready system to MD production run
 job.classification = [['Complex Setup', 'FrosstMD']]
 job.tags = [tag for lists in job.classification for tag in lists]
 
-
 # Ligand setting
 iligs = OEMolIStreamCube("Ligands")
 # iligs.promote_parameter("data_in", promoted_name="ligand", description="PDB of docked ligand")
