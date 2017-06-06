@@ -28,29 +28,29 @@ ofs: Outputs a ready system to MD production run
 job.classification = [['Complex Setup', 'FrosstMD']]
 job.tags = [tag for lists in job.classification for tag in lists]
 
-# Ligand setting
+# Ligand reading cube
 iligs = OEMolIStreamCube("Ligands")
 # iligs.promote_parameter("data_in", promoted_name="ligand", description="PDB of docked ligand")
 chargelig = LigChargeCube("LigCharge")
-
 chargelig.promote_parameter('max_conformers', promoted_name='max_conformers',
                             description="Set the max number of conformers per ligand", default=5)
 
-# Protein Setting
+# Protein Reading cube. The protein suffix parameter is used to select a name for the
+# output system files
 isys = Reader("ProteinReader")
 isys.promote_parameter("data_in", promoted_name="protein", description="PDB Protein file name")
 isys.promote_parameter("protein_suffix", promoted_name="protein_suffix", default='1HVL', description="Protein suffix")
 
-# Splitter
+# The spitter cube will be used to preprocess the read in protein system
 splitter = Splitter("Splitter")
 
-# Solvate
+# The solvation cube is used to solvate the system and define the ionic strength of the solution
 solvate = SolvationCube("Solvation")
 solvate.promote_parameter('pH', promoted_name='pH')
 solvate.promote_parameter('solvent_padding', promoted_name='solvent_padding')
 solvate.promote_parameter('salt_concentration', promoted_name='salt_conc', default=100)
 
-# Complex Setting
+# Complex cube used to assemble the ligands and the solvated protein
 complx = ComplexPrep("Complex")
 
 # Force Field Application
@@ -65,7 +65,7 @@ minComplex.promote_parameter('steps', promoted_name='steps', default=30000)
 minComplex.promote_parameter('restraints', promoted_name='w_restraints', default="noh (ligand and protein)", description='Select mask to apply restarints')
 minComplex.promote_parameter('restraintWt', promoted_name='w_restraintWt', default=5.0, description='Restraint weight')
 
-# NVT simulation
+# NVT simulation. Here the assembled system is warmed up to the final selected temperature
 warmup = OpenMMnvtCube('warmup', title='warmup')
 warmup.promote_parameter('time', promoted_name='warm_psec', default=10.0,  description='Length of MD run in picoseconds')
 warmup.promote_parameter('restraints', promoted_name='w_restraints', default="noh (ligand and protein)", description='Select mask to apply restarints')
@@ -74,7 +74,12 @@ warmup.promote_parameter('trajectory_interval', promoted_name='w_trajectory_inte
 warmup.promote_parameter('reporter_interval', promoted_name='w_reporter_interval', default=10000, description='Reporter saving interval')
 warmup.promote_parameter('outfname', promoted_name='w_outfname', default='warmup', description='Equilibration suffix name')
 
-# NPT Equilibration stage 1
+# The system is equilibrated at the right pressure and temperature in 3 stages
+# The main difference between the stages is related to the restraint force used
+# to keep the ligand and protein in their starting positions. A relatively strong force
+# is applied in the first stage while a relatively small one is applied in the latter
+
+# NPT Equilibration stage 1 -
 equil1 = OpenMMnptCube('equil1', title='equil1')
 equil1.promote_parameter('time', promoted_name='equil1_psec', default=10.0, description='Length of MD run in picoseconds')
 equil1.promote_parameter('restraints', promoted_name='eq1_restraints', default="noh (ligand and protein)", description='Select mask to apply restarints')

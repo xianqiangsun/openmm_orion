@@ -97,6 +97,8 @@ class Splitter(OEMolComputeCube):
         # If the protein does not contain any atom emit a failure
         if not protein.NumAtoms():
             self.failure.emit(protein)
+        elif not mol.NumAtoms() == system.NumAtoms():  # Different number of atoms: emit failure
+            self.failure.emit(protein)
         else:
             self.success.emit(system)
 
@@ -197,7 +199,6 @@ class SolvationCube(OEMolComputeCube):
         # Solvate the system
         sol_system = utils.solvate(system, self.opt)
         sol_system.SetTitle(system.GetTitle())
-        #utils.order_check(sol_system, 'solvation.log')
         self.success.emit(sol_system)
 
 

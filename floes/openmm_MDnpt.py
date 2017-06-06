@@ -16,8 +16,8 @@ complex (file): OEB file of the prepared protein:ligand complex
 Optional:
 --------
 picosec (float): Number of picoseconds to warm up the complex
-temperature (decimal): target final temperature
-pressure (decimal): target final pressure
+temperature (decimal): target final temperature in K
+pressure (decimal): target final pressure in atm
 
 Outputs:
 --------
