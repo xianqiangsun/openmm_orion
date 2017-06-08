@@ -4,6 +4,7 @@ from floe.api import OEMolComputeCube, ParallelOEMolComputeCube, parameter, OEMo
 from floe.api.orion import StreamingDataset, config_from_env
 from openeye import oechem
 from LigPrepCubes import ff_utils
+import traceback
 
 
 class Reader(OEMolIStreamCube):
@@ -80,27 +81,36 @@ class Splitter(OEMolComputeCube):
 
     def process(self, mol, port):
 
-        # Split the biomolecular system
-        protein, ligand, water, excipients = utils.split(mol)
+        try:
+            # Split the biomolecular system
+            protein, ligand, water, excipients = utils.split(mol)
 
-        # self.log.info('Protein  number of atoms: {}'.format(protein.NumAtoms()))
-        # self.log.info('Water number of atoms: {}'.format(water.NumAtoms()))
-        # self.log.info('Excipients number of atoms: {}'.format(excipients.NumAtoms()))
+            # self.log.info('Protein  number of atoms: {}'.format(protein.NumAtoms()))
+            # self.log.info('Ligand  number of atoms: {}'.format(ligand.NumAtoms()))
+            # self.log.info('Water number of atoms: {}'.format(water.NumAtoms()))
+            # self.log.info('Excipients number of atoms: {}'.format(excipients.NumAtoms()))
 
-        system = protein.CreateCopy()
+            system = protein.CreateCopy()
 
-        oechem.OEAddMols(system, water)
-        oechem.OEAddMols(system, excipients)
+            oechem.OEAddMols(system, water)
+            oechem.OEAddMols(system, excipients)
 
-        system.SetTitle(mol.GetTitle())
+            system.SetTitle(mol.GetTitle())
 
-        # If the protein does not contain any atom emit a failure
-        if not protein.NumAtoms():
-            self.failure.emit(protein)
-        elif not mol.NumAtoms() == system.NumAtoms():  # Different number of atoms: emit failure
-            self.failure.emit(protein)
-        else:
-            self.success.emit(system)
+            # If the protein does not contain any atom emit a failure
+            if not protein.NumAtoms():   # Error: protein molecule is empty
+                oechem.OEThrow.Fatal("Splitting: Protein molecule after system splitting is empty")
+            else:
+                self.success.emit(system)
+
+        except Exception as e:
+            # Attach error message to the molecule that failed
+            self.log.error(traceback.format_exc())
+            mol.SetData('error', str(e))
+            # Return failed mol
+            self.failure.emit(mol)
+
+        return
 
 
 class LigChargeCube(ParallelOEMolComputeCube):
@@ -135,28 +145,37 @@ class LigChargeCube(ParallelOEMolComputeCube):
     def begin(self):
         self.opt = vars(self.args)
         self.opt['Logger'] = self.log
-        # self.count = 0
 
     def process(self, ligand, port):
 
-        charged_ligand = None
+        try:
+            charged_ligand = None
 
-        if not oechem.OEHasPartialCharges(ligand):
-            # Ligand sanitation
-            charged_ligand = ff_utils.sanitize(ligand)
-            # Charge the ligand
-            charged_ligand = ff_utils.assignELF10charges(charged_ligand,
-                                                         max_confs=self.opt['max_conformers'],
-                                                         strictStereo=True)
+            if not oechem.OEHasPartialCharges(ligand):
+                # Ligand sanitation
+                charged_ligand = ff_utils.sanitize(ligand)
+                # Charge the ligand
+                charged_ligand = ff_utils.assignELF10charges(charged_ligand,
+                                                             max_confs=self.opt['max_conformers'],
+                                                             strictStereo=True)
 
-        # If the ligand has been charged then transfer the computed
-        # charges to the starting ligand
-        if charged_ligand:
-            map_charges = {at.GetIdx():at.GetPartialCharge() for at in charged_ligand.GetAtoms()}
-            for at in ligand.GetAtoms():
-                at.SetPartialCharge(map_charges[at.GetIdx()])
+            # If the ligand has been charged then transfer the computed
+            # charges to the starting ligand
+            if charged_ligand:
+                map_charges = {at.GetIdx():at.GetPartialCharge() for at in charged_ligand.GetAtoms()}
+                for at in ligand.GetAtoms():
+                    at.SetPartialCharge(map_charges[at.GetIdx()])
 
-        self.success.emit(ligand)
+            self.success.emit(ligand)
+
+        except Exception as e:
+            # Attach error message to the molecule that failed
+            self.log.error(traceback.format_exc())
+            ligand.SetData('error', str(e))
+            # Return failed mol
+            self.failure.emit(ligand)
+
+        return
 
 
 class SolvationCube(OEMolComputeCube):
@@ -196,10 +215,20 @@ class SolvationCube(OEMolComputeCube):
         self.opt['Logger'] = self.log
 
     def process(self, system, port):
-        # Solvate the system
-        sol_system = utils.solvate(system, self.opt)
-        sol_system.SetTitle(system.GetTitle())
-        self.success.emit(sol_system)
+
+        try:
+            # Solvate the system
+            sol_system = utils.solvate(system, self.opt)
+            sol_system.SetTitle(system.GetTitle())
+            self.success.emit(sol_system)
+        except Exception as e:
+            # Attach error message to the molecule that failed
+            self.log.error(traceback.format_exc())
+            system.SetData('error', str(e))
+            # Return failed mol
+            self.failure.emit(system)
+
+        return
 
 
 class ComplexPrep(OEMolComputeCube):
@@ -231,28 +260,37 @@ class ComplexPrep(OEMolComputeCube):
         self.check_system = False
 
     def process(self, mol, port):
+        try:
+            if port == 'system_port':
+                self.system = mol
+                self.check_system = True
+                return
 
-        if port == 'system_port':
-            self.system = mol
-            self.check_system = True
-            return
+            if self.check_system:
+                num_conf = 0
+                name = 'p' + self.system.GetTitle() + '_l' + mol.GetTitle()[0:12] + '_' + str(self.count)
+                for conf in mol.GetConfs():
+                    conf_mol = oechem.OEMol(conf)
+                    complx = self.system.CreateCopy()
+                    # complx = utils.delete_shell(conf_mol, complx, 1.5, in_out='in')
+                    oechem.OEAddMols(complx, conf_mol)
+                    name_c = name
+                    if mol.GetMaxConfIdx() > 1:
+                        name_c = name + '_c' + str(num_conf)
+                    complx.SetData(oechem.OEGetTag('IDTag'), name_c)
+                    complx.SetTitle(name_c)
+                    num_conf += 1
+                    self.success.emit(complx)
+                self.count += 1
 
-        if self.check_system:
-            num_conf = 0
-            name = 'p' + self.system.GetTitle() + '_l' + mol.GetTitle()[0:12] + '_' + str(self.count)
-            for conf in mol.GetConfs():
-                conf_mol = oechem.OEMol(conf)
-                complx = self.system.CreateCopy()
-                complx = utils.delete_shell(conf_mol, complx, 1.5, in_out='in')
-                oechem.OEAddMols(complx, conf_mol)
-                name_c = name
-                if mol.GetMaxConfIdx() > 1:
-                    name_c = name + '_c' + str(num_conf)
-                complx.SetData(oechem.OEGetTag('IDTag'), name_c)
-                complx.SetTitle(name_c)
-                num_conf += 1
-                self.success.emit(complx)
-            self.count += 1
+        except Exception as e:
+            # Attach error message to the molecule that failed
+            self.log.error(traceback.format_exc())
+            mol.SetData('error', str(e))
+            # Return failed mol
+            self.failure.emit(mol)
+
+        return
 
 
 class ForceFieldPrep(OEMolComputeCube):
@@ -293,54 +331,71 @@ class ForceFieldPrep(OEMolComputeCube):
         self.opt = vars(self.args)
         self.opt['Logger'] = self.log
         self.ProcessProtein = True
-        self.ProcessWater = True
-        self.ProcessExcipients = True
 
     def process(self, mol, port):
-        protein, ligand, water, excipients = utils.split(mol)
+        try:
+            # Split the complex in components in order to apply the FF
+            protein, ligand, water, excipients = utils.split(mol)
 
-        if self.ProcessProtein:
-            self.protein_structure = utils.applyffProtein(protein, self.opt)
-            self.ProcessProtein = False
+            # Removing possible clashes between the ligand and water or excipients
+            water_del = utils.delete_shell(ligand, water, 1.5, in_out='in')
+            excipient_del = utils.delete_shell(ligand, excipients, 1.5, in_out='in')
 
-        if self.ProcessWater:
-            self.water_structure = utils.applyffWater(water, self.opt)
-            self.ProcessWater = False
+            # Apply FF to the Protein
+            if self.ProcessProtein:
+                self.protein_structure = utils.applyffProtein(protein, self.opt)
+                self.ProcessProtein = False
 
-        if self.ProcessExcipients:
+            # Apply FF to water molecules
+            water_structure = utils.applyffWater(water_del, self.opt)
+
+            # Apply FF to the excipients
             if excipients.NumAtoms() > 0:
-                self.excipient_structure = utils.applyffExcipients(excipients, self.opt)
-            self.ProcessExcipients = False
+                excipient_structure = utils.applyffExcipients(excipient_del, self.opt)
 
-        self.ligand_structure = utils.applyffLigand(ligand, self.opt)
+            # Apply FF to the ligand
+            ligand_structure = utils.applyffLigand(ligand, self.opt)
 
-        if excipients.NumAtoms() > 0:
-            complex_structure = self.protein_structure + self.ligand_structure + \
-                                self.excipient_structure + self.water_structure
-        else:
-            complex_structure = self.protein_structure + self.ligand_structure + \
-                                self.water_structure
+            # Build the Parmed structure
+            if excipients.NumAtoms() > 0:
+                complex_structure = self.protein_structure + ligand_structure + \
+                                    excipient_structure + water_structure
+            else:
+                complex_structure = self.protein_structure + ligand_structure + water_structure
 
-        # Assemble a new OEMol complex in a specific order
-        # to match the defined Parmed structure complex
-        complx = protein.CreateCopy()
-        oechem.OEAddMols(complx, ligand)
-        oechem.OEAddMols(complx, excipients)
-        oechem.OEAddMols(complx, water)
+            num_atom_system = protein.NumAtoms() + ligand.NumAtoms() + excipient_del.NumAtoms() + water_del.NumAtoms()
 
-        complx.SetTitle(mol.GetTitle())
+            if not num_atom_system == complex_structure.topology.getNumAtoms():
+                oechem.OEThrow.Fatal("Parmed and OE topologies mismatch atom number error")
 
-        # Set Parmed structure box_vectors
-        vec_data = pack_utils.PackageOEMol.getData(complx, tag='box_vectors')
-        vec = pack_utils.PackageOEMol.decodePyObj(vec_data)
-        complex_structure.box_vectors = vec
+            # Assemble a new OEMol complex in a specific order
+            # to match the defined Parmed structure complex
+            complx = protein.CreateCopy()
+            oechem.OEAddMols(complx, ligand)
+            oechem.OEAddMols(complx, excipients)
+            oechem.OEAddMols(complx, water)
 
-        # Attach the Parmed structure to the complex
-        packed_complex = pack_utils.PackageOEMol.pack(complx, complex_structure)
+            complx.SetTitle(mol.GetTitle())
 
-        # Attach the reference positions to the complex
-        ref_positions = complex_structure.positions
-        packedpos = pack_utils.PackageOEMol.encodePyObj(ref_positions)
-        packed_complex.SetData(oechem.OEGetTag('OEMDDataRefPositions'), packedpos)
+            # Set Parmed structure box_vectors
+            vec_data = pack_utils.PackageOEMol.getData(complx, tag='box_vectors')
+            vec = pack_utils.PackageOEMol.decodePyObj(vec_data)
+            complex_structure.box_vectors = vec
 
-        self.success.emit(packed_complex)
+            # Attach the Parmed structure to the complex
+            packed_complex = pack_utils.PackageOEMol.pack(complx, complex_structure)
+
+            # Attach the reference positions to the complex
+            ref_positions = complex_structure.positions
+            packedpos = pack_utils.PackageOEMol.encodePyObj(ref_positions)
+            packed_complex.SetData(oechem.OEGetTag('OEMDDataRefPositions'), packedpos)
+
+            self.success.emit(packed_complex)
+        except Exception as e:
+            # Attach error message to the molecule that failed
+            self.log.error(traceback.format_exc())
+            mol.SetData('error', str(e))
+            # Return failed mol
+            self.failure.emit(mol)
+
+        return

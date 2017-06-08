@@ -93,7 +93,8 @@ def delete_shell(core_mol, del_mol, cut_off, in_out='in'):
     
     Return:
     -------
-    to_del: copy of del_mol where atoms have been deleted 
+    reset_del: copy of del_mol where atoms have been deleted with
+        reset atom indexes
     """
 
     if in_out not in ['in', 'out']:
@@ -122,7 +123,11 @@ def delete_shell(core_mol, del_mol, cut_off, in_out='in'):
     for atom in to_del.GetAtoms(pred):
         to_del.DeleteAtom(atom)
 
-    return to_del
+    # It is necessary to reset the atom indexes of the molecule with
+    # delete atoms to avoid possible mismatching
+    reset_del = oechem.OEMol(to_del)
+
+    return reset_del
 
 
 def solvate(system, opt):
@@ -229,8 +234,8 @@ def applyffProtein(protein, opt):
     unmatched_residues = forcefield.getUnmatchedResidues(topology)
 
     if unmatched_residues:
-        raise ValueError("The following Protein residues are not recognized "
-                         "by the selected force field {}: {}".format(opt['protein_forcefield'], unmatched_residues))
+        oechem.OEThrow.Fatal("The following Protein residues are not recognized "
+                             "by the selected force field {}: {}".format(opt['protein_forcefield'], unmatched_residues))
 
     omm_system = forcefield.createSystem(topology, rigidWater=False)
     protein_structure = parmed.openmm.load_topology(topology, omm_system, xyz=positions)
@@ -262,8 +267,8 @@ def applyffWater(water, opt):
     unmatched_residues = forcefield.getUnmatchedResidues(topology)
 
     if unmatched_residues:
-        raise ValueError("The following water molecules are not recognized "
-                         "by the selected force field {}: {}".format(opt['solvent_forcefield'], unmatched_residues))
+        oechem.OEThrow.Fatal("The following water molecules are not recognized "
+                             "by the selected force field {}: {}".format(opt['solvent_forcefield'], unmatched_residues))
 
     omm_system = forcefield.createSystem(topology, rigidWater=False)
     water_structure = parmed.openmm.load_topology(topology, omm_system, xyz=positions)
@@ -295,8 +300,8 @@ def applyffExcipients(excipients, opt):
     unmatched_residues = forcefield.getUnmatchedResidues(topology)
 
     if unmatched_residues:
-        raise ValueError("The following water molecules are not recognized "
-                         "by the selected force field {}: {}".format(opt['protein_forcefield'], unmatched_residues))
+        oechem.OEThrow.Fatal("The following water molecules are not recognized "
+                             "by the selected force field {}: {}".format(opt['protein_forcefield'], unmatched_residues))
 
     omm_system = forcefield.createSystem(topology, rigidWater=False)
     excipients_structure = parmed.openmm.load_topology(topology, omm_system, xyz=positions)

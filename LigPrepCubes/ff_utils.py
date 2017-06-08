@@ -112,7 +112,6 @@ def assignELF10charges(molecule, max_confs=800, strictStereo=True):
     return mol_copy
 
 
-
 def sanitize(molecule):
     """
     This function checks if the molecule has coordinates,
@@ -128,7 +127,7 @@ def sanitize(molecule):
 
     Return:
     -------
-    mol: OEMol
+    mol_copy: OEMol
         A copy of the checked molecule with fixed aromaticity 
         and hydrogens
     """
