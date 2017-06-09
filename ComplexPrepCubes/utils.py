@@ -509,10 +509,8 @@ def order_check(mol, fname):
     logger.addHandler(hdlr)
     logger.setLevel(logging.INFO)
 
-    # hv = oechem.OEHierView(mol, oechem.OEAssumption_BondedResidue +
-    #                        oechem.OEAssumption_ResPerceived)
+    #hv = oechem.OEHierView(mol, oechem.OEAssumption_BondedResidue + oechem.OEAssumption_ResPerceived)
     hv = oechem.OEHierView(mol)
-
 
     for chain in hv.GetChains():
         logger.info('{}'.format(chain.GetChainID()))
@@ -520,6 +518,6 @@ def order_check(mol, fname):
             for hres in frag.GetResidues():
                 logger.info('\t{} {}'.format(hres.GetOEResidue().GetName(), hres.GetOEResidue().GetResidueNumber()))
                 for oe_at in hres.GetAtoms():
-                    logger.info('\t\t{}'.format(oe_at.GetName()))
+                    logger.info('\t\t{} {}'.format(oe_at.GetName(), oe_at.GetIdx()))
 
     return

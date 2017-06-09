@@ -34,7 +34,7 @@ nvt.promote_parameter('time', promoted_name='picosec', default=10.0)
 nvt.promote_parameter('temperature', promoted_name='temperature', default=300.0,
                       description='Selected temperature in K')
 # Restraints
-nvt.promote_parameter('restraints', promoted_name='restraints', default='noh (ligand and protein)')
+nvt.promote_parameter('restraints', promoted_name='restraints', default='noh (ligand or protein)')
 nvt.promote_parameter('restraintWt', promoted_name='restraintWt', default=2.0)
 # Trajectory and logging info frequency intervals
 nvt.promote_parameter('trajectory_interval', promoted_name='trajectory_interval', default=10)

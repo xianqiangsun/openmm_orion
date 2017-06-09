@@ -26,7 +26,7 @@ job.tags = [tag for lists in job.classification for tag in lists]
 
 # Ligand setting
 iligs = OEMolIStreamCube("Ligands")
-#iligs.promote_parameter("data_in", promoted_name="ligands", description="Input ligands")
+# iligs.promote_parameter("data_in", promoted_name="ligands", description="Input ligands")
 
 chargelig = LigChargeCube("LigCharge")
 chargelig.promote_parameter('max_conformers', promoted_name='max_conformers',
@@ -35,7 +35,8 @@ chargelig.promote_parameter('max_conformers', promoted_name='max_conformers',
 # Protein Setting
 isys = Reader("ProteinReader")
 isys.promote_parameter("data_in", promoted_name="protein", description="Protein file name")
-isys.promote_parameter("protein_suffix", promoted_name="protein_suffix", default='MCL1', description="Protein suffix")
+isys.promote_parameter("protein_suffix", promoted_name="protein_suffix", default='MCL1',
+                       description="Protein suffix")
 
 splitter = Splitter("Splitter")
 solvate = SolvationCube("Solvation")

@@ -472,11 +472,15 @@ def restraints(system, mask=''):
 
     mask : python string
         A string used to select the atom to restraints. A Backus–Naur Form grammar
-        (https://en.wikipedia.org/wiki/Backus–Naur_form) is defined by using pyparsing. 
-        The defined tokens are: "ligand", "protein", "ca_protein" ,"water", "ions" and
-        "cofactors".
+        (https://en.wikipedia.org/wiki/Backus–Naur_form) is defined by using pyparsing.
+        The defined tokens are: "ligand", "protein", "ca_protein" ,"water", "ions",
+        "cofactors" and "resid chain1:res_idx1 chain2:res_idx2 ... res_idxn"
 
-        Operator tokens are: "not" = invert selection, "and" = add selections and
+        Operator tokens are:
+        "not" = invert selection
+        "or" = add selections
+        "and" = intersect selections
+        "diff" = logic difference between selection
         "noh" = remove hydrogens from the selection
 
     Returns
@@ -487,10 +491,12 @@ def restraints(system, mask=''):
     Notes
     -----
         Example of selection string:
-        mask = "ligand and protein"
-        mask = "not water and not ions"
-        mask = "ligand and protein and cofactors"
+        mask = "ligand or protein"
+        mask = "not water or not ions"
+        mask = "ligand or protein or cofactors"
         mask = "noh protein"
+        mask = "resid A:17 B:12 17 18"
+        mask = "protein diff resid A:1"
     """
 
     def split(mol):
@@ -501,9 +507,9 @@ def restraints(system, mask=''):
 
         Parameters:
         -----------
-        mol: OEMol 
+        mol: OEMol
             The molecule to split in components. The components are:
-                the protein atoms, 
+                the protein atoms,
                 the protein carbon alpha atoms
                 the water atoms,
                 the ion atoms,
@@ -635,24 +641,84 @@ def restraints(system, mask=''):
         dic_set = {'ligand': lig_set, 'protein': prot_set, 'ca_protein': ca_prot_set,
                    'water': wat_set,  'ions': ion_set,     'cofactors': cofactor_set, 'system': system_set}
 
-
         return dic_set
 
-    def noh(ls, dsets):
-
-        data_set = build_set(ls[1], dsets)
-
-        noh_set = set()
-        pred = oechem.OEIsHydrogen()
-
-        for idx in data_set:
-            atom = system.GetAtom(oechem.OEHasAtomIdx(idx))
-            if not pred(atom):
-                noh_set.add(idx)
-
-        return noh_set
-
     def build_set(ls, dsets):
+        """
+        This function select the atom indexes to apply restraints
+
+        Parameters:
+        -----------
+        ls: python list
+            the parsed list with tokens and operand tokes for the selection
+        dsets: python dictionary
+             the dictionary containing the sets for the selection
+
+        Return:
+        -------
+        atom_set: python set
+            the set containing the atom index to restrain
+        """
+
+        def noh(ls, dsets):
+            """
+            This function remove hydrogens from the selection
+            """
+            data_set = build_set(ls[1], dsets)
+
+            noh_set = set()
+            pred = oechem.OEIsHydrogen()
+
+            for idx in data_set:
+                atom = system.GetAtom(oechem.OEHasAtomIdx(idx))
+                if not pred(atom):
+                    noh_set.add(idx)
+
+            return noh_set
+
+        def residues(ls):
+            """
+            This function select residues based on the residue numbers. An example of
+            selection can be:
+            mask = 'resid A:16 17 19 B:1'
+            """
+            # List residue atom index to be restrained
+            res_atom_set = set()
+
+            # Dictionary of lists with the chain residues selected to be restrained
+            # e.g. {chainA:[res1, res15], chainB:[res19, res17]}
+            chain_dic = {'': []}
+
+            # Fill out the chain dictionary
+            i = 0
+            while i < len(ls):
+                if ls[i].isdigit():
+                    chain_dic[''].append(int(ls[i]))
+                    i += 1
+                else:
+                    try:
+                        chain_dic[ls[i]].append(int(ls[i + 2]))
+                    except:
+                        chain_dic[ls[i]] = []
+                        chain_dic[ls[i]].append(int(ls[i + 2]))
+                    i += 3
+
+            # Loop over the molecular system to select the atom indexes to be restrained
+            hv = oechem.OEHierView(system, oechem.OEAssumption_BondedResidue + oechem.OEAssumption_ResPerceived)
+            for chain in hv.GetChains():
+                chain_id = chain.GetChainID()
+                if chain_id not in chain_dic:
+                    continue
+                for frag in chain.GetFragments():
+                    for hres in frag.GetResidues():
+                        res_num = hres.GetOEResidue().GetResidueNumber()
+                        if res_num not in chain_dic[chain_id]:
+                            continue
+                        for oe_at in hres.GetAtoms():
+                            res_atom_set.add(oe_at.GetIdx())
+
+            return res_atom_set
+
         # Terminal Literal return the related set
         if isinstance(ls, str):
             return dsets[ls]
@@ -660,13 +726,25 @@ def restraints(system, mask=''):
         if len(ls) == 2:
             if ls[0] == 'noh':  # Noh case
                 return noh(ls, dsets)
-            else:  # Not case
+            elif ls[0] == 'not':  # Not case
                 return dsets['system'] - build_set(ls[1], dsets)
-        # And
+            else:  # Resid case with one index
+                return residues(ls[1])
+
         if len(ls) == 3:
-            return build_set(ls[0], dsets) | build_set(ls[2], dsets)
+            if ls[1] == 'or':  # Or Case (set union)
+                return build_set(ls[0], dsets) | build_set(ls[2], dsets)
+            elif ls[1] == 'and':  # And Case (set intersection)
+                return build_set(ls[0], dsets) & build_set(ls[2], dsets)
+            elif ls[1] == 'diff':  # Diff case (set difference)
+                return build_set(ls[0], dsets) - build_set(ls[2], dsets)
+            else:
+                return residues(ls[1:])  # Resid case with one or two indexes
         else:
-            raise ValueError("The passed list {} cannot have more than 3 tokens".format(ls))
+            if ls[0] == 'resid':
+                return residues(ls[1:])  # Resid case with multiple indexes
+            else:
+                raise ValueError("The passed list have too many tokens: {}".format(ls))
 
     # Parse Action-Maker
     def makeLRlike(numterms):
@@ -692,10 +770,16 @@ def restraints(system, mask=''):
 
         return pa
 
+    # Restraint  function body
+
+    # Residue number selection
+    id = pyp.Optional(pyp.Word(pyp.alphanums) + pyp.Literal(':')) + pyp.Word(pyp.nums)
+    resid = pyp.Group(pyp.Literal("resid") + pyp.OneOrMore(id))
+
     # Define the tokens for the BNF grammar
     operand = pyp.Literal("protein") | pyp.Literal("ca_protein") | \
               pyp.Literal("ligand") | pyp.Literal("water") | \
-              pyp.Literal("ions") | pyp.Literal("cofactors")
+              pyp.Literal("ions") | pyp.Literal("cofactors") | resid
 
     # BNF Grammar definition with parseAction makeLRlike
     expr = pyp.operatorPrecedence(operand,
@@ -704,6 +788,8 @@ def restraints(system, mask=''):
                                         (pyp.Literal("not"), 1, pyp.opAssoc.RIGHT, makeLRlike(1)),
                                         (pyp.Literal("noh"), 1, pyp.opAssoc.RIGHT, makeLRlike(1)),
                                         (pyp.Literal("and"), 2, pyp.opAssoc.LEFT, makeLRlike(2)),
+                                        (pyp.Literal("or"), 2, pyp.opAssoc.LEFT, makeLRlike(2)),
+                                        (pyp.Literal("diff"), 2, pyp.opAssoc.LEFT, makeLRlike(2))
                                     ])
     # Parse the input string
     try:
