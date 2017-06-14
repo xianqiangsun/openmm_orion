@@ -133,6 +133,8 @@ def sanitize(molecule):
     """
     mol_copy = molecule.CreateCopy()
 
+    #oechem.OEPerceiveChiral(mol_copy)
+
     # Check if the molecule has 3D coordinates
     if not oechem.OEGetDimensionFromCoords(mol_copy):
         oechem.OEThrow.Fatal("The molecule coordinates are set to zero")
@@ -151,14 +153,16 @@ def sanitize(molecule):
 
 class ParamLigStructure(object):
     """
-    Generates parameterized ParmEd structure of the molecule with a chosen forcefield
+    Generates parametrized ParmEd structure of the molecule with a chosen force field
 
     Parameters
     ----------
     molecule : openeye.oechem.OEMol
         The openeye molecule to be parameterized
     forcefield : str
-        String specifying the forcefield parameters to be used.
+        String specifying the forcefield parameters to be used
+    prefix_name : str
+        String specifying the output prefix filename
 
     Returns
     ---------
@@ -166,13 +170,15 @@ class ParamLigStructure(object):
         Openeye molecule with the ParmEd Structure attached.
     """
 
-    def __init__(self, molecule, forcefield):
+    def __init__(self, molecule, forcefield, prefix_name='ligand'):
         if not forcefield in ['SMIRNOFF', 'GAFF', 'GAFF2']:
             raise RuntimeError('Selected forcefield %s is not GAFF/GAFF2/SMIRNOFF' % forcefield)
         else:
             self.molecule = molecule
             self.forcefield = str(forcefield).strip()
             self.structure = None
+            self.prefix_name = prefix_name
+
 
     @staticmethod
     def checkTleap(self):
@@ -240,12 +246,12 @@ class ParamLigStructure(object):
 
         # Run antechamber to type and parmchk for frcmod
         # requires openmoltools 0.7.5 or later, which should be conda-installable via omnia
-        gaff_mol2_filename, frcmod_filename = openmoltools.amber.run_antechamber('ligand', mol2filename,
+        gaff_mol2_filename, frcmod_filename = openmoltools.amber.run_antechamber(self.prefix_name, mol2filename,
                                                                                  gaff_version=forcefield.lower(),
                                                                                  charge_method=None)
 
         # Run tleap using specified forcefield
-        prmtop, inpcrd = openmoltools.amber.run_tleap('ligand', gaff_mol2_filename,
+        prmtop, inpcrd = openmoltools.amber.run_tleap(self.prefix_name, gaff_mol2_filename,
                                                       frcmod_filename,
                                                       leaprc = 'leaprc.%s' % forcefield.lower())
 

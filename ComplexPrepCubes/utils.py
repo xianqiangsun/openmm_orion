@@ -1,4 +1,5 @@
 from openeye import oechem
+from openeye import oequacpac
 from simtk.openmm import Vec3
 from simtk import unit
 from simtk.openmm import app
@@ -9,6 +10,7 @@ import parmed
 from LigPrepCubes import ff_utils
 from OpenMMCubes import utils
 import logging
+import numpy as np
 
 proteinResidues = ['ALA', 'ASN', 'CYS', 'GLU', 'HIS',
                    'LEU', 'MET', 'PRO', 'THR', 'TYR',
@@ -290,23 +292,140 @@ def applyffExcipients(excipients, opt):
 
     Return:
     -------
-    excipients_structure: Parmed structure instance
+    excipient_structure: Parmed structure instance
         The parametrized excipient parmed structure
     """
 
+    # OpenMM topology and positions from OEMol
     topology, positions = oemol_to_openmmTop(excipients)
 
+    # Try to apply the selected FF on the excipients
     forcefield = app.ForceField(opt['protein_forcefield'])
-    unmatched_residues = forcefield.getUnmatchedResidues(topology)
 
-    if unmatched_residues:
-        oechem.OEThrow.Fatal("The following water molecules are not recognized "
-                             "by the selected force field {}: {}".format(opt['protein_forcefield'], unmatched_residues))
+    # Unmatched residue templates
+    [templates, residues] = forcefield.generateTemplatesForUnmatchedResidues(topology)
 
-    omm_system = forcefield.createSystem(topology, rigidWater=False)
-    excipients_structure = parmed.openmm.load_topology(topology, omm_system, xyz=positions)
+    if templates:  # Some excipients are not recognized
+        oechem.OEThrow.Info("The following excipients are not recognized "
+                            "by the protein FF: {}"
+                            "\nThey will be parametrized by using the FF: {}".format(residues, opt['other_forcefield']))
 
-    return excipients_structure
+        # Create a bit vector mask used to dived recognized from un recognize excipients
+        bv = oechem.OEBitVector(excipients.GetMaxAtomIdx())
+        bv.NegateBits()
+
+        # Dictionary containing the name and the parmed structures of the unrecognized excipients
+        unrc_excipient_structures = {}
+
+        # Dictionary used to skip already selected unrecognized excipients and count them
+        unmatched_excp = {}
+
+        for t in templates:
+            if t.name not in unmatched_excp:
+                unmatched_excp[t.name] = 0
+
+        hv = oechem.OEHierView(excipients)
+
+        for chain in hv.GetChains():
+            for frag in chain.GetFragments():
+                for hres in frag.GetResidues():
+                    r_name = hres.GetOEResidue().GetName()
+                    if r_name not in unmatched_excp:
+                        continue
+                    else:
+                        if unmatched_excp[r_name]:  # Test if we have selected the unknown excipient
+                            # Set Bit mask
+                            atms = hres.GetAtoms()
+                            for at in atms:
+                                bv.SetBitOff(at.GetIdx())
+                            unmatched_excp[r_name] += 1
+                        else:
+                            unmatched_excp[r_name] = 1
+                            #  Create AtomBondSet to extract from the whole excipient system
+                            #  the current selected FF unknown excipient
+                            atms = hres.GetAtoms()
+                            bond_set = set()
+                            for at in atms:
+                                bv.SetBitOff(at.GetIdx())
+                                bonds = at.GetBonds()
+                                for bond in bonds:
+                                    bond_set.add(bond)
+                            atom_bond_set = oechem.OEAtomBondSet(atms)
+                            for bond in bond_set:
+                                atom_bond_set.AddBond(bond)
+
+                            # Create the unrecognized excipient OEMol
+                            unrc_excp = oechem.OEMol()
+                            if not oechem.OESubsetMol(unrc_excp, excipients, atom_bond_set):
+                                oechem.OEThrow.Fatal("Is was not possible extract the residue: {}".format(r_name))
+
+                            # Charge the unrecognized excipient
+                            if not oequacpac.OEAssignCharges(unrc_excp,
+                                                             oequacpac.OEAM1BCCCharges(symmetrize=True)):
+                                oechem.OEThrow.Fatal("Is was not possible to "
+                                                     "charge the extract residue: {}".format(r_name))
+
+                            # If GAFF or GAFF2 is selected as FF check for tleap command
+                            if opt['other_forcefield'] in ['GAFF', 'GAFF2']:
+                                ff_utils.ParamLigStructure(oechem.OEMol(), opt['other_forcefield']).checkTleap
+
+                            # Parametrize the unrecognized excipient by using the selected FF
+                            pmd = ff_utils.ParamLigStructure(unrc_excp, opt['other_forcefield'], prefix_name=r_name)
+                            unrc_excp_struc = pmd.parameterize()
+                            unrc_excp_struc.residues[0].name = r_name
+                            unrc_excipient_structures[r_name] = unrc_excp_struc
+
+        # Recognized FF excipients
+        pred_rec = oechem.OEAtomIdxSelected(bv)
+        rec_excp = oechem.OEMol()
+        oechem.OESubsetMol(rec_excp, excipients, pred_rec)
+        top_known, pos_known = oemol_to_openmmTop(rec_excp)
+        ff_rec = app.ForceField(opt['protein_forcefield'])
+
+        try:
+            omm_system = ff_rec.createSystem(top_known, rigidWater=False)
+            rec_struc = parmed.openmm.load_topology(top_known, omm_system, xyz=pos_known)
+        except:
+            oechem.OEThrow.Fatal("Error in the recognised excipient parametrization")
+
+        # Unrecognized FF excipients
+        bv.NegateBits()
+        pred_unrc = oechem.OEAtomIdxSelected(bv)
+        unrc_excp = oechem.OEMol()
+        oechem.OESubsetMol(unrc_excp, excipients, pred_unrc)
+
+        # Unrecognized FF excipients coordinates
+        oe_coord_dic = unrc_excp.GetCoords()
+        unrc_coords = np.ndarray(shape=(unrc_excp.NumAtoms(), 3))
+        for at_idx in oe_coord_dic:
+            unrc_coords[at_idx] = oe_coord_dic[at_idx]
+
+        # Merge all the unrecognized Parmed structure
+        unrc_struc = parmed.Structure()
+
+        # for struc_name in unrc_excipient_structures:
+        #     unrc_struc = unrc_struc + unmatched_excp[struc_name]*unrc_excipient_structures[struc_name]
+
+        # It is important the order used to assemble the structures. In order to
+        # avoid mismatch between the coordinates and the structures, it is convenient
+        # to use the unrecognized residue order
+        for res in residues:
+            unrc_struc = unrc_struc + unrc_excipient_structures[res.name]
+
+        # Set the unrecognized coordinates
+        unrc_struc.coordinates = unrc_coords
+
+        # Set the parmed excipient structure merging
+        # the recognized and the unrecognized parmed
+        # structures together
+        excipients_structure = rec_struc + unrc_struc
+
+        return excipients_structure
+    else:  # All the excipients are recognized by the selected FF
+        omm_system = forcefield.createSystem(topology, rigidWater=False)
+        excipients_structure = parmed.openmm.load_topology(topology, omm_system, xyz=positions)
+
+        return excipients_structure
 
 
 def applyffLigand(ligand, opt):

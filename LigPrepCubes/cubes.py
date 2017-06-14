@@ -118,7 +118,7 @@ class LigandParameterization(OEMolComputeCube):
 
     def process(self, mol, port):
         try:
-            pmd = ff_utils.ParamLigStructure(mol, self.args.molecule_forcefield)
+            pmd = ff_utils.ParamLigStructure(mol, self.args.molecule_forcefield, prefix_name='ligand')
             molecule_structure = pmd.parameterize()
             molecule_structure.residues[0].name = "LIG"
             self.log.info(str(molecule_structure))

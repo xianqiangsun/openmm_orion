@@ -35,7 +35,7 @@ chargelig.promote_parameter('max_conformers', promoted_name='max_conformers',
 # Protein Setting
 isys = Reader("ProteinReader")
 isys.promote_parameter("data_in", promoted_name="protein", description="Protein file name")
-isys.promote_parameter("protein_suffix", promoted_name="protein_suffix", default='MCL1',
+isys.promote_parameter("protein_suffix", promoted_name="protein_suffix", default='Bace',
                        description="Protein suffix")
 
 splitter = Splitter("Splitter")

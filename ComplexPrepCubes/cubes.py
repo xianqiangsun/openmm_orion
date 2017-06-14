@@ -313,19 +313,26 @@ class ForceFieldPrep(OEMolComputeCube):
     protein_forcefield = parameter.DataSetInputParameter(
         'protein_forcefield',
         default='amber99sbildn.xml',
-        help_text='Forcefield parameters for protein')
+        help_text='Force field parameters for protein')
 
     solvent_forcefield = parameter.DataSetInputParameter(
         'solvent_forcefield',
         default='tip3p.xml',
-        help_text='Forcefield parameters for solvent')
+        help_text='Force field parameters for solvent')
 
     ligand_forcefield = parameter.StringParameter(
         'ligand_forcefield',
         required=True,
         default='GAFF2',
         choices=['GAFF', 'GAFF2', 'SMIRNOFF'],
-        help_text='Forcefield to parameterize the ligand')
+        help_text='Force field to parameterize the ligand')
+
+    other_forcefield = parameter.StringParameter(
+        'other_forcefield',
+        required=True,
+        default='GAFF',
+        choices=['GAFF', 'GAFF2', 'SMIRNOFF'],
+        help_text='Force field used to parametrize other molecules not recognized by the protein force field')
 
     def begin(self):
         self.opt = vars(self.args)
