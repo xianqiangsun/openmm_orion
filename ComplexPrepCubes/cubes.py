@@ -293,7 +293,7 @@ class ComplexPrep(OEMolComputeCube):
         return
 
 
-class ForceFieldPrep(OEMolComputeCube):
+class ForceFieldPrep(ParallelOEMolComputeCube):
     title = "Force Field Preparation"
     version = "0.0.0"
     classification = [["Force Field Preparation", "OEChem", "Force Field preparation"]]
@@ -309,6 +309,15 @@ class ForceFieldPrep(OEMolComputeCube):
         -------
         oechem.OEMCMol - Emits force field parametrized complexes
         """
+
+
+    # Override defaults for some parameters
+    parameter_overrides = {
+        "prefetch_count": {"default": 1}, # 1 molecule at a time
+        "item_timeout": {"default": 3600}, # Default 1 hour limit (units are seconds)
+        "item_count": {"default": 1} # 1 molecule at a time
+    }
+
 
     protein_forcefield = parameter.DataSetInputParameter(
         'protein_forcefield',
@@ -337,7 +346,6 @@ class ForceFieldPrep(OEMolComputeCube):
     def begin(self):
         self.opt = vars(self.args)
         self.opt['Logger'] = self.log
-        self.ProcessProtein = True
 
     def process(self, mol, port):
         try:
@@ -348,10 +356,11 @@ class ForceFieldPrep(OEMolComputeCube):
             water_del = utils.delete_shell(ligand, water, 1.5, in_out='in')
             excipient_del = utils.delete_shell(ligand, excipients, 1.5, in_out='in')
 
+            # Unique prefix name used to output parametrization files
+            self.opt['prefix_name'] = mol.GetTitle()
+
             # Apply FF to the Protein
-            if self.ProcessProtein:
-                self.protein_structure = utils.applyffProtein(protein, self.opt)
-                self.ProcessProtein = False
+            protein_structure = utils.applyffProtein(protein, self.opt)
 
             # Apply FF to water molecules
             water_structure = utils.applyffWater(water_del, self.opt)
@@ -365,10 +374,10 @@ class ForceFieldPrep(OEMolComputeCube):
 
             # Build the Parmed structure
             if excipients.NumAtoms() > 0:
-                complex_structure = self.protein_structure + ligand_structure + \
+                complex_structure = protein_structure + ligand_structure + \
                                     excipient_structure + water_structure
             else:
-                complex_structure = self.protein_structure + ligand_structure + water_structure
+                complex_structure = protein_structure + ligand_structure + water_structure
 
             num_atom_system = protein.NumAtoms() + ligand.NumAtoms() + excipient_del.NumAtoms() + water_del.NumAtoms()
 

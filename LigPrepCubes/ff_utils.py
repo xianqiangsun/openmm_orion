@@ -170,7 +170,7 @@ class ParamLigStructure(object):
         Openeye molecule with the ParmEd Structure attached.
     """
 
-    def __init__(self, molecule, forcefield, prefix_name='ligand'):
+    def __init__(self, molecule, forcefield, prefix_name='ligand', delete_out_files=True):
         if not forcefield in ['SMIRNOFF', 'GAFF', 'GAFF2']:
             raise RuntimeError('Selected forcefield %s is not GAFF/GAFF2/SMIRNOFF' % forcefield)
         else:
@@ -178,6 +178,7 @@ class ParamLigStructure(object):
             self.forcefield = str(forcefield).strip()
             self.structure = None
             self.prefix_name = prefix_name
+            self.delete_out_files = delete_out_files
 
 
     @staticmethod
@@ -257,6 +258,12 @@ class ParamLigStructure(object):
 
         # Load via ParmEd
         molecule_structure = parmed.amber.AmberParm( prmtop, inpcrd )
+
+        if self.delete_out_files:
+            os.remove(gaff_mol2_filename)
+            os.remove(frcmod_filename)
+            os.remove(prmtop)
+            os.remove(inpcrd)
 
         return molecule_structure
 

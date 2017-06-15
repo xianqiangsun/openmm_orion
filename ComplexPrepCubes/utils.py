@@ -370,7 +370,8 @@ def applyffExcipients(excipients, opt):
                                 ff_utils.ParamLigStructure(oechem.OEMol(), opt['other_forcefield']).checkTleap
 
                             # Parametrize the unrecognized excipient by using the selected FF
-                            pmd = ff_utils.ParamLigStructure(unrc_excp, opt['other_forcefield'], prefix_name=r_name)
+                            pmd = ff_utils.ParamLigStructure(unrc_excp, opt['other_forcefield'],
+                                                             prefix_name=opt['prefix_name']+'_'+r_name)
                             unrc_excp_struc = pmd.parameterize()
                             unrc_excp_struc.residues[0].name = r_name
                             unrc_excipient_structures[r_name] = unrc_excp_struc
@@ -451,7 +452,7 @@ def applyffLigand(ligand, opt):
         ff_utils.ParamLigStructure(oechem.OEMol(), opt['ligand_forcefield']).checkTleap
 
     # Parametrize the Ligand
-    pmd = ff_utils.ParamLigStructure(ligand, opt['ligand_forcefield'])
+    pmd = ff_utils.ParamLigStructure(ligand, opt['ligand_forcefield'], prefix_name=opt['prefix_name'])
     ligand_structure = pmd.parameterize()
     ligand_structure.residues[0].name = "LIG"
 
