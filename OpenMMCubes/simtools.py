@@ -256,7 +256,10 @@ def simulation(mdData, **opt):
 
     # Apply restraints
     if opt['restraints']:
-        opt['Logger'].info("RESTRAINTS mask applied to: {}".format(opt['restraints']))
+        opt['Logger'].info("RESTRAINTS mask applied to: {}"
+                           "\tRestraint weight: {}".format(opt['restraints'],
+                                                           opt['restraintWt'] *
+                                                           unit.kilocalories_per_mole/unit.angstroms**2))
         # Select atom to restraint
         res_atom_set = restraints(opt['molecule'], mask=opt['restraints'])
         opt['Logger'].info("Number of restraint atoms: {}".format(len(res_atom_set)))

@@ -155,9 +155,12 @@ class LigChargeCube(ParallelOEMolComputeCube):
                 # Ligand sanitation
                 charged_ligand = ff_utils.sanitize(ligand)
                 # Charge the ligand
-                charged_ligand = ff_utils.assignELF10charges(charged_ligand,
-                                                             max_confs=self.opt['max_conformers'],
-                                                             strictStereo=True)
+                try:
+                    charged_ligand = ff_utils.assignELF10charges(charged_ligand,
+                                                                 self.opt['max_conformers'], strictStereo=True)
+                except:
+                    charged_ligand = ff_utils.assignELF10charges(charged_ligand,
+                                                                 self.opt['max_conformers'], strictStereo=False)
 
             # If the ligand has been charged then transfer the computed
             # charges to the starting ligand
