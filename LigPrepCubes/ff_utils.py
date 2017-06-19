@@ -211,7 +211,7 @@ class ParamLigStructure(object):
             molecule = self.molecule
 
         try:
-            ff = get_data_filename('smirff99Frosst','smirff99Frosst.ffxml')
+            ff = get_data_filename('smirff99Frosst', 'smirff99Frosst.ffxml')
             with open(ff) as ffxml:
                 mol_ff = ForceField(ffxml)
         except:

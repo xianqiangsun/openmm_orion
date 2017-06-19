@@ -132,9 +132,9 @@ class LigChargeCube(ParallelOEMolComputeCube):
 
     # Override defaults for some parameters
     parameter_overrides = {
-        "prefetch_count": {"default": 1}, # 1 molecule at a time
-        "item_timeout": {"default": 3600}, # Default 1 hour limit (units are seconds)
-        "item_count": {"default": 1} # 1 molecule at a time
+        "prefetch_count": {"default": 1},  # 1 molecule at a time
+        "item_timeout": {"default": 3600},  # Default 1 hour limit (units are seconds)
+        "item_count": {"default": 1}  # 1 molecule at a time
     }
 
     max_conformers = parameter.IntegerParameter(
@@ -155,12 +155,9 @@ class LigChargeCube(ParallelOEMolComputeCube):
                 # Ligand sanitation
                 charged_ligand = ff_utils.sanitize(ligand)
                 # Charge the ligand
-                try:
-                    charged_ligand = ff_utils.assignELF10charges(charged_ligand,
-                                                                 self.opt['max_conformers'], strictStereo=True)
-                except:
-                    charged_ligand = ff_utils.assignELF10charges(charged_ligand,
-                                                                 self.opt['max_conformers'], strictStereo=False)
+
+                charged_ligand = ff_utils.assignELF10charges(charged_ligand,
+                                                             self.opt['max_conformers'], strictStereo=True)
 
             # If the ligand has been charged then transfer the computed
             # charges to the starting ligand
@@ -313,14 +310,12 @@ class ForceFieldPrep(ParallelOEMolComputeCube):
         oechem.OEMCMol - Emits force field parametrized complexes
         """
 
-
     # Override defaults for some parameters
     parameter_overrides = {
         "prefetch_count": {"default": 1}, # 1 molecule at a time
         "item_timeout": {"default": 3600}, # Default 1 hour limit (units are seconds)
         "item_count": {"default": 1} # 1 molecule at a time
     }
-
 
     protein_forcefield = parameter.DataSetInputParameter(
         'protein_forcefield',
@@ -342,7 +337,7 @@ class ForceFieldPrep(ParallelOEMolComputeCube):
     other_forcefield = parameter.StringParameter(
         'other_forcefield',
         required=True,
-        default='GAFF',
+        default='GAFF2',
         choices=['GAFF', 'GAFF2', 'SMIRNOFF'],
         help_text='Force field used to parametrize other molecules not recognized by the protein force field')
 

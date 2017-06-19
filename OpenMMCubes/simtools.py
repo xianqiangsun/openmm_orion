@@ -256,7 +256,7 @@ def simulation(mdData, **opt):
 
     # Apply restraints
     if opt['restraints']:
-        opt['Logger'].info("RESTRAINTS mask applied to: {}"
+        opt['Logger'].info("RESTRAINT mask applied to: {}"
                            "\tRestraint weight: {}".format(opt['restraints'],
                                                            opt['restraintWt'] *
                                                            unit.kilocalories_per_mole/unit.angstroms**2))
