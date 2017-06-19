@@ -369,6 +369,10 @@ def applyffExcipients(excipients, opt):
                             if opt['other_forcefield'] in ['GAFF', 'GAFF2']:
                                 ff_utils.ParamLigStructure(oechem.OEMol(), opt['other_forcefield']).checkTleap
 
+                            # TEMPORARY PATCH FOR SMIRNOFF
+                            if opt['other_forcefield'] == 'SMIRNOFF':
+                                oechem.OETriposAtomNames(unrc_excp)
+
                             # Parametrize the unrecognized excipient by using the selected FF
                             pmd = ff_utils.ParamLigStructure(unrc_excp, opt['other_forcefield'],
                                                              prefix_name=opt['prefix_name']+'_'+r_name)

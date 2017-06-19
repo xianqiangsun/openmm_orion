@@ -151,18 +151,18 @@ class LigChargeCube(ParallelOEMolComputeCube):
         try:
             charged_ligand = None
 
-            if not oechem.OEHasPartialCharges(ligand):
-                # Ligand sanitation
-                charged_ligand = ff_utils.sanitize(ligand)
-                # Charge the ligand
+            # Ligand sanitation
+            ligand = ff_utils.sanitize(ligand)
 
-                charged_ligand = ff_utils.assignELF10charges(charged_ligand,
+            if not oechem.OEHasPartialCharges(ligand):
+                # Charge the ligand
+                charged_ligand = ff_utils.assignELF10charges(ligand,
                                                              self.opt['max_conformers'], strictStereo=True)
 
             # If the ligand has been charged then transfer the computed
             # charges to the starting ligand
             if charged_ligand:
-                map_charges = {at.GetIdx():at.GetPartialCharge() for at in charged_ligand.GetAtoms()}
+                map_charges = {at.GetIdx(): at.GetPartialCharge() for at in charged_ligand.GetAtoms()}
                 for at in ligand.GetAtoms():
                     at.SetPartialCharge(map_charges[at.GetIdx()])
 
@@ -272,7 +272,6 @@ class ComplexPrep(OEMolComputeCube):
                 for conf in mol.GetConfs():
                     conf_mol = oechem.OEMol(conf)
                     complx = self.system.CreateCopy()
-                    # complx = utils.delete_shell(conf_mol, complx, 1.5, in_out='in')
                     oechem.OEAddMols(complx, conf_mol)
                     name_c = name
                     if mol.GetMaxConfIdx() > 1:

@@ -133,8 +133,6 @@ def sanitize(molecule):
     """
     mol_copy = molecule.CreateCopy()
 
-    #oechem.OEPerceiveChiral(mol_copy)
-
     # Check if the molecule has 3D coordinates
     if not oechem.OEGetDimensionFromCoords(mol_copy):
         oechem.OEThrow.Fatal("The molecule coordinates are set to zero")
@@ -144,9 +142,12 @@ def sanitize(molecule):
     # Check if the molecule has assigned aromaticity
     if not mol_copy.HasPerceived(oechem.OEPerceived_Aromaticity):
         oechem.OEAssignAromaticFlags(mol_copy, oechem.OEAroModelOpenEye)
-    # Check for any missing atom names, if found reassign all of them.
-    if any([atom.GetName() == '' for atom in mol_copy.GetAtoms()]):
-        oechem.OETriposAtomNames(mol_copy)
+
+    # TEMPORARY PATCH FOR SMIRNOFF
+    oechem.OETriposAtomNames(mol_copy)
+    # # Check for any missing atom names, if found reassign all of them
+    # if any([atom.GetName() == '' for atom in mol_copy.GetAtoms()]):
+    #     oechem.OETriposAtomNames(mol_copy)
 
     return mol_copy
 
