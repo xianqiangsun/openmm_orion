@@ -1,42 +1,93 @@
 import unittest, parmed, base64, pickle
-from LigPrepCubes.cubes import ChargeMCMol, LigandParameterization, FREDDocking
+from LigPrepCubes.cubes import ChargeMCMol, LigandParameterization, FREDDocking, LigChargeCube
 import OpenMMCubes.utils as utils
-from simtk import openmm, unit
 from floe.test import CubeTestRunner
-from openeye import oechem, oedocking
+from openeye import oechem
 
-class ChargeMCMolTester(unittest.TestCase):
+
+# class ChargeMCMolTester(unittest.TestCase):
+#     """
+#     Test the Charging/OMEGA cube
+#     Example inputs from `openmm_orion/examples/data`
+#     """
+#     def setUp(self):
+#         self.cube = ChargeMCMol('charge')
+#         self.cube.parameters()['max_conformers'] = 800
+#         self.runner = CubeTestRunner(self.cube)
+#         self.runner.start()
+#
+#     def test_success(self):
+#         print('Testing cube:', self.cube.name)
+#         ligand = utils.get_data_filename('examples', 'data/TOL.ism')
+#
+#         # Read a molecule
+#         mol = oechem.OEMol()
+#         ifs = oechem.oemolistream(ligand)
+#         if not oechem.OEReadMolecule(ifs, mol):
+#             raise Exception('Cannot read molecule from %s' % ligand)
+#         ifs.close()
+#
+#         # Process the molecules
+#         self.cube.process(mol, self.cube.intake.name)
+#
+#         # Assert that one molecule was emitted on the success port
+#         self.assertEqual(self.runner.outputs['success'].qsize(), 1)
+#         # Assert that zero molecules were emitted on the failure port
+#         self.assertEqual(self.runner.outputs['failure'].qsize(), 0)
+#
+#         # Check outmol has at least 1 conformer
+#         outmol = self.runner.outputs["success"].get()
+#         self.assertGreaterEqual(outmol.GetMaxConfIdx(), 1)
+#
+#         # Loop through atoms and make sure partial charges were set
+#         for iat, oat in zip(mol.GetAtoms(), outmol.GetAtoms()):
+#             self.assertNotEqual(iat.GetPartialCharge(), oat.GetPartialCharge)
+#
+#     def test_failure(self):
+#         pass
+#
+#     def tearDown(self):
+#         self.runner.finalize()
+
+
+class LigChargeTester(unittest.TestCase):
     """
-    Test the Charging/OMEGA cube
+    Test ELF10 charge cube
     Example inputs from `openmm_orion/examples/data`
     """
     def setUp(self):
-        self.cube = ChargeMCMol('charge')
+        self.cube = LigChargeCube('elf10charge')
+        self.cube.args.max_conforms = 800
         self.runner = CubeTestRunner(self.cube)
         self.runner.start()
 
     def test_success(self):
         print('Testing cube:', self.cube.name)
-        ligand = utils.get_data_filename('examples','data/TOL.ism')
+        # File name of a charged ligand
+        lig_fname = utils.get_data_filename('examples', 'data/lig_CAT13a_chg.oeb.gz')
 
-        # Read a molecule
+        # Read OEMol molecule
         mol = oechem.OEMol()
-        ifs = oechem.oemolistream(ligand)
+        ifs = oechem.oemolistream(lig_fname)
         if not oechem.OEReadMolecule(ifs, mol):
-            raise Exception('Cannot read molecule from %s' % ligand)
+            raise Exception('Cannot read molecule from %s' % lig_fname)
         ifs.close()
 
+        mol_copy = mol.CreateCopy()
+        # Set the partial charge to zero
+        for at in mol_copy.GetAtoms():
+            at.SetPartialCharge(0.0)
+
         # Process the molecules
-        self.cube.process(mol, self.cube.intake.name)
+        self.cube.process(mol_copy, self.cube.intake.name)
 
         # Assert that one molecule was emitted on the success port
         self.assertEqual(self.runner.outputs['success'].qsize(), 1)
         # Assert that zero molecules were emitted on the failure port
         self.assertEqual(self.runner.outputs['failure'].qsize(), 0)
 
-        # Check outmol has at least 1 conformer
+        # Check outmol
         outmol = self.runner.outputs["success"].get()
-        self.assertGreaterEqual(outmol.GetMaxConfIdx(), 1)
 
         # Loop through atoms and make sure partial charges were set
         for iat, oat in zip(mol.GetAtoms(), outmol.GetAtoms()):
@@ -47,6 +98,7 @@ class ChargeMCMolTester(unittest.TestCase):
 
     def tearDown(self):
         self.runner.finalize()
+
 
 class LigandParamTester(unittest.TestCase):
     """

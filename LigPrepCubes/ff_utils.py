@@ -1,101 +1,122 @@
-import io, os, traceback, string, random, subprocess, tempfile, parmed
+import subprocess, tempfile, parmed
 from openeye import oechem, oequacpac
 import openmoltools
 from openmoltools.openeye import *
 from OpenMMCubes.utils import get_data_filename
-import logging 
 
-def assignCharges(molecule, max_confs=800, strictStereo=True, normalize=True, keep_confs=None):
-    """Generate charges for an OpenEye OEMol molecule.
-    Adapted get_charges() from
-    https://github.com/choderalab/openmoltools/blob/master/openmoltools/openeye.py
-    to use new oequacpac.OEAssignCharges()
-    Parameters
-    ----------
-    molecule : OEMol
-        Molecule for which to generate conformers.
-        Omega will be used to generate max_confs conformations.
-    max_confs : int, optional, default=800
-        Max number of conformers to generate
-    strictStereo : bool, optional, default=True
-        If False, permits smiles strings with unspecified stereochemistry.
-        See https://docs.eyesopen.com/omega/usage.html
-    normalize : bool, optional, default=True
-        If True, normalize the molecule by checking aromaticity, adding
-        explicit hydrogens, and renaming by IUPAC name.
-    keep_confs : int, optional, default=None
-        If None, apply the charges to the provided conformation and return
-        this conformation, unless no conformation is present.
-        Otherwise, return some or all of the generated
-        conformations. If -1, all generated conformations are returned.
-        Otherwise, keep_confs = N will return an OEMol with up to N
-        generated conformations.  Multiple conformations are still used to
-        *determine* the charges.
-    Returns
-    -------
-    charged_copy : OEMol
-        A molecule with OpenEye's recommended AM1BCC charge selection scheme.
-    Notes
-    -----
-    Roughly follows
-    http://docs.eyesopen.com/toolkits/cookbook/python/modeling/am1-bcc.html
-    """
 
-    # If there is no geometry, return at least one conformation.
-    if molecule.GetConfs() == 0:
-        keep_confs = 1
-
-    oechem = import_("openeye.oechem")
-    if not oechem.OEChemIsLicensed(): raise(ImportError("Need License for OEChem!"))
-    oequacpac = import_("openeye.oequacpac")
-    if not oequacpac.OEQuacPacIsLicensed(): raise(ImportError("Need License for oequacpac!"))
-
-    if normalize:
-        molecule = normalize_molecule(molecule)
-    else:
-        molecule = oechem.OEMol(molecule)
-
-    charged_copy = generate_conformers(molecule, max_confs=max_confs, strictStereo=strictStereo)  # Generate up to max_confs conformers
-
-    # 2017.2.1 Release new charging function
-    status = oequacpac.OEAssignCharges(charged_copy, oequacpac.OEAM1BCCCharges())
-
-    if not status:
-        raise(RuntimeError("OEAssignCharges returned error code %d" % status))
-
-    #Determine conformations to return
-    if keep_confs == None:
-        #If returning original conformation
-        original = molecule.GetCoords()
-        #Delete conformers over 1
-        for k, conf in enumerate( charged_copy.GetConfs() ):
-            if k > 0:
-                charged_copy.DeleteConf(conf)
-        #Copy coordinates to single conformer
-        charged_copy.SetCoords( original )
-    elif keep_confs > 0:
-        
-        logging.warning("Keep_conformers is set to: None. Docking may be required")
-        
-        #Otherwise if a number is provided, return this many confs if available
-        for k, conf in enumerate( charged_copy.GetConfs() ):
-            if k > keep_confs - 1:
-                charged_copy.DeleteConf(conf)
-    elif keep_confs == -1:
-        #If we want all conformations, continue
-        pass
-    else:
-        #Not a valid option to keep_confs
-        raise(ValueError('Not a valid option to keep_confs in get_charges.'))
-
-    return charged_copy
+# def assignCharges(molecule, max_confs=800, strictStereo=True, normalize=True, keep_confs=None):
+#     """Generate charges for an OpenEye OEMol molecule.
+#     Adapted get_charges() from
+#     https://github.com/choderalab/openmoltools/blob/master/openmoltools/openeye.py
+#     to use new oequacpac.OEAssignCharges()
+#     Parameters
+#     ----------
+#     molecule : OEMol
+#         Molecule for which to generate conformers.
+#         Omega will be used to generate max_confs conformations.
+#     max_confs : int, optional, default=800
+#         Max number of conformers to generate
+#     strictStereo : bool, optional, default=True
+#         If False, permits smiles strings with unspecified stereochemistry.
+#         See https://docs.eyesopen.com/omega/usage.html
+#     normalize : bool, optional, default=True
+#         If True, normalize the molecule by checking aromaticity, adding
+#         explicit hydrogens, and renaming by IUPAC name.
+#     keep_confs : int, optional, default=None
+#         If None, apply the charges to the provided conformation and return
+#         this conformation, unless no conformation is present.
+#         Otherwise, return some or all of the generated
+#         conformations. If -1, all generated conformations are returned.
+#         Otherwise, keep_confs = N will return an OEMol with up to N
+#         generated conformations.  Multiple conformations are still used to
+#         *determine* the charges.
+#     Returns
+#     -------
+#     charged_copy : OEMol
+#         A molecule with OpenEye's recommended AM1BCC charge selection scheme.
+#     Notes
+#     -----
+#     Roughly follows
+#     http://docs.eyesopen.com/toolkits/cookbook/python/modeling/am1-bcc.html
+#     """
+#
+#     # If there is no geometry, return at least one conformation.
+#     if molecule.GetConfs() == 0:
+#         keep_confs = 1
+#
+#     oechem = import_("openeye.oechem")
+#     if not oechem.OEChemIsLicensed(): raise(ImportError("Need License for OEChem!"))
+#     oequacpac = import_("openeye.oequacpac")
+#     if not oequacpac.OEQuacPacIsLicensed(): raise(ImportError("Need License for oequacpac!"))
+#
+#     if normalize:
+#         molecule = normalize_molecule(molecule)
+#     else:
+#         molecule = oechem.OEMol(molecule)
+#
+#     charged_copy = generate_conformers(molecule, max_confs=max_confs, strictStereo=strictStereo)  # Generate up to max_confs conformers
+#
+#     # 2017.2.1 Release new charging function
+#     status = oequacpac.OEAssignCharges(charged_copy, oequacpac.OEAM1BCCCharges())
+#
+#     if not status:
+#         raise(RuntimeError("OEAssignCharges returned error code %d" % status))
+#
+#     # Determine conformations to return
+#     if keep_confs == None:
+#         # If returning original conformation
+#         original = molecule.GetCoords()
+#         # Delete conformers over 1
+#         for k, conf in enumerate( charged_copy.GetConfs() ):
+#             if k > 0:
+#                 charged_copy.DeleteConf(conf)
+#         # Copy coordinates to single conformer
+#         charged_copy.SetCoords( original )
+#     elif keep_confs > 0:
+#
+#         logging.warning("Keep_conformers is set to: None. Docking may be required")
+#
+#         # Otherwise if a number is provided, return this many confs if available
+#         for k, conf in enumerate( charged_copy.GetConfs() ):
+#             if k > keep_confs - 1:
+#                 charged_copy.DeleteConf(conf)
+#     elif keep_confs == -1:
+#         # If we want all conformations, continue
+#         pass
+#     else:
+#         # Not a valid option to keep_confs
+#         raise(ValueError('Not a valid option to keep_confs in get_charges.'))
+#
+#     return charged_copy
 
 
 def assignELF10charges(molecule, max_confs=800, strictStereo=True):
+    """
+     This function computes atomic partial charges for an OEMol by
+     using the ELF10 method
+
+    Parameters:
+    -----------
+    molecule : OEMol object
+        The molecule that needs to be charged
+    max_confs : integer
+        The max number of conformers used to calculate the atomic partial charges
+    strictStereo : bool
+        a flag used to check if atoms need to have assigned stereo chemistry or not
+
+    Return:
+    -------
+    mol_copy : OEMol
+        a copy of the original molecule with assigned atomic partial charges
+    """
 
     mol_copy = molecule.CreateCopy()
 
-    if not mol_copy.GetMaxConfIdx() > max_confs:
+    # The passed molecule could have already conformers. If the conformer number
+    # does not exceed the max_conf threshold then max_confs conformations will
+    # be generated
+    if not mol_copy.GetMaxConfIdx() > 200:
         # Generate up to max_confs conformers
         mol_copy = generate_conformers(mol_copy, max_confs=max_confs, strictStereo=strictStereo)
 
@@ -181,10 +202,9 @@ class ParamLigStructure(object):
             self.prefix_name = prefix_name
             self.delete_out_files = delete_out_files
 
-
     @staticmethod
     def checkTleap(self):
-        #Try to check if tleap is going to fail
+        # Try to check if tleap is going to fail
         with open('tleap_commands', 'w') as cmd:
             cmd.write( "source leaprc.%s; quit" % self.forcefield.lower() )
         tmp = subprocess.getoutput('tleap -f tleap_commands')
@@ -230,7 +250,7 @@ class ParamLigStructure(object):
         if not forcefield:
             forcefield = self.forcefield
 
-        #Try to check if tleap is going to fail
+        #  Try to check if tleap is going to fail
         self.checkCharges(molecule)
 
         # Determine formal charge (antechamber needs as argument)
@@ -255,10 +275,10 @@ class ParamLigStructure(object):
         # Run tleap using specified forcefield
         prmtop, inpcrd = openmoltools.amber.run_tleap(self.prefix_name, gaff_mol2_filename,
                                                       frcmod_filename,
-                                                      leaprc = 'leaprc.%s' % forcefield.lower())
+                                                      leaprc='leaprc.%s' % forcefield.lower())
 
         # Load via ParmEd
-        molecule_structure = parmed.amber.AmberParm( prmtop, inpcrd )
+        molecule_structure = parmed.amber.AmberParm(prmtop, inpcrd)
 
         if self.delete_out_files:
             os.remove(gaff_mol2_filename)

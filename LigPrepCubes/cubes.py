@@ -1,12 +1,13 @@
-import io, os, random, string, subprocess, tempfile, traceback
-import openmoltools, parmed
-from openeye import oechem, oedocking, oeomega
+import random, string,  traceback
+from openeye import oechem, oedocking
 import OpenMMCubes.utils as utils
 from LigPrepCubes import ff_utils
-from floe.api import OEMolComputeCube, parameter
+from floe.api import OEMolComputeCube, ParallelOEMolComputeCube, parameter
+
 
 def _generateRandomID(size=5, chars=string.ascii_uppercase + string.digits):
     return ''.join(random.choice(chars) for _ in range(size))
+
 
 class ChargeMCMol(OEMolComputeCube):
     title = "Charge Multiconf. Molecules"
@@ -34,23 +35,19 @@ class ChargeMCMol(OEMolComputeCube):
         - Generic Tags: { IDTag: str }
     """
 
-    
     max_conformers = parameter.IntegerParameter(
         'max_conformers',
         default=800,
         help_text="Max number of conformers")
-
 
     keep_conformers = parameter.IntegerParameter(
         'keep_conformers',
         default=None,
         help_text="Select the number of conformers to keep")
 
-    
     def begin(self):
         self.opt = vars(self.args)
 
-    
     def process(self, mol, port):
         try:
             if not mol.GetTitle():
@@ -60,7 +57,7 @@ class ChargeMCMol(OEMolComputeCube):
                 # Store the IDTag from the SMILES file.
                 idtag = mol.GetTitle()
 
-            #Generate the charged molecule, keeping the first conf.
+            # Generate the charged molecule, keeping the first conf.
             charged_mol = ff_utils.assignCharges(mol, max_confs=self.opt['max_conformers'], strictStereo=True,
                                                  normalize=True, keep_confs=self.opt['keep_conformers'])
             # Store the IUPAC name from normalize_molecule
@@ -83,6 +80,72 @@ class ChargeMCMol(OEMolComputeCube):
             # Return failed molecule
             self.failure.emit(mol)
 
+
+class LigChargeCube(ParallelOEMolComputeCube):
+    title = "Ligand Charge Cube"
+    version = "0.0.0"
+    classification = [["Ligand Preparation", "OEChem", "Ligand preparation"]]
+    tags = ['OEChem', 'Quacpac']
+    description = """
+           This cube charges the Ligand by using the ELF10 charge method
+
+           Input:
+           -------
+           oechem.OEMCMol - Streamed-in of the ligand molecules
+
+           Output:
+           -------
+           oechem.OEMCMol - Emits the charged ligands
+           """
+
+    # Override defaults for some parameters
+    parameter_overrides = {
+        "prefetch_count": {"default": 1},  # 1 molecule at a time
+        "item_timeout": {"default": 3600},  # Default 1 hour limit (units are seconds)
+        "item_count": {"default": 1}  # 1 molecule at a time
+    }
+
+    max_conformers = parameter.IntegerParameter(
+        'max_conformers',
+        default=800,
+        help_text="Max number of ligand conformers")
+
+    def begin(self):
+        self.opt = vars(self.args)
+        self.opt['Logger'] = self.log
+
+    def process(self, ligand, port):
+
+        try:
+            charged_ligand = None
+
+            # Ligand sanitation
+            ligand = ff_utils.sanitize(ligand)
+
+            if not oechem.OEHasPartialCharges(ligand):
+                # Charge the ligand
+                charged_ligand = ff_utils.assignELF10charges(ligand,
+                                                             self.opt['max_conformers'], strictStereo=True)
+
+            # If the ligand has been charged then transfer the computed
+            # charges to the starting ligand
+            if charged_ligand:
+                map_charges = {at.GetIdx(): at.GetPartialCharge() for at in charged_ligand.GetAtoms()}
+                for at in ligand.GetAtoms():
+                    at.SetPartialCharge(map_charges[at.GetIdx()])
+
+            self.success.emit(ligand)
+
+        except Exception as e:
+            # Attach error message to the molecule that failed
+            self.log.error(traceback.format_exc())
+            ligand.SetData('error', str(e))
+            # Return failed mol
+            self.failure.emit(ligand)
+
+        return
+
+
 class LigandParameterization(OEMolComputeCube):
     title = "Ligand Parameterization"
     version = "0.0.2"
@@ -90,7 +153,7 @@ class LigandParameterization(OEMolComputeCube):
     ["Ligand Preparation", "AMBER", "Forcefield Assignment"]]
     tags = ['Openmoltools', 'ParmEd', 'SMARTY', 'SMIRNOFF', 'GAFF']
     description = """
-    Parameterize the ligand with the chosen forcefield.
+    Parameterize the ligand with the chosen force field.
     Supports GAFF/GAFF2/SMIRNOFF.
     Generate a parameterized parmed Structure of the molecule.
 
@@ -171,7 +234,7 @@ class FREDDocking(OEMolComputeCube):
         if not oedocking.OEReadReceptorFile(receptor, str(self.args.receptor)):
             raise Exception("Unable to read receptor from {0}".format(self.args.receptor))
 
-        #Initialize Docking
+        # Initialize Docking
         dock_method = oedocking.OEDockMethod_Hybrid
         if not oedocking.OEReceptorHasBoundLigand(receptor):
             oechem.OEThrow.Warning("No bound ligand, switching OEDockMethod to ChemGauss4.")

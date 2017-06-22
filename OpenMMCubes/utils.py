@@ -1,4 +1,4 @@
-import io, os, base64, parmed, mdtraj, pdbfixer, glob, tarfile
+import io, os, base64, parmed, tarfile
 import numpy as np
 from sys import stdout
 from tempfile import NamedTemporaryFile
@@ -12,6 +12,7 @@ except ImportError:
     import pickle
 # Prevents repeated downloads of the same Dataset
 download_cache = {}
+
 
 class PackageOEMol(object):
     """
@@ -216,12 +217,14 @@ class PackageOEMol(object):
                 molecule.SetData(oechem.OEGetTag(k), v)
         return molecule
 
+
 def cleanup(tmpfiles):
     for tmp in tmpfiles:
         try:
             os.remove(tmp)
         except Exception as e:
             pass
+
 
 def get_data_filename(package_root, relative_path):
     """Get the full path of the files installed in python packages or included
@@ -246,6 +249,7 @@ def get_data_filename(package_root, relative_path):
         raise ValueError("Sorry! %s does not exist. If you just added it, you'll have to re-install" % fn)
     return fn
 
+
 def getPositionsFromOEMol(molecule):
     positions = unit.Quantity(
         np.zeros([molecule.NumAtoms(), 3], np.float32), unit.angstroms)
@@ -253,6 +257,7 @@ def getPositionsFromOEMol(molecule):
     for index in range(molecule.NumAtoms()):
         positions[index, :] = unit.Quantity(coords[index], unit.angstroms)
     return positions
+
 
 def combinePositions(proteinPositions, molPositions):
     # Concatenate positions arrays (ensures same units)
@@ -270,6 +275,7 @@ def combinePositions(proteinPositions, molPositions):
             positions[index, 2] = z
     positions = unit.Quantity(positions, positions_unit)
     return positions
+
 
 def download_dataset_to_file(dataset_id):
     """

@@ -1,6 +1,7 @@
 from __future__ import unicode_literals
 from floe.api import WorkFloe, OEMolIStreamCube, OEMolOStreamCube
-from ComplexPrepCubes.cubes import Reader, Splitter, SolvationCube, LigChargeCube, ComplexPrep, ForceFieldPrep
+from ComplexPrepCubes.cubes import Reader, Splitter, SolvationCube, ComplexPrep, ForceFieldPrep
+from LigPrepCubes.cubes import LigChargeCube
 
 job = WorkFloe("ComplexPrep")
 

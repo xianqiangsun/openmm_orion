@@ -237,7 +237,7 @@ def simulation(mdData, **opt):
             box_v = structure.box_vectors.in_units_of(unit.angstrom)/unit.angstrom
             box_v = np.array([box_v[0][0], box_v[1][1], box_v[2][2]])
             # Translation vector
-            delta = box_v/2 -cog
+            delta = box_v/2 - cog
             # New Coordinates
             new_coords = coords + delta
             structure.coordinates = new_coords
@@ -282,7 +282,7 @@ def simulation(mdData, **opt):
     if opt['platform'] == 'Auto':
         simulation = app.Simulation(topology, system, integrator)
     else:
-        try :
+        try:
             platform = openmm.Platform.getPlatformByName(opt['platform'])
             simulation = app.Simulation(topology, system, integrator, platform)
         except Exception as e:
@@ -339,10 +339,11 @@ def simulation(mdData, **opt):
         if opt['convert']:
             opt['Logger'].info('Converting trajectories to: {trajectory_filetype}'.format(**opt))
             mdTrajConvert(simulation, outfname=opt['outfname'],
-                               trajectory_selection=opt['trajectory_selection'],
-                               trajectory_filetype=opt['trajectory_filetype'])
+                          trajectory_selection=opt['trajectory_selection'],
+                          trajectory_filetype=opt['trajectory_filetype'], logger=opt['Logger'])
 
-        state = simulation.context.getState(getPositions=True, getVelocities=True, getEnergy=True, enforcePeriodicBox=True)
+        state = simulation.context.getState(getPositions=True, getVelocities=True,
+                                            getEnergy=True, enforcePeriodicBox=True)
         
     elif opt['SimType'] == 'min':
         # Start Simulation
@@ -416,7 +417,7 @@ def getReporters(totalSteps=None, outfname=None, **opt):
     return reporters
 
 
-def mdTrajConvert(simulation=None, outfname=None, trajectory_selection=None, trajectory_filetype='NetCDF'):
+def mdTrajConvert(simulation=None, outfname=None, trajectory_selection=None, trajectory_filetype='NetCDF', logger=None):
     """
     Used to convert the (mdTraj) trajectory file between: HDF5, DCD, or NetCDF.
     Can also be used to write out a subset of the trajectory.
@@ -436,12 +437,14 @@ def mdTrajConvert(simulation=None, outfname=None, trajectory_selection=None, tra
         Can be HDF5, DCD, or NetCDF.
     outfname : str
         Specifies the filename prefix for the trajectory files.
+    logger: Logger object
+        The logger used to output messages
 
     """
-    if opt['Logger'] is None:
+    if logger is None:
         printfile = sys.stdout
     else:
-        printfile = opt['Logger'].file
+        printfile = logger.file
 
     atom_indices = None
     traj_dict = { 'HDF5' : outfname +'.h5',
@@ -502,7 +505,7 @@ def restraints(system, mask=''):
         mask = "protein diff resid A:1"
     """
 
-    def split(mol):
+    def split(system):
         """
         This function splits the passed molecule in components and tracks the
         mapping between the original molecule and the split components. The
@@ -538,8 +541,8 @@ def restraints(system, mask=''):
         wat_set = set()
         excp_set = set()
         ion_set = set()
-        cofactor_set = set()
-        system_set = set()
+        # cofactor_set = set()
+        # system_set = set()
 
         # Atom Bond Set vector used to contains the whole system
         frags = oechem.OEAtomBondSetVector()
@@ -571,7 +574,7 @@ def restraints(system, mask=''):
         lig = oechem.OEMol()
         wat = oechem.OEMol()
         excp = oechem.OEMol()
-        import logging
+
         # Split the protein from the system
         atommap = oechem.OEAtomArray(system.GetMaxAtomIdx())
         if not oechem.OECombineMolComplexFragments(prot, frags, opt, opt.GetProteinFilter(), atommap):

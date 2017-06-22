@@ -557,8 +557,8 @@ class OpenMMnptCube(ParallelOEMolComputeCube):
     platform = parameter.StringParameter(
         'platform',
         default='Auto', 
-        choices=[ 'Auto', 'Reference', 'CPU', 'CUDA', 'OpenCL'],
-        help_text= 'Select which platform to use to run the simulation')
+        choices=['Auto', 'Reference', 'CPU', 'CUDA', 'OpenCL'],
+        help_text='Select which platform to use to run the simulation')
 
     def begin(self):
         self.opt = vars(self.args)

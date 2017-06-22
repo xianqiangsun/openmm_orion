@@ -9,7 +9,7 @@ from openeye import oechem
 
 class ConversionTester(unittest.TestCase):
     """
-    Test the Complex assemblecube
+    Test the Complex assemble cube
     Example inputs from `openmm_orion/examples/data/T4-protein.pdb`
     """
     def setUp(self):
@@ -57,7 +57,6 @@ class ConversionTester(unittest.TestCase):
 
         self.assertEqual(dic_bond_openmm, dic_bond_oe)
 
-        
     def test_openmmTop_to_oemol(self):
         protein = OpenMMCubes.utils.get_data_filename('examples','data/T4-protein.pdb')
         
