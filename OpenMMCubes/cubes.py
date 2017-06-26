@@ -1,137 +1,9 @@
 import traceback
-from openeye import oechem
-from simtk.openmm import app
+
 import OpenMMCubes.simtools as simtools
 import OpenMMCubes.utils as utils
 from ComplexPrepCubes import utils as complex_utils
 from floe.api import ParallelOEMolComputeCube, parameter
-
-
-# class OpenMMComplexSetup(ParallelOEMolComputeCube):
-#     title = "OpenMM Complex Setup"
-#     version = "0.0.2"
-#     classification = [["Protein Preparation", "OpenMM", "Force field Assignment"],
-#     ["Protein Preparation", "PDBFixer", "Solvate"],
-#     ["Protein Preparation", "PDBFixer", "Add Missing Atoms"],
-#     ["Protien Preparation", "PDBFixer", "Assign Protonation States"],
-#     ["Protein-Ligand Preparation", "ParmEd", "Generate Complex"]]
-#     tags = ['PDBFixer', 'OpenMM', 'ParmEd', 'Parallel Cube']
-#     description = """
-#     Using PDBFixer, add missing atoms, assign protonation state with a given pH,
-#     solvate the system with TIP3P, and assign force field parameters (default: amber99sbildn).
-#     Generate a parametrized Parmed Structure of the solvated protein:ligand complex.
-#
-#     Input:
-#     -------
-#     protein - Requires a PDB file of the protein.
-#     oechem.OEMol - Streamed-in charged and docked molecule with explicit hydrogens.
-#
-#     Output:
-#     -------
-#     oechem.OEMol - Emits molecule with attachments:
-#         - SDData Tags: { Structure: str <parmed.Structure> }
-#         - Generic Tags: { Structure : parmed.Structure (base64-encoded) }
-#     """
-#
-#     # Override defaults for some parameters
-#     parameter_overrides = {
-#         "prefetch_count": {"default": 1}, # 1 molecule at a time
-#         "item_timeout": {"default": 3600}, # Default 1 hour limit (units are seconds)
-#         "item_count": {"default": 1} # 1 molecule at a time
-#     }
-#
-#     protein = parameter.DataSetInputParameter(
-#         'protein',
-#         required=True,
-#         help_text='Protein PDB file')
-#
-#     pH = parameter.DecimalParameter(
-#         'pH',
-#         default=7.4,
-#         help_text="Solvent pH used to select appropriate protein protonation state.")
-#
-#     solvent_padding = parameter.DecimalParameter(
-#         'solvent_padding',
-#         default=10,
-#         help_text="Padding around protein for solvent box (angstroms)")
-#
-#     salt_concentration = parameter.DecimalParameter(
-#         'salt_concentration',
-#         default=100,
-#         help_text="Salt concentration (millimolar)")
-#
-#     protein_forcefield = parameter.DataSetInputParameter(
-#         'protein_forcefield',
-#         default='amber99sbildn.xml',
-#         help_text='Forcefield parameters for protein')
-#
-#     solvent_forcefield = parameter.DataSetInputParameter(
-#         'solvent_forcefield',
-#         default='tip3p.xml',
-#         help_text='Forcefield parameters for solvent')
-#
-#     def begin(self):
-#         protein = oechem.OEMol()
-#         self.args.protein = utils.download_dataset_to_file(self.args.protein)
-#         # Read the PDB file into an OEMol
-#         with oechem.oemolistream(self.args.protein) as ifs:
-#             if not oechem.OEReadMolecule(ifs, protein):
-#                 raise RuntimeError("Error reading protein")
-#         # Read the PDB file into an OpenMM PDBFile object
-#         self.proteinpdb = app.PDBFile(self.args.protein)
-#
-#         self.opt = vars(self.args)
-#         self.opt['Logger'] = self.log
-#
-#     def process(self, mol, port):
-#         try:
-#             # Check for generic data.
-#             if utils.PackageOEMol.checkTags(mol, ['Structure']):
-#                 gd = utils.PackageOEMol.unpack(mol)
-#                 molecule_structure = gd['Structure']
-#                 self.opt['outfname'] = '{}-complex'.format(gd['IDTag'])
-#
-#             # Generate parameterized protein Structure
-#             protein_structure = simtools.genProteinStructure(
-#                 self.proteinpdb, **self.opt)
-#
-#             # Merge structures to prevent adding solvent in pocket
-#             # Ligand must be in docked position
-#             pl_structure = simtools.mergeStructure(
-#                 protein_structure, molecule_structure)
-#             self.log.info('{}: {}'.format(self.opt['outfname'], pl_structure))
-#
-#             # Returns solvated system w/o ligand.
-#             solv_structure = simtools.solvateComplexStructure(
-#                 pl_structure, **self.opt)
-#
-#             # Remerge with ligand structure
-#             full_structure = simtools.mergeStructure(
-#                 solv_structure, molecule_structure)
-#             self.log.info('Solvated {}: {}'.format(
-#                 self.opt['outfname'], full_structure))
-#             self.log.info('\tBox = {}'.format(full_structure.box))
-#
-#
-#             # Attach the Structure to OEMol
-#             oechem.OESetSDData(mol, 'Structure', str(full_structure))
-#             packedmol = utils.PackageOEMol.pack(mol, full_structure)
-#             packedmol.SetData(oechem.OEGetTag(
-#                 'outfname'), self.opt['outfname'])
-#
-#             # Save the reference positions in OEMol
-#             ref_positions = full_structure.positions
-#             packedpos = utils.PackageOEMol.encodePyObj(ref_positions)
-#             packedmol.SetData(oechem.OEGetTag('OEMDDataRefPositions'), packedpos)
-#
-#             self.success.emit(packedmol)
-#
-#         except Exception as e:
-#             # Attach error message to the molecule that failed
-#             self.log.error(traceback.format_exc())
-#             mol.SetData('error', str(e))
-#             # Return failed molecule
-#             self.failure.emit(mol)
 
 
 class OpenMMminimizeCube(ParallelOEMolComputeCube):
@@ -459,8 +331,8 @@ class OpenMMnptCube(ParallelOEMolComputeCube):
     # Override defaults for some parameters
     parameter_overrides = {
         "prefetch_count": {"default": 1}, # 1 molecule at a time
-        "item_timeout": {"default": 28800}, # Default 8 hour limit (units are seconds)
-        "item_count": {"default": 1} # 1 molecule at a time
+        "item_timeout": {"default": 28800},  # Default 8 hour limit (units are seconds)
+        "item_count": {"default": 1}  # 1 molecule at a time
     }
 
     temperature = parameter.DecimalParameter(

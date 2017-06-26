@@ -1,84 +1,8 @@
-import random, string,  traceback
+import traceback
 from openeye import oechem, oedocking
 import OpenMMCubes.utils as utils
 from LigPrepCubes import ff_utils
 from floe.api import OEMolComputeCube, ParallelOEMolComputeCube, parameter
-
-
-def _generateRandomID(size=5, chars=string.ascii_uppercase + string.digits):
-    return ''.join(random.choice(chars) for _ in range(size))
-
-
-class ChargeMCMol(OEMolComputeCube):
-    title = "Charge Multiconf. Molecules"
-    version = "0.0.2"
-    classification = [ ["Ligand Preparation", "OEChem", "Add Hydrogen"],
-    ["Ligand Preparation", "OEChem", "Check Aromaticity"],
-    ["Ligand Preparation", "OEChem", "IUPAC"],
-    ["Ligand Preparation", "OMEGA", "Conformer Generation"],
-    ["Ligand Preparation", "QUACPAC", "Charge Assignment"]]
-    tags = ['Openmoltools', 'OMEGA', 'QUACPAC']
-    description = """
-    Calls openmoltools to perform the following:
-    (1) 'normalize_molecule': checks aromaticity, add explicit hydrogens and renaming by IUPAC.
-    (2) Generate multiple conformers with OMEGA.
-    (3) Assigns partial charges with oequacpac.OEAssignCharges (req: OpenEye-toolkits: 2017.2.1).
-
-    Input:
-    -------
-    oechem.OEMol - Streamed-in uncharged molecule with no hydrogens.
-
-    Output:
-    -------
-    oechem.OEMCMol - Emits a charged multi-conformer molecule with attachments:
-        - SDData Tags: { IUPAC : str, IDTag : str }
-        - Generic Tags: { IDTag: str }
-    """
-
-    max_conformers = parameter.IntegerParameter(
-        'max_conformers',
-        default=800,
-        help_text="Max number of conformers")
-
-    keep_conformers = parameter.IntegerParameter(
-        'keep_conformers',
-        default=None,
-        help_text="Select the number of conformers to keep")
-
-    def begin(self):
-        self.opt = vars(self.args)
-
-    def process(self, mol, port):
-        try:
-            if not mol.GetTitle():
-                idtag = _generateRandomID()
-                self.log.warn('Mol title not found, setting to {}'.format(idtag))
-            else:
-                # Store the IDTag from the SMILES file.
-                idtag = mol.GetTitle()
-
-            # Generate the charged molecule, keeping the first conf.
-            charged_mol = ff_utils.assignCharges(mol, max_confs=self.opt['max_conformers'], strictStereo=True,
-                                                 normalize=True, keep_confs=self.opt['keep_conformers'])
-            # Store the IUPAC name from normalize_molecule
-            iupac = [ charged_mol.GetTitle().strip() ]
-            # Pack as list incase of commas in IUPUC
-
-            # Keep it as an SD Tag
-            oechem.OESetSDData(charged_mol, 'IUPAC', str(iupac))
-            # Reset the charged mol title to the original IDTag
-            charged_mol.SetTitle(idtag)
-            charged_mol.SetData(oechem.OEGetTag('IDTag'), idtag)
-            oechem.OESetSDData(charged_mol, 'IDTag', idtag)
-
-            self.success.emit(charged_mol)
-
-        except Exception as e:
-            # Attach error message to the molecule that failed
-            self.log.error(traceback.format_exc())
-            mol.SetData('error', str(e))
-            # Return failed molecule
-            self.failure.emit(mol)
 
 
 class LigChargeCube(ParallelOEMolComputeCube):

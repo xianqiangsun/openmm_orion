@@ -3,93 +3,12 @@ import pytest
 from floe.test import CubeTestRunner
 from openeye import oechem
 import OpenMMCubes.utils as utils
+from OpenMMCubes.simtools import restraints
 from OpenMMCubes.cubes import OpenMMminimizeCube, OpenMMnvtCube, OpenMMnptCube
 from simtk import unit, openmm
 from simtk.openmm import app
+import pickle
 
-# class SetupCubeTester(unittest.TestCase):
-#     """
-#     Test the OpenMM complex setup cube
-#     Example inputs from `openmm_orion/examples/data`
-#     """
-#     def setUp(self):
-#         self.cube = OpenMMComplexSetup("complex_setup")
-#         self.cube.args.protein = utils.get_data_filename('examples', 'data/epox_hydrolase_apo-protein.pdb')
-#         self.cube.args.solvent_padding = 1
-#         self.cube.args.salt_concentration = 10
-#         self.runner = CubeTestRunner(self.cube)
-#         self.runner.start()
-#
-#     def test_success(self):
-#         print('Testing cube:', self.cube.name)
-#         # Read a molecule
-#         mol = oechem.OEMol()
-#         ifs = oechem.oemolistream(utils.get_data_filename('examples', 'data/TOL-smnf.oeb.gz'))
-#         if not oechem.OEReadMolecule(ifs, mol):
-#             raise Exception('Cannot read molecule')
-#         ifs.close()
-#
-#         # Process the molecules
-#         self.cube.process(mol, self.cube.intake.name)
-#         # Assert that one molecule was emitted on the success port
-#         self.assertEqual(self.runner.outputs['success'].qsize(), 1)
-#         # Assert that zero molecules were emitted on the failure port
-#         self.assertEqual(self.runner.outputs['failure'].qsize(), 0)
-#
-#         # Check for ParmEd Structure
-#         outmol = self.runner.outputs["success"].get()
-#         self.assertTrue(outmol.HasData(oechem.OEGetTag('Structure')))
-#         # Check structure is for protein:ligand complex, not molecule
-#         gd = utils.PackageOEMol.unpack(mol)
-#         self.assertGreater(len(gd['Structure'].atoms), mol.NumAtoms())
-#
-#     def test_failure(self):
-#         pass
-#
-#     def tearDown(self):
-#         self.runner.finalize()
-
-
-# class SimulationCubeTester(unittest.TestCase):
-#     """
-#     Test the OpenMM Simulation cube
-#     Example inputs from `openmm_orion/examples/data`
-#     """
-#     def setUp(self):
-#         self.cube = OpenMMSimulation("md")
-#         self.runner = CubeTestRunner(self.cube)
-#         self.cube.args.steps = 3
-#         self.cube.args.reporter_interval = 1
-#         self.cube.args.tarxz = False
-#         self.runner = CubeTestRunner(self.cube)
-#         self.runner.start()
-#
-#     def tearDown(self):
-#         self.runner.finalize()
-#
-#     def test_success(self):
-#         print('Testing cube:', self.cube.name)
-#         mol = oechem.OEMol()
-#         fname = get_data_filename('examples','data/TOL-complex.oeb.gz')
-#         ifs = oechem.oemolistream(fname)
-#         if not oechem.OEReadMolecule(ifs, mol):
-#             raise Exception('Cannot read complex from %s' % fname)
-#         ifs.close()
-#
-#         # Process the molecules
-#         self.cube.process(mol, self.cube.intake.name)
-#         # Assert that one molecule was emitted on the success port
-#         self.assertEqual(self.runner.outputs['success'].qsize(), 1)
-#         # Assert that zero molecules were emitted on the failure port
-#         self.assertEqual(self.runner.outputs['failure'].qsize(), 0)
-#
-#         outmol = self.runner.outputs["success"].get()
-#         self.assertTrue(outmol.HasData(oechem.OEGetTag('Structure')))
-#         self.assertTrue(outmol.HasData(oechem.OEGetTag('State')))
-#         self.assertTrue(outmol.HasData(oechem.OEGetTag('Log')))
-#
-#     def test_failure(self):
-#         pass
 
 class MinimizationCubeTester(unittest.TestCase):
     """
@@ -136,14 +55,14 @@ class MinimizationCubeTester(unittest.TestCase):
 
     def _test_success(self):
         print('Testing cube:', self.cube.name)
-        # File name of a charged ligand
-        lig_fname = utils.get_data_filename('examples', 'data/pbase_lcat13a_complex.oeb.gz')
+        # Complex file name
+        complex_fname = utils.get_data_filename('examples', 'data/pbace_lcat13a_complex.oeb.gz')
 
         # Read OEMol molecule
         mol = oechem.OEMol()
 
-        with oechem.oemolistream(lig_fname) as ifs:
-          oechem.OEReadMolecule(ifs, mol)
+        with oechem.oemolistream(complex_fname) as ifs:
+            oechem.OEReadMolecule(ifs, mol)
 
         # Calculate starting potential energy
         eng_i = self.calculate_eng(mol)
@@ -237,13 +156,13 @@ class NVTCubeTester(unittest.TestCase):
 
     def _test_success(self):
         print('Testing cube:', self.cube.name)
-        # File name of a charged ligand
-        lig_fname = utils.get_data_filename('examples', 'data/pP38_lp38a_2x_complex.oeb.gz')
+        # Complex file name
+        complex_fname = utils.get_data_filename('examples', 'data/pP38_lp38a_2x_complex.oeb.gz')
 
         # Read OEMol molecule
         mol = oechem.OEMol()
 
-        with oechem.oemolistream(lig_fname) as ifs:
+        with oechem.oemolistream(complex_fname) as ifs:
             oechem.OEReadMolecule(ifs, mol)
 
         # Process the molecules
@@ -261,7 +180,7 @@ class NVTCubeTester(unittest.TestCase):
         # Check 3*std volume
         # Average volume and its standard deviation (in nm^3) measured along
         # one 10ns run for the selected system
-        avg_volume = 683.685643 * (unit.nanometers ** 3)
+        avg_volume = 683.492706 * (unit.nanometers ** 3)
         std_volume = 0.000001
 
         self.assertAlmostEqual(avg_volume/(unit.nanometers ** 3),
@@ -279,7 +198,7 @@ class NVTCubeTester(unittest.TestCase):
 
     @pytest.mark.slow
     def test_success(self):
-        self.cube.args.time = 50  # in picoseconds
+        self.cube.args.time = 50.0  # in picoseconds
         self._test_success()
 
     def test_failure(self):
@@ -358,13 +277,12 @@ class NPTCubeTester(unittest.TestCase):
 
     def _test_success(self):
         print('Testing cube:', self.cube.name)
-        # File name of a charged ligand
-        lig_fname = utils.get_data_filename('examples', 'data/pP38_lp38a_2x_complex.oeb.gz')
 
+        # Complex file name
+        complex_fname = utils.get_data_filename('examples', 'data/pP38_lp38a_2x_complex.oeb.gz')
         # Read OEMol molecule
         mol = oechem.OEMol()
-
-        with oechem.oemolistream(lig_fname) as ifs:
+        with oechem.oemolistream(complex_fname) as ifs:
             oechem.OEReadMolecule(ifs, mol)
 
         # Process the molecules
@@ -401,7 +319,7 @@ class NPTCubeTester(unittest.TestCase):
 
     @pytest.mark.slow
     def test_success(self):
-        self.cube.args.time = 50  # in picoseconds
+        self.cube.args.time = 50.0  # in picoseconds
         self._test_success()
 
     def test_failure(self):
@@ -409,6 +327,70 @@ class NPTCubeTester(unittest.TestCase):
 
     def tearDown(self):
         self.runner.finalize()
+
+
+# Check Restraints applications
+def test_restraints():
+
+    lig_fname = utils.get_data_filename('examples', 'data/pP38_lp38a_2x_complex.oeb.gz')
+    # Read OEMol molecule
+    mol = oechem.OEMol()
+    with oechem.oemolistream(lig_fname) as ifs:
+        oechem.OEReadMolecule(ifs, mol)
+
+    res_dic = {}
+        
+    mask = 'protein'
+    ind_set = restraints(mol, mask=mask)
+    res_dic[mask] = ind_set
+
+    mask = 'ligand'
+    ind_set = restraints(mol, mask=mask)
+    res_dic[mask] = ind_set
+
+    mask = 'water'
+    ind_set = restraints(mol, mask=mask)
+    res_dic[mask] = ind_set
+    
+    mask = 'ions'
+    ind_set = restraints(mol, mask=mask)
+    res_dic[mask] = ind_set
+
+    mask = 'cofactors'
+    ind_set = restraints(mol, mask=mask)
+    res_dic[mask] = ind_set
+
+    mask = 'ca_protein'
+    ind_set = restraints(mol, mask=mask)
+    res_dic[mask] = ind_set
+
+    mask = 'protein or ligand'
+    ind_set = restraints(mol, mask=mask)
+    res_dic[mask] = ind_set
+
+    mask = 'noh (protein or ligand)'
+    ind_set = restraints(mol, mask=mask)
+    res_dic[mask] = ind_set
+
+    mask = 'ca_protein or (noh ligand)'
+    ind_set = restraints(mol, mask=mask)
+    res_dic[mask] = ind_set
+
+    mask = 'resid A:4 A:5 A:6 A:7'
+    ind_set = restraints(mol, mask=mask)
+    res_dic[mask] = ind_set
+
+    dic_fname = utils.get_data_filename('examples', 'data/restraint_test_P38_lp38a_2x.pickle')
+
+    file = open(dic_fname, 'rb')
+    res_dic_loaded = pickle.load(file)
+
+    for k in res_dic_loaded:
+        if res_dic[k] == res_dic_loaded[k]:
+            pass
+        else:
+            raise ValueError("Restraints checking Errors on mask: {}".format(k))
+
 
 if __name__ == "__main__":
         unittest.main()

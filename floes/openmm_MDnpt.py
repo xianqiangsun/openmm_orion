@@ -48,7 +48,7 @@ npt.promote_parameter('trajectory_interval', promoted_name='trajectory_interval'
                       description='Trajectory saving interval')
 npt.promote_parameter('reporter_interval', promoted_name='reporter_interval', default=100,
                       description='Reporter saving interval')
-npt.promote_parameter('outfname', promoted_name='outfname', default='npt',
+npt.promote_parameter('outfname', promoted_name='suffix', default='npt',
                       description='Equilibration suffix name')
 
 ofs = OEMolOStreamCube('ofs', title='OFS-Success')

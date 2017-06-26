@@ -38,8 +38,11 @@ nvt.promote_parameter('restraints', promoted_name='restraints', default='noh (li
 nvt.promote_parameter('restraintWt', promoted_name='restraintWt', default=2.0)
 # Trajectory and logging info frequency intervals
 nvt.promote_parameter('trajectory_interval', promoted_name='trajectory_interval', default=10)
-nvt.promote_parameter('reporter_interval', promoted_name='w_reporter_interval', default=100,
+nvt.promote_parameter('reporter_interval', promoted_name='reporter_interval', default=100,
                       description='Reporter saving interval')
+
+nvt.promote_parameter('outfname', promoted_name='suffix', default='nvt',
+                      description='Equilibration suffix name')
 
 ofs = OEMolOStreamCube('ofs', title='OFS-Success')
 ofs.set_parameters(backend='s3')

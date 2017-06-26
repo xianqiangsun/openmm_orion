@@ -34,21 +34,22 @@ iligs = OEMolIStreamCube("Ligands")
 # iligs.promote_parameter("data_in", promoted_name="ligand", description="PDB of docked ligand")
 chargelig = LigChargeCube("LigCharge")
 chargelig.promote_parameter('max_conformers', promoted_name='max_conformers',
-                            description="Set the max number of conformers per ligand", default=5)
+                            description="Set the max number of conformers per ligand", default=800)
 
 # Protein Reading cube. The protein suffix parameter is used to select a name for the
 # output system files
-isys = Reader("ProteinReader")
-isys.promote_parameter("data_in", promoted_name="protein", description="PDB Protein file name")
-isys.promote_parameter("protein_suffix", promoted_name="protein_suffix", default='1HVL', description="Protein suffix")
+iprot = Reader("ProteinReader")
+iprot.promote_parameter("data_in", promoted_name="protein", description="Protein file name")
+iprot.promote_parameter("protein_suffix", promoted_name="protein_suffix",
+                       default='PRT', description="Protein suffix")
 
 # The spitter cube will be used to pre-process the read in protein system
 splitter = Splitter("Splitter")
 
 # The solvation cube is used to solvate the system and define the ionic strength of the solution
 solvate = SolvationCube("Solvation")
-solvate.promote_parameter('pH', promoted_name='pH')
-solvate.promote_parameter('solvent_padding', promoted_name='solvent_padding')
+solvate.promote_parameter('pH', promoted_name='pH', default=7.4)
+solvate.promote_parameter('solvent_padding', promoted_name='solvent_padding', default=10)
 solvate.promote_parameter('salt_concentration', promoted_name='salt_conc', default=100)
 
 # Complex cube used to assemble the ligands and the solvated protein
@@ -59,13 +60,14 @@ ff = ForceFieldPrep("ForceField")
 ff.promote_parameter('protein_forcefield', promoted_name='protein_ff', default='amber99sbildn.xml')
 ff.promote_parameter('solvent_forcefield', promoted_name='solvent_ff', default='tip3p.xml')
 ff.promote_parameter('ligand_forcefield', promoted_name='ligand_ff', default='GAFF2')
+ff.promote_parameter('other_forcefield', promoted_name='other_ff', default='GAFF2')
 
 # Minimization
 minComplex = OpenMMminimizeCube('minComplex', title='Minimize')
-minComplex.promote_parameter('steps', promoted_name='steps', default=30000)
-minComplex.promote_parameter('restraints', promoted_name='w_restraints', default="noh (ligand or protein)",
+minComplex.promote_parameter('steps', promoted_name='min_steps', default=30000)
+minComplex.promote_parameter('restraints', promoted_name='m_restraints', default="noh (ligand or protein)",
                              description='Select mask to apply restarints')
-minComplex.promote_parameter('restraintWt', promoted_name='w_restraintWt', default=5.0,
+minComplex.promote_parameter('restraintWt', promoted_name='m_restraintWt', default=5.0,
                              description='Restraint weight')
 
 # NVT simulation. Here the assembled system is warmed up to the final selected temperature
@@ -89,12 +91,12 @@ warmup.promote_parameter('outfname', promoted_name='w_outfname', default='warmup
 
 # NPT Equilibration stage 1
 equil1 = OpenMMnptCube('equil1', title='equil1')
-equil1.promote_parameter('time', promoted_name='equil1_psec', default=10.0,
+equil1.promote_parameter('time', promoted_name='eq1_psec', default=10.0,
                          description='Length of MD run in picoseconds')
 equil1.promote_parameter('restraints', promoted_name='eq1_restraints', default="noh (ligand or protein)",
                          description='Select mask to apply restarints')
 equil1.promote_parameter('restraintWt', promoted_name='eq1_restraintWt', default=2.0, description='Restraint weight')
-equil1.promote_parameter('trajectory_interval', promoted_name='eq_1trajectory_interval', default=1000,
+equil1.promote_parameter('trajectory_interval', promoted_name='eq1_trajectory_interval', default=1000,
                          description='Trajectory saving interval')
 equil1.promote_parameter('reporter_interval', promoted_name='eq1_reporter_interval', default=10000,
                          description='Reporter saving interval')
@@ -103,7 +105,7 @@ equil1.promote_parameter('outfname', promoted_name='eq1_outfname', default='equi
 
 # NPT Equilibration stage 2
 equil2 = OpenMMnptCube('equil2', title='equil2')
-equil2.promote_parameter('time', promoted_name='equil2_psec', default=10.0,
+equil2.promote_parameter('time', promoted_name='eq2_psec', default=10.0,
                          description='Length of MD run in picoseconds')
 equil2.promote_parameter('restraints', promoted_name='eq2_restraints', default="noh (ligand or protein)",
                          description='Select mask to apply restarints')
@@ -118,7 +120,7 @@ equil2.promote_parameter('outfname', promoted_name='eq2_outfname', default='equi
 
 # NPT Equilibration stage 3
 equil3 = OpenMMnptCube('equil3', title='equil3')
-equil3.promote_parameter('time', promoted_name='equil3_psec', default=10.0,
+equil3.promote_parameter('time', promoted_name='eq3_psec', default=10.0,
                          description='Length of MD run in picoseconds')
 equil3.promote_parameter('restraints', promoted_name='eq3_restraints', default="ca_protein or (noh ligand)",
                          description='Select mask to apply restarints')
@@ -138,10 +140,10 @@ fail = OEMolOStreamCube('fail', title='OFS-Failure')
 fail.set_parameters(backend='s3')
 fail.set_parameters(data_out='fail.oeb.gz')
 
-job.add_cubes(isys, splitter, solvate, iligs, chargelig, complx, ff,
+job.add_cubes(iprot, splitter, solvate, iligs, chargelig, complx, ff,
               minComplex, warmup, equil1, equil2, equil3, ofs, fail)
 
-isys.success.connect(splitter.intake)
+iprot.success.connect(splitter.intake)
 splitter.success.connect(solvate.intake)
 solvate.success.connect(complx.system_port)
 iligs.success.connect(chargelig.intake)

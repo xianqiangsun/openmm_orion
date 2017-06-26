@@ -31,13 +31,13 @@ iligs = OEMolIStreamCube("Ligands")
 
 chargelig = LigChargeCube("LigCharge")
 chargelig.promote_parameter('max_conformers', promoted_name='max_conformers',
-                            description="Set the max number of conformers per ligand", default=5)
+                            description="Set the max number of conformers per ligand", default=800)
 
 # Protein Setting
-isys = Reader("ProteinReader")
-isys.promote_parameter("data_in", promoted_name="protein", description="Protein file name")
-isys.promote_parameter("protein_suffix", promoted_name="protein_suffix", default='Bace',
-                       description="Protein suffix")
+iprot = Reader("ProteinReader")
+iprot.promote_parameter("data_in", promoted_name="protein", description="Protein file name")
+iprot.promote_parameter("protein_suffix", promoted_name="protein_suffix", default='PRT',
+                        description="Protein suffix")
 
 splitter = Splitter("Splitter")
 solvate = SolvationCube("Solvation")
@@ -49,15 +49,20 @@ ff = ForceFieldPrep("ForceField")
 ofs = OEMolOStreamCube('ofs', title='OFS-Success')
 ofs.set_parameters(backend='s3')
 
-job.add_cubes(isys, splitter, solvate, iligs, chargelig, complx, ff, ofs)
+fail = OEMolOStreamCube('fail', title='OFS-Failure')
+fail.set_parameters(backend='s3')
+fail.set_parameters(data_out='fail.oeb.gz')
 
-isys.success.connect(splitter.intake)
+job.add_cubes(iprot, splitter, solvate, iligs, chargelig, complx, ff, ofs, fail)
+
+iprot.success.connect(splitter.intake)
 splitter.success.connect(solvate.intake)
 solvate.success.connect(complx.system_port)
 iligs.success.connect(chargelig.intake)
 chargelig.success.connect(complx.intake)
 complx.success.connect(ff.intake)
 ff.success.connect(ofs.intake)
+ff.failure.connect(fail.intake)
 
 if __name__ == "__main__":
     job.run()

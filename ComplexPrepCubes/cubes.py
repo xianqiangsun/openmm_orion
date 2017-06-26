@@ -3,7 +3,6 @@ from OpenMMCubes import utils as pack_utils
 from floe.api import OEMolComputeCube, ParallelOEMolComputeCube, parameter, OEMolIStreamCube, MoleculeInputPort
 from floe.api.orion import StreamingDataset, config_from_env
 from openeye import oechem
-from LigPrepCubes import ff_utils
 import traceback
 
 
@@ -82,7 +81,7 @@ class Splitter(OEMolComputeCube):
     def process(self, mol, port):
 
         try:
-            # Split the biomolecular system
+            # Split the bio molecular system
             protein, ligand, water, excipients = utils.split(mol)
 
             # self.log.info('Protein  number of atoms: {}'.format(protein.NumAtoms()))
@@ -266,7 +265,7 @@ class ForceFieldPrep(ParallelOEMolComputeCube):
         required=True,
         default='GAFF2',
         choices=['GAFF', 'GAFF2', 'SMIRNOFF'],
-        help_text='Force field to parameterize the ligand')
+        help_text='Force field to parametrize the ligand')
 
     other_forcefield = parameter.StringParameter(
         'other_forcefield',
