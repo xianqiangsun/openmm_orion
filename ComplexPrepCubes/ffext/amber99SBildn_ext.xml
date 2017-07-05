@@ -2015,34 +2015,88 @@
   <Type name="2012" class="N" element="N" mass="14.00672"/>
   <Type name="2013" class="H" element="H" mass="1.007947"/>
   <Type name="2014" class="CT" element="C" mass="12.01078"/>
-  <Type name="2015" class="CT" element="C" mass="12.01078"/>
+  <Type name="2015" class="H1" element="H" mass="1.007947"/>
   <Type name="2016" class="CT" element="C" mass="12.01078"/>
-  <Type name="2017" class="CT" element="C" mass="12.01078"/>
+  <Type name="2017" class="H1" element="H" mass="1.007947"/>
   <Type name="2018" class="CT" element="C" mass="12.01078"/>
   <Type name="2019" class="HC" element="H" mass="1.007947"/>
-  <Type name="2020" class="HC" element="H" mass="1.007947"/>
-  <Type name="2021" class="HC" element="H" mass="1.007947"/>
-  <Type name="2022" class="HC" element="H" mass="1.007947"/>
-  <Type name="2023" class="H1" element="H" mass="1.007947"/>
-  <Type name="2024" class="C" element="C" mass="12.01078"/>
-  <Type name="2025" class="O" element="O" mass="15.99943"/>
-  <Type name="2026" class="N" element="N" mass="14.00672"/>
-  <Type name="2027" class="H" element="H" mass="1.007947"/>
-  <Type name="2028" class="CT" element="C" mass="12.01078"/>
-  <Type name="2029" class="CA" element="C" mass="12.01078"/>
-  <Type name="2030" class="CA" element="C" mass="12.01078"/>
-  <Type name="2031" class="CA" element="C" mass="12.01078"/>
-  <Type name="2032" class="CA" element="C" mass="12.01078"/>
-  <Type name="2033" class="CA" element="C" mass="12.01078"/>
-  <Type name="2034" class="CA" element="C" mass="12.01078"/>
-  <Type name="2035" class="HA" element="H" mass="1.007947"/>
-  <Type name="2036" class="HA" element="H" mass="1.007947"/>
-  <Type name="2037" class="HA" element="H" mass="1.007947"/>
-  <Type name="2038" class="HA" element="H" mass="1.007947"/>
-  <Type name="2039" class="HA" element="H" mass="1.007947"/>
-  <Type name="2040" class="H1" element="H" mass="1.007947"/>
-  <Type name="2041" class="C" element="C" mass="12.01078"/>
-  <Type name="2042" class="O" element="O" mass="15.99943"/>
+  <Type name="2020" class="OR" element="O" mass="15.99943"/>
+  <Type name="2021" class="P" element="P" mass="30.9737622"/>
+  <Type name="2022" class="OQ" element="O" mass="15.99943"/>
+  <Type name="2023" class="OP" element="O" mass="15.99943"/>
+  <Type name="2024" class="OP" element="O" mass="15.99943"/>
+  <Type name="2025" class="HO" element="H" mass="1.007947"/>
+  <Type name="2026" class="C" element="C" mass="12.01078"/>
+  <Type name="2027" class="O" element="O" mass="15.99943"/>
+  <Type name="2028" class="N" element="N" mass="14.00672"/>
+  <Type name="2029" class="H" element="H" mass="1.007947"/>
+  <Type name="2030" class="CT" element="C" mass="12.01078"/>
+  <Type name="2031" class="H1" element="H" mass="1.007947"/>
+  <Type name="2032" class="CT" element="C" mass="12.01078"/>
+  <Type name="2033" class="H1" element="H" mass="1.007947"/>
+  <Type name="2034" class="OR" element="O" mass="15.99943"/>
+  <Type name="2035" class="P" element="P" mass="30.9737622"/>
+  <Type name="2036" class="OQ" element="O" mass="15.99943"/>
+  <Type name="2037" class="OP" element="O" mass="15.99943"/>
+  <Type name="2038" class="OP" element="O" mass="15.99943"/>
+  <Type name="2039" class="HO" element="H" mass="1.007947"/>
+  <Type name="2040" class="C" element="C" mass="12.01078"/>
+  <Type name="2041" class="O" element="O" mass="15.99943"/>
+  <Type name="2042" class="N" element="N" mass="14.00672"/>
+  <Type name="2043" class="H" element="H" mass="1.007947"/>
+  <Type name="2044" class="CT" element="C" mass="12.01078"/>
+  <Type name="2045" class="H1" element="H" mass="1.007947"/>
+  <Type name="2046" class="CT" element="C" mass="12.01078"/>
+  <Type name="2047" class="HC" element="H" mass="1.007947"/>
+  <Type name="2048" class="CA" element="C" mass="12.01078"/>
+  <Type name="2049" class="CA" element="C" mass="12.01078"/>
+  <Type name="2050" class="HA" element="H" mass="1.007947"/>
+  <Type name="2051" class="CA" element="C" mass="12.01078"/>
+  <Type name="2052" class="HA" element="H" mass="1.007947"/>
+  <Type name="2053" class="C" element="C" mass="12.01078"/>
+  <Type name="2054" class="CA" element="C" mass="12.01078"/>
+  <Type name="2055" class="HA" element="H" mass="1.007947"/>
+  <Type name="2056" class="CA" element="C" mass="12.01078"/>
+  <Type name="2057" class="HA" element="H" mass="1.007947"/>
+  <Type name="2058" class="OR" element="O" mass="15.99943"/>
+  <Type name="2059" class="P" element="P" mass="30.9737622"/>
+  <Type name="2060" class="OQ" element="O" mass="15.99943"/>
+  <Type name="2061" class="OP" element="O" mass="15.99943"/>
+  <Type name="2062" class="OP" element="O" mass="15.99943"/>
+  <Type name="2063" class="HO" element="H" mass="1.007947"/>
+  <Type name="2064" class="C" element="C" mass="12.01078"/>
+  <Type name="2065" class="O" element="O" mass="15.99943"/>
+  <Type name="2066" class="N" element="N" mass="14.00672"/>
+  <Type name="2067" class="H" element="H" mass="1.007947"/>
+  <Type name="2068" class="CT" element="C" mass="12.01078"/>
+  <Type name="2069" class="CT" element="C" mass="12.01078"/>
+  <Type name="2070" class="CT" element="C" mass="12.01078"/>
+  <Type name="2071" class="CT" element="C" mass="12.01078"/>
+  <Type name="2072" class="CT" element="C" mass="12.01078"/>
+  <Type name="2073" class="HC" element="H" mass="1.007947"/>
+  <Type name="2074" class="HC" element="H" mass="1.007947"/>
+  <Type name="2075" class="HC" element="H" mass="1.007947"/>
+  <Type name="2076" class="HC" element="H" mass="1.007947"/>
+  <Type name="2077" class="H1" element="H" mass="1.007947"/>
+  <Type name="2078" class="C" element="C" mass="12.01078"/>
+  <Type name="2079" class="O" element="O" mass="15.99943"/>
+  <Type name="2080" class="N" element="N" mass="14.00672"/>
+  <Type name="2081" class="H" element="H" mass="1.007947"/>
+  <Type name="2082" class="CT" element="C" mass="12.01078"/>
+  <Type name="2083" class="CA" element="C" mass="12.01078"/>
+  <Type name="2084" class="CA" element="C" mass="12.01078"/>
+  <Type name="2085" class="CA" element="C" mass="12.01078"/>
+  <Type name="2086" class="CA" element="C" mass="12.01078"/>
+  <Type name="2087" class="CA" element="C" mass="12.01078"/>
+  <Type name="2088" class="CA" element="C" mass="12.01078"/>
+  <Type name="2089" class="HA" element="H" mass="1.007947"/>
+  <Type name="2090" class="HA" element="H" mass="1.007947"/>
+  <Type name="2091" class="HA" element="H" mass="1.007947"/>
+  <Type name="2092" class="HA" element="H" mass="1.007947"/>
+  <Type name="2093" class="HA" element="H" mass="1.007947"/>
+  <Type name="2094" class="H1" element="H" mass="1.007947"/>
+  <Type name="2095" class="C" element="C" mass="12.01078"/>
+  <Type name="2096" class="O" element="O" mass="15.99943"/>
  </AtomTypes>
  <Residues>
   <Residue name="ACE">
@@ -5140,25 +5194,25 @@
    <ExternalBond from="19"/>
   </Residue>
   <Residue name="NLE">
-   <Atom name="N" type="2012"/>
-   <Atom name="H" type="2013"/>
-   <Atom name="CA" type="2014"/>
-   <Atom name="CB" type="2015"/>
-   <Atom name="CG" type="2016"/>
-   <Atom name="CD" type="2017"/>
-   <Atom name="CE" type="2018"/>
-   <Atom name="HE3" type="2019"/>
-   <Atom name="HE1" type="2019"/>
-   <Atom name="HE2" type="2019"/>
-   <Atom name="HD2" type="2020"/>
-   <Atom name="HD3" type="2020"/>
-   <Atom name="HG2" type="2021"/>
-   <Atom name="HG3" type="2021"/>
-   <Atom name="HB2" type="2022"/>
-   <Atom name="HB3" type="2022"/>
-   <Atom name="HA" type="2023"/>
-   <Atom name="C" type="2024"/>
-   <Atom name="O" type="2025"/>
+   <Atom name="N" type="2066"/>
+   <Atom name="H" type="2067"/>
+   <Atom name="CA" type="2068"/>
+   <Atom name="CB" type="2069"/>
+   <Atom name="CG" type="2070"/>
+   <Atom name="CD" type="2071"/>
+   <Atom name="CE" type="2072"/>
+   <Atom name="HE3" type="2073"/>
+   <Atom name="HE1" type="2073"/>
+   <Atom name="HE2" type="2073"/>
+   <Atom name="HD2" type="2074"/>
+   <Atom name="HD3" type="2074"/>
+   <Atom name="HG2" type="2075"/>
+   <Atom name="HG3" type="2075"/>
+   <Atom name="HB2" type="2076"/>
+   <Atom name="HB3" type="2076"/>
+   <Atom name="HA" type="2077"/>
+   <Atom name="C" type="2078"/>
+   <Atom name="O" type="2079"/>
    <Bond from="0" to="1"/>
    <Bond from="0" to="2"/>
    <Bond from="2" to="3"/>
@@ -5663,23 +5717,23 @@
    <ExternalBond from="18"/>
   </Residue>
   <Residue name="PNG">
-   <Atom name="N" type="2026"/>
-   <Atom name="H" type="2027"/>
-   <Atom name="CA" type="2028"/>
-   <Atom name="CB" type="2029"/>
-   <Atom name="CG1" type="2030"/>
-   <Atom name="CD1" type="2031"/>
-   <Atom name="CE" type="2032"/>
-   <Atom name="CD2" type="2033"/>
-   <Atom name="CG2" type="2034"/>
-   <Atom name="HG2" type="2035"/>
-   <Atom name="HD2" type="2036"/>
-   <Atom name="HE" type="2037"/>
-   <Atom name="HD1" type="2038"/>
-   <Atom name="HG1" type="2039"/>
-   <Atom name="HA" type="2040"/>
-   <Atom name="C" type="2041"/>
-   <Atom name="O" type="2042"/>
+   <Atom name="N" type="2080"/>
+   <Atom name="H" type="2081"/>
+   <Atom name="CA" type="2082"/>
+   <Atom name="CB" type="2083"/>
+   <Atom name="CG1" type="2084"/>
+   <Atom name="CD1" type="2085"/>
+   <Atom name="CE" type="2086"/>
+   <Atom name="CD2" type="2087"/>
+   <Atom name="CG2" type="2088"/>
+   <Atom name="HG2" type="2089"/>
+   <Atom name="HD2" type="2090"/>
+   <Atom name="HE" type="2091"/>
+   <Atom name="HD1" type="2092"/>
+   <Atom name="HG1" type="2093"/>
+   <Atom name="HA" type="2094"/>
+   <Atom name="C" type="2095"/>
+   <Atom name="O" type="2096"/>
    <Bond from="0" to="1"/>
    <Bond from="0" to="2"/>
    <Bond from="2" to="3"/>
@@ -6867,6 +6921,39 @@
   <Residue name="Rb+">
    <Atom name="Rb+" type="1960"/>
   </Residue>
+  <Residue name="S1P">
+   <Atom name="N" type="2028"/>
+   <Atom name="H" type="2029"/>
+   <Atom name="CA" type="2030"/>
+   <Atom name="HA" type="2031"/>
+   <Atom name="CB" type="2032"/>
+   <Atom name="HB2" type="2033"/>
+   <Atom name="HB3" type="2033"/>
+   <Atom name="OG" type="2034"/>
+   <Atom name="P" type="2035"/>
+   <Atom name="O1P" type="2036"/>
+   <Atom name="O2P" type="2037"/>
+   <Atom name="O3P" type="2038"/>
+   <Atom name="H1P" type="2039"/>
+   <Atom name="C" type="2040"/>
+   <Atom name="O" type="2041"/>
+   <Bond from="0" to="1"/>
+   <Bond from="0" to="2"/>
+   <Bond from="2" to="3"/>
+   <Bond from="2" to="13"/>
+   <Bond from="2" to="4"/>
+   <Bond from="4" to="5"/>
+   <Bond from="4" to="6"/>
+   <Bond from="4" to="7"/>
+   <Bond from="7" to="8"/>
+   <Bond from="8" to="11"/>
+   <Bond from="8" to="10"/>
+   <Bond from="8" to="9"/>
+   <Bond from="9" to="12"/>
+   <Bond from="13" to="14"/>
+   <ExternalBond from="0"/>
+   <ExternalBond from="13"/>
+  </Residue>
   <Residue name="SEP">
    <Atom name="N" type="1976"/>
    <Atom name="H" type="1977"/>
@@ -6922,6 +7009,45 @@
    <Bond from="9" to="10"/>
    <ExternalBond from="0"/>
    <ExternalBond from="9"/>
+  </Residue>
+  <Residue name="T1P">
+   <Atom name="N" type="2012"/>
+   <Atom name="H" type="2013"/>
+   <Atom name="CA" type="2014"/>
+   <Atom name="HA" type="2015"/>
+   <Atom name="CB" type="2016"/>
+   <Atom name="HB" type="2017"/>
+   <Atom name="CG2" type="2018"/>
+   <Atom name="HG21" type="2019"/>
+   <Atom name="HG22" type="2019"/>
+   <Atom name="HG23" type="2019"/>
+   <Atom name="OG" type="2020"/>
+   <Atom name="P" type="2021"/>
+   <Atom name="O1P" type="2022"/>
+   <Atom name="O2P" type="2023"/>
+   <Atom name="O3P" type="2024"/>
+   <Atom name="H1P" type="2025"/>
+   <Atom name="C" type="2026"/>
+   <Atom name="O" type="2027"/>
+   <Bond from="0" to="1"/>
+   <Bond from="0" to="2"/>
+   <Bond from="2" to="3"/>
+   <Bond from="2" to="16"/>
+   <Bond from="2" to="4"/>
+   <Bond from="4" to="5"/>
+   <Bond from="4" to="10"/>
+   <Bond from="4" to="6"/>
+   <Bond from="6" to="7"/>
+   <Bond from="6" to="8"/>
+   <Bond from="6" to="9"/>
+   <Bond from="10" to="11"/>
+   <Bond from="11" to="14"/>
+   <Bond from="11" to="13"/>
+   <Bond from="11" to="12"/>
+   <Bond from="12" to="15"/>
+   <Bond from="16" to="17"/>
+   <ExternalBond from="0"/>
+   <ExternalBond from="16"/>
   </Residue>
   <Residue name="THR">
    <Atom name="N" type="299"/>
@@ -7124,6 +7250,60 @@
    <Bond from="14" to="15"/>
    <ExternalBond from="0"/>
    <ExternalBond from="14"/>
+  </Residue>
+  <Residue name="Y1P">
+   <Atom name="N" type="2042"/>
+   <Atom name="H" type="2043"/>
+   <Atom name="CA" type="2044"/>
+   <Atom name="HA" type="2045"/>
+   <Atom name="CB" type="2046"/>
+   <Atom name="HB2" type="2047"/>
+   <Atom name="HB3" type="2047"/>
+   <Atom name="CG" type="2048"/>
+   <Atom name="CD1" type="2049"/>
+   <Atom name="HD1" type="2050"/>
+   <Atom name="CE1" type="2051"/>
+   <Atom name="HE1" type="2052"/>
+   <Atom name="CZ" type="2053"/>
+   <Atom name="CE2" type="2054"/>
+   <Atom name="HE2" type="2055"/>
+   <Atom name="CD2" type="2056"/>
+   <Atom name="HD2" type="2057"/>
+   <Atom name="OG" type="2058"/>
+   <Atom name="P" type="2059"/>
+   <Atom name="O1P" type="2060"/>
+   <Atom name="O2P" type="2061"/>
+   <Atom name="O3P" type="2062"/>
+   <Atom name="H1P" type="2063"/>
+   <Atom name="C" type="2064"/>
+   <Atom name="O" type="2065"/>
+   <Bond from="0" to="1"/>
+   <Bond from="0" to="2"/>
+   <Bond from="2" to="3"/>
+   <Bond from="2" to="23"/>
+   <Bond from="2" to="4"/>
+   <Bond from="4" to="5"/>
+   <Bond from="4" to="6"/>
+   <Bond from="4" to="7"/>
+   <Bond from="7" to="15"/>
+   <Bond from="7" to="8"/>
+   <Bond from="8" to="9"/>
+   <Bond from="8" to="10"/>
+   <Bond from="10" to="11"/>
+   <Bond from="10" to="12"/>
+   <Bond from="12" to="17"/>
+   <Bond from="12" to="13"/>
+   <Bond from="13" to="14"/>
+   <Bond from="13" to="15"/>
+   <Bond from="15" to="16"/>
+   <Bond from="17" to="18"/>
+   <Bond from="18" to="21"/>
+   <Bond from="18" to="20"/>
+   <Bond from="18" to="19"/>
+   <Bond from="19" to="22"/>
+   <Bond from="23" to="24"/>
+   <ExternalBond from="0"/>
+   <ExternalBond from="23"/>
   </Residue>
  </Residues>
  <HarmonicBondForce>
@@ -9803,36 +9983,90 @@
   <Atom type="2009" charge="-0.94355" sigma="0.29109224716517446" epsilon="0.87864"/>
   <Atom type="2010" charge="0.5366" sigma="0.3399669508423535" epsilon="0.359824"/>
   <Atom type="2011" charge="-0.5819" sigma="0.2959921901149464" epsilon="0.87864"/>
-  <Atom type="2012" charge="-0.531127" sigma="0.3249998523775958" epsilon="0.7112800000000001"/>
-  <Atom type="2013" charge="0.301857" sigma="0.10690784617684072" epsilon="0.06568879999999999"/>
-  <Atom type="2014" charge="0.078282" sigma="0.3399669508423535" epsilon="0.4577296"/>
-  <Atom type="2015" charge="-0.075489" sigma="0.3399669508423535" epsilon="0.4577296"/>
-  <Atom type="2016" charge="0.058527" sigma="0.3399669508423535" epsilon="0.4577296"/>
-  <Atom type="2017" charge="0.080869" sigma="0.3399669508423535" epsilon="0.4577296"/>
-  <Atom type="2018" charge="-0.197437" sigma="0.3399669508423535" epsilon="0.4577296"/>
-  <Atom type="2019" charge="0.044172" sigma="0.26495327877493696" epsilon="0.06568879999999999"/>
-  <Atom type="2020" charge="-0.004014" sigma="0.26495327877493696" epsilon="0.06568879999999999"/>
-  <Atom type="2021" charge="-0.000327" sigma="0.26495327877493696" epsilon="0.06568879999999999"/>
-  <Atom type="2022" charge="0.018555" sigma="0.26495327877493696" epsilon="0.06568879999999999"/>
-  <Atom type="2023" charge="0.055968" sigma="0.24713530441213014" epsilon="0.06568879999999999"/>
-  <Atom type="2024" charge="0.667619" sigma="0.3399669508423535" epsilon="0.359824"/>
-  <Atom type="2025" charge="-0.600011" sigma="0.2959921901149464" epsilon="0.87864"/>
-  <Atom type="2026" charge="-0.438153" sigma="0.3249998523775958" epsilon="0.7112800000000001"/>
-  <Atom type="2027" charge="0.275684" sigma="0.10690784617684072" epsilon="0.06568879999999999"/>
-  <Atom type="2028" charge="-0.007617" sigma="0.3399669508423535" epsilon="0.4577296"/>
-  <Atom type="2029" charge="0.036012" sigma="0.3399669508423535" epsilon="0.359824"/>
-  <Atom type="2030" charge="-0.104958" sigma="0.3399669508423535" epsilon="0.359824"/>
-  <Atom type="2031" charge="-0.175037" sigma="0.3399669508423535" epsilon="0.359824"/>
-  <Atom type="2032" charge="-0.108987" sigma="0.3399669508423535" epsilon="0.359824"/>
-  <Atom type="2033" charge="-0.175037" sigma="0.3399669508423535" epsilon="0.359824"/>
-  <Atom type="2034" charge="-0.104958" sigma="0.3399669508423535" epsilon="0.359824"/>
-  <Atom type="2035" charge="0.110292" sigma="0.25996424595335105" epsilon="0.06276"/>
-  <Atom type="2036" charge="0.144733" sigma="0.25996424595335105" epsilon="0.06276"/>
-  <Atom type="2037" charge="0.131711" sigma="0.25996424595335105" epsilon="0.06276"/>
-  <Atom type="2038" charge="0.144733" sigma="0.25996424595335105" epsilon="0.06276"/>
-  <Atom type="2039" charge="0.110292" sigma="0.25996424595335105" epsilon="0.06276"/>
-  <Atom type="2040" charge="0.093635" sigma="0.24713530441213014" epsilon="0.06568879999999999"/>
-  <Atom type="2041" charge="0.642729" sigma="0.3399669508423535" epsilon="0.359824"/>
-  <Atom type="2042" charge="-0.575076" sigma="0.2959921901149464" epsilon="0.87864"/>
+  <Atom type="2012" charge="-0.5163" sigma="0.3249998523775958" epsilon="0.7112800000000001"/>
+  <Atom type="2013" charge="0.2936" sigma="0.10690784617684072" epsilon="0.06568879999999999"/>
+  <Atom type="2014" charge="0.043873" sigma="0.3399669508423535" epsilon="0.4577296"/>
+  <Atom type="2015" charge="0.104472" sigma="0.24713530441213014" epsilon="0.06568879999999999"/>
+  <Atom type="2016" charge="0.352701" sigma="0.3399669508423535" epsilon="0.4577296"/>
+  <Atom type="2017" charge="0.037488" sigma="0.24713530441213014" epsilon="0.06568879999999999"/>
+  <Atom type="2018" charge="-0.28753" sigma="0.3399669508423535" epsilon="0.4577296"/>
+  <Atom type="2019" charge="0.054266" sigma="0.26495327877493696" epsilon="0.06568879999999999"/>
+  <Atom type="2020" charge="-0.490763" sigma="0.31569886976021067" epsilon="0.7112800000000001"/>
+  <Atom type="2021" charge="1.261944" sigma="0.37417746161894255" epsilon="0.8368000000000001"/>
+  <Atom type="2022" charge="-0.705351" sigma="0.3223449741975376" epsilon="0.87864"/>
+  <Atom type="2023" charge="-0.815354" sigma="0.31168982552857916" epsilon="0.87864"/>
+  <Atom type="2024" charge="-0.815354" sigma="0.31168982552857916" epsilon="0.87864"/>
+  <Atom type="2025" charge="0.419076" sigma="0.0" epsilon="0.0"/>
+  <Atom type="2026" charge="0.5366" sigma="0.3399669508423535" epsilon="0.359824"/>
+  <Atom type="2027" charge="-0.5819" sigma="0.2959921901149464" epsilon="0.87864"/>
+  <Atom type="2028" charge="-0.5163" sigma="0.3249998523775958" epsilon="0.7112800000000001"/>
+  <Atom type="2029" charge="0.2936" sigma="0.10690784617684072" epsilon="0.06568879999999999"/>
+  <Atom type="2030" charge="0.021706" sigma="0.3399669508423535" epsilon="0.4577296"/>
+  <Atom type="2031" charge="0.122918" sigma="0.24713530441213014" epsilon="0.06568879999999999"/>
+  <Atom type="2032" charge="0.025023" sigma="0.3399669508423535" epsilon="0.4577296"/>
+  <Atom type="2033" charge="0.105184" sigma="0.24713530441213014" epsilon="0.06568879999999999"/>
+  <Atom type="2034" charge="-0.46569" sigma="0.31569886976021067" epsilon="0.7112800000000001"/>
+  <Atom type="2035" charge="1.322975" sigma="0.37417746161894255" epsilon="0.8368000000000001"/>
+  <Atom type="2036" charge="-0.752781" sigma="0.3223449741975376" epsilon="0.87864"/>
+  <Atom type="2037" charge="-0.82181" sigma="0.31168982552857916" epsilon="0.87864"/>
+  <Atom type="2038" charge="-0.82181" sigma="0.31168982552857916" epsilon="0.87864"/>
+  <Atom type="2039" charge="0.427101" sigma="0.0" epsilon="0.0"/>
+  <Atom type="2040" charge="0.5366" sigma="0.3399669508423535" epsilon="0.359824"/>
+  <Atom type="2041" charge="-0.5819" sigma="0.2959921901149464" epsilon="0.87864"/>
+  <Atom type="2042" charge="-0.5163" sigma="0.3249998523775958" epsilon="0.7112800000000001"/>
+  <Atom type="2043" charge="0.2936" sigma="0.10690784617684072" epsilon="0.06568879999999999"/>
+  <Atom type="2044" charge="0.275503" sigma="0.3399669508423535" epsilon="0.4577296"/>
+  <Atom type="2045" charge="0.008223" sigma="0.24713530441213014" epsilon="0.06568879999999999"/>
+  <Atom type="2046" charge="-0.354052" sigma="0.3399669508423535" epsilon="0.4577296"/>
+  <Atom type="2047" charge="0.110326" sigma="0.26495327877493696" epsilon="0.06568879999999999"/>
+  <Atom type="2048" charge="0.119728" sigma="0.3399669508423535" epsilon="0.359824"/>
+  <Atom type="2049" charge="-0.198938" sigma="0.3399669508423535" epsilon="0.359824"/>
+  <Atom type="2050" charge="0.137143" sigma="0.25996424595335105" epsilon="0.06276"/>
+  <Atom type="2051" charge="-0.284884" sigma="0.3399669508423535" epsilon="0.359824"/>
+  <Atom type="2052" charge="0.177179" sigma="0.25996424595335105" epsilon="0.06276"/>
+  <Atom type="2053" charge="0.452616" sigma="0.3399669508423535" epsilon="0.359824"/>
+  <Atom type="2054" charge="-0.284884" sigma="0.3399669508423535" epsilon="0.359824"/>
+  <Atom type="2055" charge="0.177179" sigma="0.25996424595335105" epsilon="0.06276"/>
+  <Atom type="2056" charge="-0.198938" sigma="0.3399669508423535" epsilon="0.359824"/>
+  <Atom type="2057" charge="0.137143" sigma="0.25996424595335105" epsilon="0.06276"/>
+  <Atom type="2058" charge="-0.534452" sigma="0.31569886976021067" epsilon="0.7112800000000001"/>
+  <Atom type="2059" charge="1.393215" sigma="0.37417746161894255" epsilon="0.8368000000000001"/>
+  <Atom type="2060" charge="-0.752821" sigma="0.3223449741975376" epsilon="0.87864"/>
+  <Atom type="2061" charge="-0.822464" sigma="0.31168982552857916" epsilon="0.87864"/>
+  <Atom type="2062" charge="-0.822464" sigma="0.31168982552857916" epsilon="0.87864"/>
+  <Atom type="2063" charge="0.423316" sigma="0.0" epsilon="0.0"/>
+  <Atom type="2064" charge="0.5366" sigma="0.3399669508423535" epsilon="0.359824"/>
+  <Atom type="2065" charge="-0.5819" sigma="0.2959921901149464" epsilon="0.87864"/>
+  <Atom type="2066" charge="-0.531127" sigma="0.3249998523775958" epsilon="0.7112800000000001"/>
+  <Atom type="2067" charge="0.301857" sigma="0.10690784617684072" epsilon="0.06568879999999999"/>
+  <Atom type="2068" charge="0.078282" sigma="0.3399669508423535" epsilon="0.4577296"/>
+  <Atom type="2069" charge="-0.075489" sigma="0.3399669508423535" epsilon="0.4577296"/>
+  <Atom type="2070" charge="0.058527" sigma="0.3399669508423535" epsilon="0.4577296"/>
+  <Atom type="2071" charge="0.080869" sigma="0.3399669508423535" epsilon="0.4577296"/>
+  <Atom type="2072" charge="-0.197437" sigma="0.3399669508423535" epsilon="0.4577296"/>
+  <Atom type="2073" charge="0.044172" sigma="0.26495327877493696" epsilon="0.06568879999999999"/>
+  <Atom type="2074" charge="-0.004014" sigma="0.26495327877493696" epsilon="0.06568879999999999"/>
+  <Atom type="2075" charge="-0.000327" sigma="0.26495327877493696" epsilon="0.06568879999999999"/>
+  <Atom type="2076" charge="0.018555" sigma="0.26495327877493696" epsilon="0.06568879999999999"/>
+  <Atom type="2077" charge="0.055968" sigma="0.24713530441213014" epsilon="0.06568879999999999"/>
+  <Atom type="2078" charge="0.667619" sigma="0.3399669508423535" epsilon="0.359824"/>
+  <Atom type="2079" charge="-0.600011" sigma="0.2959921901149464" epsilon="0.87864"/>
+  <Atom type="2080" charge="-0.438153" sigma="0.3249998523775958" epsilon="0.7112800000000001"/>
+  <Atom type="2081" charge="0.275684" sigma="0.10690784617684072" epsilon="0.06568879999999999"/>
+  <Atom type="2082" charge="-0.007617" sigma="0.3399669508423535" epsilon="0.4577296"/>
+  <Atom type="2083" charge="0.036012" sigma="0.3399669508423535" epsilon="0.359824"/>
+  <Atom type="2084" charge="-0.104958" sigma="0.3399669508423535" epsilon="0.359824"/>
+  <Atom type="2085" charge="-0.175037" sigma="0.3399669508423535" epsilon="0.359824"/>
+  <Atom type="2086" charge="-0.108987" sigma="0.3399669508423535" epsilon="0.359824"/>
+  <Atom type="2087" charge="-0.175037" sigma="0.3399669508423535" epsilon="0.359824"/>
+  <Atom type="2088" charge="-0.104958" sigma="0.3399669508423535" epsilon="0.359824"/>
+  <Atom type="2089" charge="0.110292" sigma="0.25996424595335105" epsilon="0.06276"/>
+  <Atom type="2090" charge="0.144733" sigma="0.25996424595335105" epsilon="0.06276"/>
+  <Atom type="2091" charge="0.131711" sigma="0.25996424595335105" epsilon="0.06276"/>
+  <Atom type="2092" charge="0.144733" sigma="0.25996424595335105" epsilon="0.06276"/>
+  <Atom type="2093" charge="0.110292" sigma="0.25996424595335105" epsilon="0.06276"/>
+  <Atom type="2094" charge="0.093635" sigma="0.24713530441213014" epsilon="0.06568879999999999"/>
+  <Atom type="2095" charge="0.642729" sigma="0.3399669508423535" epsilon="0.359824"/>
+  <Atom type="2096" charge="-0.575076" sigma="0.2959921901149464" epsilon="0.87864"/>
  </NonbondedForce>
 </ForceField>
