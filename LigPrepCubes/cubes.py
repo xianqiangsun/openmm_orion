@@ -70,62 +70,6 @@ class LigChargeCube(ParallelOEMolComputeCube):
         return
 
 
-# class LigandParameterization(OEMolComputeCube):
-#     title = "Ligand Parameterization"
-#     version = "0.0.2"
-#     classification = [ ["Ligand Preparation", "SMARTY", "Forcefield Assignment"],
-#     ["Ligand Preparation", "AMBER", "Forcefield Assignment"]]
-#     tags = ['Openmoltools', 'ParmEd', 'SMARTY', 'SMIRNOFF', 'GAFF']
-#     description = """
-#     Parameterize the ligand with the chosen force field.
-#     Supports GAFF/GAFF2/SMIRNOFF.
-#     Generate a parameterized parmed Structure of the molecule.
-#
-#     Input:
-#     -------
-#     oechem.OEMol - Streamed-in charged molecule with explicit hydrogens.
-#
-#     Output:
-#     -------
-#     oechem.OEMol - Emits molecule with attachments:
-#         - SDData Tags: { NumAtoms : str, FF : str, Structure: str <parmed.Structure> }
-#         - Generic Tags: { Structure : parmed.Structure (base64-encoded) }
-#     """
-#
-#     molecule_forcefield = parameter.StringParameter(
-#         'molecule_forcefield',
-#         required=True,
-#         default='GAFF2',
-#         choices=['GAFF', 'GAFF2', 'SMIRNOFF'],
-#         help_text='Forcefield to parameterize the molecule')
-#
-#     def begin(self):
-#         if self.args.molecule_forcefield in ['GAFF', 'GAFF2']:
-#             ff_utils.ParamLigStructure(oechem.OEMol(), self.args.molecule_forcefield).checkTleap
-#
-#     def process(self, mol, port):
-#         try:
-#             pmd = ff_utils.ParamLigStructure(mol, self.args.molecule_forcefield, prefix_name='ligand')
-#             molecule_structure = pmd.parameterize()
-#             molecule_structure.residues[0].name = "LIG"
-#             self.log.info(str(molecule_structure))
-#
-#             oechem.OESetSDData(mol, 'NumAtoms', str(mol.NumAtoms()))
-#             oechem.OESetSDData(mol, 'Structure', str(molecule_structure))
-#             oechem.OESetSDData(mol, 'FF', str(self.args.molecule_forcefield) )
-#             mol.SetData(oechem.OEGetTag('IDTag'), mol.GetTitle())
-#             packedmol = utils.PackageOEMol.pack(mol, molecule_structure)
-#
-#             self.success.emit(packedmol)
-#
-#         except Exception as e:
-#             # Attach error message to the molecule that failed
-#             self.log.error(traceback.format_exc())
-#             mol.SetData('error', str(e))
-#             # Return failed molecule
-#             self.failure.emit(mol)
-
-
 class FREDDocking(OEMolComputeCube):
     title = "FRED Docking"
     version = "0.0.1"
