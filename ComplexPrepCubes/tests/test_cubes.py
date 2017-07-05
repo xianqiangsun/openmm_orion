@@ -198,7 +198,7 @@ class ForceFieldPrepTester(unittest.TestCase):
         self.runner = CubeTestRunner(self.cube)
         self.runner.start()
 
-    def test_successGaff2(self):
+    def test_excipient_successGaff2(self):
         print('Testing cube:', self.cube.name)
         # File name
         fn_complex = ommutils.get_data_filename('examples',
@@ -224,7 +224,7 @@ class ForceFieldPrepTester(unittest.TestCase):
 
         complex = self.runner.outputs["success"].get()
 
-    def test_successSmirnoff(self):
+    def test_excipient_successSmirnoff(self):
         print('Testing cube:', self.cube.name)
         # File name
         fn_complex = ommutils.get_data_filename('examples',
@@ -238,7 +238,7 @@ class ForceFieldPrepTester(unittest.TestCase):
 
         # Selecting ligand and excipient parametrization
         self.cube.args.ligand_forcefield = 'SMIRNOFF'
-        self.cube.args.other_forcefield='SMIRNOFF'
+        self.cube.args.other_forcefield = 'SMIRNOFF'
 
         # Process the molecules
         self.cube.process(complex, self.cube.intake.name)
@@ -249,6 +249,26 @@ class ForceFieldPrepTester(unittest.TestCase):
         self.assertEqual(self.runner.outputs['failure'].qsize(), 0)
 
         #complex = self.runner.outputs["success"].get()
+
+    def test_protein_non_std_residue(self):
+        print('Testing cube:', self.cube.name)
+        # File name
+        fn_complex = ommutils.get_data_filename('examples',
+                                                'data/pCDK2_l1h1q_solvated_complex.oeb.gz')
+
+        # Read Protein molecule
+        complex = oechem.OEMol()
+
+        with oechem.oemolistream(fn_complex) as ifs:
+            oechem.OEReadMolecule(ifs, complex)
+
+        # Process the molecules
+        self.cube.process(complex, self.cube.intake.name)
+
+        # Assert that one molecule was emitted on the success port
+        self.assertEqual(self.runner.outputs['success'].qsize(), 1)
+        # Assert that zero molecules were emitted on the failure port
+        self.assertEqual(self.runner.outputs['failure'].qsize(), 0)
 
     def tearDown(self):
         self.runner.finalize()

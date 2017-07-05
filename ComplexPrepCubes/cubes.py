@@ -15,7 +15,8 @@ class Reader(OEMolIStreamCube):
         A Protein Reader Cube 
         Input:
         -------
-        oechem.OEMCMol - Streamed-in of the bio-molecular system.
+        oechem.OEMCMol or - Streamed-in of the bio-molecular system.
+        The input file can be an .oeb or a .pdb file
 
         Output:
         -------
@@ -72,7 +73,7 @@ class Splitter(OEMolComputeCube):
         Output:
         -------
         oechem.OEMCMol - Emits the assembled system made by the
-         protein, ligand, water and excipients
+         protein,  water and excipients
         """
 
     def begin(self):
@@ -129,11 +130,6 @@ class SolvationCube(OEMolComputeCube):
            oechem.OEMCMol - Emits the solvated system
            """
 
-    pH = parameter.DecimalParameter(
-        'pH',
-        default=7.4,
-        help_text="Solvent pH used to select appropriate protein protonation state.")
-
     solvent_padding = parameter.DecimalParameter(
         'solvent_padding',
         default=10,
@@ -171,9 +167,10 @@ class ComplexPrep(OEMolComputeCube):
     classification = [["Complex Preparation", "OEChem", "Complex preparation"]]
     tags = ['OEChem']
     description = """
-        This cube assemble the complex made of the solvated system and the 
+        This cube assembles the complex made of the solvated system and the 
         ligands. If a ligand presents multiple conformers, then each conformer 
-        is bonded to the protein to form the solvated complex. 
+        is bonded to the protein to form the solvated complex. For example if a 
+        ligand has 3 conformers then 3 complexes are generated.
         
         Input:
         -------

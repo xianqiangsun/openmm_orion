@@ -236,8 +236,20 @@ def applyffProtein(protein, opt):
     unmatched_residues = forcefield.getUnmatchedResidues(topology)
 
     if unmatched_residues:
-        oechem.OEThrow.Fatal("The following Protein residues are not recognized "
-                             "by the selected force field {}: {}".format(opt['protein_forcefield'], unmatched_residues))
+        # Extended ff99SBildn force field
+        oechem.OEThrow.Info("The following protein residues are not recognized "
+                            "by the selected FF: {} - {}"
+                            "\n...Extended FF is in use".format(opt['protein_forcefield'], unmatched_residues))
+
+        ffext_fname = utils.get_data_filename('ComplexPrepCubes', 'ffext/amber99SBildn_ext.xml')
+        forcefield = app.ForceField()
+        forcefield.loadFile(ffext_fname)
+
+        unmatched_residues = forcefield.getUnmatchedResidues(topology)
+
+        if unmatched_residues:
+            oechem.OEThrow.Fatal("Error. The following protein residues are not recognized "
+                                 "by the extended force field {}".format(unmatched_residues))
 
     omm_system = forcefield.createSystem(topology, rigidWater=False)
     protein_structure = parmed.openmm.load_topology(topology, omm_system, xyz=positions)

@@ -47,7 +47,7 @@ def assignELF10charges(molecule, max_confs=800, strictStereo=True):
     return mol_copy
 
 
-def sanitize(molecule):
+def sanitizeOEMolecule(molecule):
     """
     This function checks if the molecule has coordinates,
     explicit hydrogens and aromaticity. If the molecule
@@ -146,7 +146,7 @@ class ParamLigStructure(object):
             molecule = self.molecule
 
         try:
-            ff = get_data_filename('smirff99Frosst', 'smirff99Frosst.ffxml')
+            ff = get_data_filename('smirnoff99Frosst', 'smirnoff99Frosst.ffxml')
             with open(ff) as ffxml:
                 mol_ff = ForceField(ffxml)
         except:
