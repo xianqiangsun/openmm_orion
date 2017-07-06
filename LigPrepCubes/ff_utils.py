@@ -139,6 +139,16 @@ class ParamLigStructure(object):
         if not is_charged:
             raise Exception('Molecule %s has no charges; input molecules must be charged.' % molecule.GetTitle())
 
+    def getSmirnoffStructure(self, molecule=None):
+        from openforcefield.utils.utils import generateSMIRNOFFStructure
+        if not molecule:
+            molecule = self.molecule
+        try:
+            molecule_structure = generateSMIRNOFFStructure(molecule)
+        except:
+            raise RuntimeError('Error generating SMIRNOFF Sstructure for %s' % molecule.GetTitle())
+        return molecule_structure
+
     def getGaffStructure(self, molecule=None, forcefield=None):
         if not molecule:
             molecule = self.molecule
@@ -184,9 +194,8 @@ class ParamLigStructure(object):
         return molecule_structure
 
     def parameterize(self):
-        from openforcefield.utils.utils import generateSMIRNOFFStructure
         if self.forcefield == 'SMIRNOFF':
-            structure = generateSMIRNOFFStructure(molecule)
+            structure = self.getSmirnoffStructure()
         elif self.forcefield in ['GAFF', 'GAFF2']:
             structure = self.getGaffStructure()
         self.structure = structure
