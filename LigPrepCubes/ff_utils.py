@@ -51,19 +51,19 @@ def sanitizeOEMolecule(molecule):
     """
     This function checks if the molecule has coordinates,
     explicit hydrogens and aromaticity. If the molecule
-    does not have coordinates a fatal error is raised. 
+    does not have coordinates a fatal error is raised.
     If the molecule does not have hydrogens or aramatic
     flags are missing then a copy of the molecule is fixed
 
     Parameters:
     -----------
     molecule: OEMol
-        The molecule to be checked 
+        The molecule to be checked
 
     Return:
     -------
     mol_copy: OEMol
-        A copy of the checked molecule with fixed aromaticity 
+        A copy of the checked molecule with fixed aromaticity
         and hydrogens
     """
     mol_copy = molecule.CreateCopy()
@@ -139,25 +139,6 @@ class ParamLigStructure(object):
         if not is_charged:
             raise Exception('Molecule %s has no charges; input molecules must be charged.' % molecule.GetTitle())
 
-    def getSmirnoffStructure(self, molecule=None):
-        from smarty.forcefield import ForceField
-        from smarty.forcefield_utils import create_system_from_molecule
-        if not molecule:
-            molecule = self.molecule
-
-        try:
-            ff = get_data_filename('smirnoff99Frosst', 'smirnoff99Frosst.ffxml')
-            with open(ff) as ffxml:
-                mol_ff = ForceField(ffxml)
-        except:
-            raise RuntimeError('Error opening {}'.format(ff))
-
-        self.checkCharges(molecule)
-        mol_top, mol_sys, mol_pos = create_system_from_molecule(mol_ff, molecule)
-        molecule_structure = parmed.openmm.load_topology(mol_top, mol_sys, xyz=mol_pos)
-
-        return molecule_structure
-
     def getGaffStructure(self, molecule=None, forcefield=None):
         if not molecule:
             molecule = self.molecule
@@ -203,8 +184,9 @@ class ParamLigStructure(object):
         return molecule_structure
 
     def parameterize(self):
+        from openforcefield.utils.utils import generateSMIRNOFFStructure
         if self.forcefield == 'SMIRNOFF':
-            structure = self.getSmirnoffStructure()
+            structure = generateSMIRNOFFStructure(molecule)
         elif self.forcefield in ['GAFF', 'GAFF2']:
             structure = self.getGaffStructure()
         self.structure = structure
