@@ -5,9 +5,9 @@ from OpenMMCubes.cubes import OpenMMminimizeCube
 job = WorkFloe("MDminimize")
 
 job.description = """
-**Minimize an OpenMM-ready solvated complex**
+Minimize an OpenMM-ready solvated complex
 
-Ex. `data='examples/data'; python floes/openmm_prepMDminimize.py --complex $data/9PC1X-complex.oeb.gz --steps 1000`
+Ex: python floes/openmm_prepMDminimize.py --complex complex.oeb --ofs-data_out min.oeb --steps 1000`
 
 Parameters:
 -----------
@@ -19,7 +19,7 @@ steps (int): Number of MD steps to minimize the system. If 0 until convergence w
 
 Outputs:
 --------
-ofs: Outputs to a <idtag>-simulation.oeb.gz file
+ofs: Outputs the minimized system
 """
 
 job.classification = [['Simulation']]

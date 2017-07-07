@@ -1,137 +1,52 @@
-import unittest, parmed, base64, pickle
-from LigPrepCubes.cubes import ChargeMCMol, LigandParameterization, FREDDocking
+import unittest
+from LigPrepCubes.cubes import FREDDocking, LigChargeCube
 import OpenMMCubes.utils as utils
-from simtk import openmm, unit
 from floe.test import CubeTestRunner
-from openeye import oechem, oedocking
+from openeye import oechem
 
-class ChargeMCMolTester(unittest.TestCase):
+
+class LigChargeTester(unittest.TestCase):
     """
-    Test the Charging/OMEGA cube
+    Test ELF10 charge cube
     Example inputs from `openmm_orion/examples/data`
     """
     def setUp(self):
-        self.cube = ChargeMCMol('charge')
+        self.cube = LigChargeCube('elf10charge')
+        self.cube.args.max_conforms = 800
         self.runner = CubeTestRunner(self.cube)
         self.runner.start()
 
     def test_success(self):
         print('Testing cube:', self.cube.name)
-        ligand = utils.get_data_filename('examples','data/TOL.ism')
+        # File name of a charged ligand
+        lig_fname = utils.get_data_filename('examples', 'data/lig_CAT13a_chg.oeb.gz')
 
-        # Read a molecule
+        # Read OEMol molecule
         mol = oechem.OEMol()
-        ifs = oechem.oemolistream(ligand)
+        ifs = oechem.oemolistream(lig_fname)
         if not oechem.OEReadMolecule(ifs, mol):
-            raise Exception('Cannot read molecule from %s' % ligand)
+            raise Exception('Cannot read molecule from %s' % lig_fname)
         ifs.close()
 
+        mol_copy = mol.CreateCopy()
+        # Set the partial charge to zero
+        for at in mol_copy.GetAtoms():
+            at.SetPartialCharge(0.0)
+
         # Process the molecules
-        self.cube.process(mol, self.cube.intake.name)
+        self.cube.process(mol_copy, self.cube.intake.name)
 
         # Assert that one molecule was emitted on the success port
         self.assertEqual(self.runner.outputs['success'].qsize(), 1)
         # Assert that zero molecules were emitted on the failure port
         self.assertEqual(self.runner.outputs['failure'].qsize(), 0)
 
-        # Check outmol has at least 1 conformer
+        # Check outmol
         outmol = self.runner.outputs["success"].get()
-        self.assertGreaterEqual(outmol.GetMaxConfIdx(), 1)
 
         # Loop through atoms and make sure partial charges were set
         for iat, oat in zip(mol.GetAtoms(), outmol.GetAtoms()):
             self.assertNotEqual(iat.GetPartialCharge(), oat.GetPartialCharge)
-
-    def test_failure(self):
-        pass
-
-    def tearDown(self):
-        self.runner.finalize()
-
-class LigandParamTester(unittest.TestCase):
-    """
-    Test the SMIRNOFF Parameterization cube
-    Example inputs from `openmm_orion/examples/data`
-    """
-    def setUp(self):
-        self.cube = LigandParameterization('lig_param')
-
-        self.runner = CubeTestRunner(self.cube)
-        self.runner.start()
-
-    def test_success_gaff(self):
-        print('Testing cube:', self.cube.name)
-        self.cube.args.molecule_forcefield = 'GAFF'
-        self.cube.args.ligand = utils.get_data_filename('examples','data/TOL-chgdmc.oeb.gz')
-        # Read a molecule
-        mol = oechem.OEMol()
-        ifs = oechem.oemolistream(self.cube.args.ligand)
-        if not oechem.OEReadMolecule(ifs, mol):
-            raise Exception('Cannot read molecule from %s' % self.cube.args.ligand)
-        ifs.close()
-
-        # Process the molecules
-        self.cube.process(mol, self.cube.intake.name)
-
-        # Assert that one molecule was emitted on the success port
-        self.assertEqual(self.runner.outputs['success'].qsize(), 1)
-        # Assert that zero molecules were emitted on the failure port
-        self.assertEqual(self.runner.outputs['failure'].qsize(), 0)
-
-        # Get the output molecule
-        outmol = self.runner.outputs["success"].get()
-
-        # Check for the attached ParmEd Structure and IDTag
-        self.assertTrue(outmol.HasData(oechem.OEGetTag('IDTag')))
-        self.assertTrue(outmol.HasData(oechem.OEGetTag('Structure')))
-
-        # Check that the Structure is parameterized
-        encoded_structure = outmol.GetData(oechem.OEGetTag('Structure'))
-        self.assertIsInstance(encoded_structure, str)
-        decoded_structure = base64.b64decode(encoded_structure)
-        struct_dict = pickle.loads(decoded_structure)
-        struct = parmed.structure.Structure()
-        struct.__setstate__(struct_dict)
-        self.assertEqual(len(struct.atoms),mol.NumAtoms())
-        struct_string = [x.strip() for x in str(struct).split(';')]
-        self.assertIn('parametrized>', struct_string)
-
-    def test_success_smirnoff(self):
-        print('Testing cube:', self.cube.name)
-        self.cube.args.molecule_forcefield = 'SMIRNOFF'
-        self.cube.args.ligand = utils.get_data_filename('examples','data/TOL-chgdmc.oeb.gz')
-        # Read a molecule
-        mol = oechem.OEMol()
-        ifs = oechem.oemolistream(self.cube.args.ligand)
-        if not oechem.OEReadMolecule(ifs, mol):
-            raise Exception('Cannot read molecule from %s' % self.cube.args.ligand)
-        ifs.close()
-
-        # Process the molecules
-        self.cube.process(mol, self.cube.intake.name)
-
-        # Assert that one molecule was emitted on the success port
-        self.assertEqual(self.runner.outputs['success'].qsize(), 1)
-        # Assert that zero molecules were emitted on the failure port
-        self.assertEqual(self.runner.outputs['failure'].qsize(), 0)
-
-        # Get the output molecule
-        outmol = self.runner.outputs["success"].get()
-
-        # Check for the attached ParmEd Structure and IDTag
-        self.assertTrue(outmol.HasData(oechem.OEGetTag('IDTag')))
-        self.assertTrue(outmol.HasData(oechem.OEGetTag('Structure')))
-
-        # Check that the Structure is parameterized
-        encoded_structure = outmol.GetData(oechem.OEGetTag('Structure'))
-        self.assertIsInstance(encoded_structure, str)
-        decoded_structure = base64.b64decode(encoded_structure)
-        struct_dict = pickle.loads(decoded_structure)
-        struct = parmed.structure.Structure()
-        struct.__setstate__(struct_dict)
-        self.assertEqual(len(struct.atoms),mol.NumAtoms())
-        struct_string = [x.strip() for x in str(struct).split(';')]
-        self.assertIn('parametrized>', struct_string)
 
     def test_failure(self):
         pass
@@ -174,6 +89,7 @@ class FREDTester(unittest.TestCase):
 
     def test_failure(self):
         pass
+
     def tearDown(self):
         self.runner.finalize()
 

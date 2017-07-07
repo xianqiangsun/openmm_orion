@@ -1,4 +1,4 @@
-import io, os, base64, parmed, mdtraj, pdbfixer, glob, tarfile
+import io, os, base64, parmed, tarfile
 import numpy as np
 from sys import stdout
 from tempfile import NamedTemporaryFile
@@ -12,6 +12,7 @@ except ImportError:
     import pickle
 # Prevents repeated downloads of the same Dataset
 download_cache = {}
+
 
 class PackageOEMol(object):
     """
@@ -110,7 +111,7 @@ class PackageOEMol(object):
         if diff:
             raise RuntimeError('Missing {} in tagged data'.format(diff))
         else:
-            #print('Found tags: {}'.format(intersect))
+            # print('Found tags: {}'.format(intersect))
             return True
 
     @classmethod
@@ -151,8 +152,8 @@ class PackageOEMol(object):
         sd_data = cls.checkSDData(molecule)
         sdtxt = outfname+'-sd.txt'
         with open(sdtxt, 'w') as f:
-            for k,v in sd_data.items():
-                f.write('{} : {}\n'.format(k,v))
+            for k, v in sd_data.items():
+                f.write('{} : {}\n'.format(k, v))
         totar.append(sdtxt)
 
         print('Dumping data from: %s' % outfname)
@@ -161,7 +162,17 @@ class PackageOEMol(object):
                 pdbfname = outfname+'.pdb'
                 print("\tStructure to %s" % pdbfname)
                 data.save(pdbfname, overwrite=True)
+
+                # GAC ADDED - TESTING
+                # Preserve original residue numbers
+                pdbfname_test = outfname+'_ordering_test'+'.pdb'
+                ofs = oechem.oemolostream(pdbfname_test)
+                flavor = ofs.GetFlavor(oechem.OEFormat_PDB) ^ oechem.OEOFlavor_PDB_OrderAtoms
+                ofs.SetFlavor(oechem.OEFormat_PDB, flavor)
+                oechem.OEWriteConstMolecule(ofs, molecule)
+
                 totar.append(pdbfname)
+                totar.append(pdbfname_test)
             if isinstance(data, openmm.openmm.State):
                 statefname = outfname+'-state.xml'
                 print('\tState to %s' % statefname)
@@ -182,10 +193,10 @@ class PackageOEMol(object):
 
             trajfname = outfname+'.nc'
             if os.path.isfile(trajfname):
-               totar.append(trajfname)
-               print('Adding {} to {}'.format(trajfname, tarname))
+                totar.append(trajfname)
+                print('Adding {} to {}'.format(trajfname, tarname))
             else:
-               print('Could not find {}'.format(trajfname))
+                print('Could not find {}'.format(trajfname))
 
             tar = tarfile.open(tarname, "w:xz")
             for name in totar:
@@ -193,7 +204,7 @@ class PackageOEMol(object):
             tar.close()
 
             if in_orion():
-                #### MUST upload tar file directly back to Orion or they disappear.
+                # MUST upload tar file directly back to Orion or they disappear.
                 upload_file(tarname, tarname, tags=['TAR'])
             # Clean up files that have been added to tar.
             cleanup(totar)
@@ -216,12 +227,14 @@ class PackageOEMol(object):
                 molecule.SetData(oechem.OEGetTag(k), v)
         return molecule
 
+
 def cleanup(tmpfiles):
     for tmp in tmpfiles:
         try:
             os.remove(tmp)
         except Exception as e:
             pass
+
 
 def get_data_filename(package_root, relative_path):
     """Get the full path of the files installed in python packages or included
@@ -246,6 +259,7 @@ def get_data_filename(package_root, relative_path):
         raise ValueError("Sorry! %s does not exist. If you just added it, you'll have to re-install" % fn)
     return fn
 
+
 def getPositionsFromOEMol(molecule):
     positions = unit.Quantity(
         np.zeros([molecule.NumAtoms(), 3], np.float32), unit.angstroms)
@@ -253,6 +267,7 @@ def getPositionsFromOEMol(molecule):
     for index in range(molecule.NumAtoms()):
         positions[index, :] = unit.Quantity(coords[index], unit.angstroms)
     return positions
+
 
 def combinePositions(proteinPositions, molPositions):
     # Concatenate positions arrays (ensures same units)
@@ -270,6 +285,7 @@ def combinePositions(proteinPositions, molPositions):
             positions[index, 2] = z
     positions = unit.Quantity(positions, positions_unit)
     return positions
+
 
 def download_dataset_to_file(dataset_id):
     """
@@ -292,15 +308,15 @@ def download_dataset_to_file(dataset_id):
     
 def dump_query(prefix, name, qmol, receptor):
     """
-    Writes the Molecule or receptor out to file on the machine
+    Writes the Molecule or receptor out to file
     """
     tag = "{0}_{1}.query".format(prefix, name)
     query_file = "{0}.oeb.gz".format(tag)
-    with oemolostream(query_file) as ofs:
-        OEWriteConstMolecule(ofs, qmol)
+    with oechem.oemolostream(query_file) as ofs:
+        oechem.OEWriteConstMolecule(ofs, qmol)
     if receptor.IsValid():
         receptor_file = "{0}.receptor.oeb.gz".format(tag)
-        OEWriteReceptorFile(receptor, receptor_file)
+        oechem.OEWriteReceptorFile(receptor, receptor_file)
     return tag, query_file
 
 
@@ -358,7 +374,7 @@ class MDData(object):
             # Reference Positions are a list of OpenMM Quantity objects
             self.ref_positions = dic['OEMDDataRefPositions']
         except:
-            logging.warning('The molecular system does not have any Reference Positions attached')
+            RuntimeWarning('The molecular system does not have any Reference Positions attached')
             
     def __getattr__(self, attrname):
         if attrname == "structure":
@@ -398,7 +414,7 @@ class MDData(object):
             # Try to attach the Parmed structure to the molecule. The molecule is changed in place
             mol = PackageOEMol.pack(mol, self.__parmed_structure__)
         except Exception as e:
-            logging.warning('It was not possible to attached the parmed structure to the molecule {}'.format(e))
+            raise RuntimeError('It was not possible to attached the parmed structure to the molecule {}'.format(e))
             
         if self.ref_positions:
             packedpos = PackageOEMol.encodePyObj(self.ref_positions)

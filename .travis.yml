@@ -31,8 +31,8 @@ script:
 # Test cubes
 - py.test -v -s PlatformTestCubes
 - py.test -v -s LigPrepCubes
-#- py.test -v -s OpenMMCubes
+- py.test -v -s -m "not slow" OpenMMCubes 
 - py.test -v -s ComplexPrepCubes
 #- py.test -v -s YankCubes
 # Test floes
-#- py.test -v -s floes/floe_tests/
+#- py.test -v -s -m "not slow" floes/floe_tests/
