@@ -37,8 +37,9 @@ nvt.promote_parameter('temperature', promoted_name='temperature', default=300.0,
 nvt.promote_parameter('restraints', promoted_name='restraints', default='noh (ligand or protein)')
 nvt.promote_parameter('restraintWt', promoted_name='restraintWt', default=2.0)
 # Trajectory and logging info frequency intervals
-nvt.promote_parameter('trajectory_interval', promoted_name='trajectory_interval', default=10)
-nvt.promote_parameter('reporter_interval', promoted_name='reporter_interval', default=100,
+nvt.promote_parameter('trajectory_interval', promoted_name='trajectory_interval', default=100,
+                      description='Trajectory saving interval')
+nvt.promote_parameter('reporter_interval', promoted_name='reporter_interval', default=1000,
                       description='Reporter saving interval')
 
 nvt.promote_parameter('outfname', promoted_name='suffix', default='nvt',

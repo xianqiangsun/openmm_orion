@@ -111,7 +111,7 @@ class PackageOEMol(object):
         if diff:
             raise RuntimeError('Missing {} in tagged data'.format(diff))
         else:
-            #print('Found tags: {}'.format(intersect))
+            # print('Found tags: {}'.format(intersect))
             return True
 
     @classmethod
@@ -152,8 +152,8 @@ class PackageOEMol(object):
         sd_data = cls.checkSDData(molecule)
         sdtxt = outfname+'-sd.txt'
         with open(sdtxt, 'w') as f:
-            for k,v in sd_data.items():
-                f.write('{} : {}\n'.format(k,v))
+            for k, v in sd_data.items():
+                f.write('{} : {}\n'.format(k, v))
         totar.append(sdtxt)
 
         print('Dumping data from: %s' % outfname)
@@ -162,7 +162,17 @@ class PackageOEMol(object):
                 pdbfname = outfname+'.pdb'
                 print("\tStructure to %s" % pdbfname)
                 data.save(pdbfname, overwrite=True)
+
+                # GAC ADDED - TESTING
+                # Preserve original residue numbers
+                pdbfname_test = outfname+'_ordering_test'+'.pdb'
+                ofs = oechem.oemolostream(pdbfname_test)
+                flavor = ofs.GetFlavor(oechem.OEFormat_PDB) ^ oechem.OEOFlavor_PDB_OrderAtoms
+                ofs.SetFlavor(oechem.OEFormat_PDB, flavor)
+                oechem.OEWriteConstMolecule(ofs, molecule)
+
                 totar.append(pdbfname)
+                totar.append(pdbfname_test)
             if isinstance(data, openmm.openmm.State):
                 statefname = outfname+'-state.xml'
                 print('\tState to %s' % statefname)
@@ -183,10 +193,10 @@ class PackageOEMol(object):
 
             trajfname = outfname+'.nc'
             if os.path.isfile(trajfname):
-               totar.append(trajfname)
-               print('Adding {} to {}'.format(trajfname, tarname))
+                totar.append(trajfname)
+                print('Adding {} to {}'.format(trajfname, tarname))
             else:
-               print('Could not find {}'.format(trajfname))
+                print('Could not find {}'.format(trajfname))
 
             tar = tarfile.open(tarname, "w:xz")
             for name in totar:
@@ -194,7 +204,7 @@ class PackageOEMol(object):
             tar.close()
 
             if in_orion():
-                #### MUST upload tar file directly back to Orion or they disappear.
+                # MUST upload tar file directly back to Orion or they disappear.
                 upload_file(tarname, tarname, tags=['TAR'])
             # Clean up files that have been added to tar.
             cleanup(totar)
@@ -298,7 +308,7 @@ def download_dataset_to_file(dataset_id):
     
 def dump_query(prefix, name, qmol, receptor):
     """
-    Writes the Molecule or receptor out to file on the machine
+    Writes the Molecule or receptor out to file
     """
     tag = "{0}_{1}.query".format(prefix, name)
     query_file = "{0}.oeb.gz".format(tag)

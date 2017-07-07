@@ -44,9 +44,9 @@ npt.promote_parameter('restraints', promoted_name='restraints', default="ca_prot
 npt.promote_parameter('restraintWt', promoted_name='restraintWt', default=2.0, description='Restraint weight')
 
 # Trajectory and logging info frequency intervals
-npt.promote_parameter('trajectory_interval', promoted_name='trajectory_interval', default=10,
+npt.promote_parameter('trajectory_interval', promoted_name='trajectory_interval', default=100,
                       description='Trajectory saving interval')
-npt.promote_parameter('reporter_interval', promoted_name='reporter_interval', default=100,
+npt.promote_parameter('reporter_interval', promoted_name='reporter_interval', default=1000,
                       description='Reporter saving interval')
 npt.promote_parameter('outfname', promoted_name='suffix', default='npt',
                       description='Equilibration suffix name')

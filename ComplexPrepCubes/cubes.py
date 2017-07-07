@@ -316,8 +316,8 @@ class ForceFieldPrep(ParallelOEMolComputeCube):
             # to match the defined Parmed structure complex
             complx = protein.CreateCopy()
             oechem.OEAddMols(complx, ligand)
-            oechem.OEAddMols(complx, excipients)
-            oechem.OEAddMols(complx, water)
+            oechem.OEAddMols(complx, excipient_del)
+            oechem.OEAddMols(complx, water_del)
 
             complx.SetTitle(mol.GetTitle())
 
@@ -333,6 +333,19 @@ class ForceFieldPrep(ParallelOEMolComputeCube):
             ref_positions = complex_structure.positions
             packedpos = pack_utils.PackageOEMol.encodePyObj(ref_positions)
             packed_complex.SetData(oechem.OEGetTag('OEMDDataRefPositions'), packedpos)
+
+            # Set atom serial numbers, Ligand name and HETATM flag
+            # oechem.OEPerceiveResidues(packed_complex, oechem.OEPreserveResInfo_SerialNumber)
+            for at in packed_complex.GetAtoms():
+                thisRes = oechem.OEAtomGetResidue(at)
+                thisRes.SetSerialNumber(at.GetIdx())
+                if thisRes.GetName() == 'UNL':
+                    thisRes.SetName("LIG")
+                    thisRes.SetHetAtom(True)
+                oechem.OEAtomSetResidue(at, thisRes)
+
+            if packed_complex.GetMaxAtomIdx() != complex_structure.topology.getNumAtoms():
+                raise ValueError("OEMol complex and Parmed structure mismatch atom numbers")
 
             self.success.emit(packed_complex)
         except Exception as e:

@@ -62,7 +62,8 @@ def simulation(mdData, **opt):
     # OpenMM system
     system = structure.createSystem(nonbondedMethod=eval("app.%s" % opt['nonbondedMethod']),
                                     nonbondedCutoff=opt['nonbondedCutoff']*unit.angstroms,
-                                    constraints=eval("app.%s" % opt['constraints']))
+                                    constraints=eval("app.%s" % opt['constraints']),
+                                    removeCMMotion=False)
     # OpenMM Integrator
     integrator = openmm.LangevinIntegrator(opt['temperature']*unit.kelvin, 1/unit.picoseconds, stepLen)
     
@@ -100,10 +101,20 @@ def simulation(mdData, **opt):
     else:
         try:
             platform = openmm.Platform.getPlatformByName(opt['platform'])
-            simulation = app.Simulation(topology, system, integrator, platform)
         except Exception as e:
-            raise ValueError('The selected platform is invalid: {}'.format(str(e)))
-    
+            oechem.OEThrow.Fatal('The selected platform is not supported: {}'.format(str(e)))
+
+        try:
+            # Set platform CUDA or OpenCL precision
+            properties = {'Precision': opt['cuda_opencl_precision']}
+
+            simulation = app.Simulation(topology, system, integrator,
+                                        platform=platform,
+                                        platformProperties=properties)
+        except Exception:
+            oechem.OEThrow.Fatal('It was not possible to set the {} precision for the {} platform'
+                                 .format(opt['cuda_opencl_precision'], opt['platform']))
+
     # Set starting positions and velocities
     simulation.context.setPositions(positions)
 
@@ -147,7 +158,7 @@ def simulation(mdData, **opt):
 
     if opt['SimType'] in ['nvt', 'npt']:
 
-        opt['Logger'].info('Running {time} ps = {steps} steps of {SimType} MD at {temperature} K'.format( **opt))
+        opt['Logger'].info('Running {time} ps = {steps} steps of {SimType} at {temperature} K'.format(**opt))
         
         # Start Simulation
         simulation.step(opt['steps'])
@@ -211,25 +222,31 @@ def getReporters(totalSteps=None, outfname=None, **opt):
     if outfname is None:
         outfname = opt['outfname']
 
-    progress_reporter = app.StateDataReporter(stdout, separator="\t",
-                                        reportInterval=opt['reporter_interval'],
-                                        step=True, totalSteps=totalSteps,
-                                        time=True, speed=True, progress=True,
-                                        elapsedTime=True, remainingTime=True)
+    reporters = []
 
-    state_reporter = app.StateDataReporter(outfname+'.log', separator="\t",
-                                        reportInterval=opt['reporter_interval'],
-                                        step=True,
-                                        potentialEnergy=True, totalEnergy=True,
-                                        volume=True, temperature=True)
+    if opt['reporter_interval']:
+        state_reporter = app.StateDataReporter(outfname+'.log', separator="\t",
+                                               reportInterval=opt['reporter_interval'],
+                                               step=True,
+                                               potentialEnergy=True, totalEnergy=True,
+                                               volume=True, temperature=True)
 
-    # Uses NetCDF(4.0) but not VMD compatible.
-    #traj_reporter = mdtraj.reporters.HDF5Reporter(outfname+'.h5', opt['reporter_interval'])
+        reporters.append(state_reporter)
 
-    # Default to NetCDF since VMD compatible.
-    traj_reporter = mdtraj.reporters.NetCDFReporter(outfname+'.nc', opt['trajectory_interval'])
+        progress_reporter = app.StateDataReporter(stdout, separator="\t",
+                                                  reportInterval=opt['reporter_interval'],
+                                                  step=True, totalSteps=totalSteps,
+                                                  time=True, speed=True, progress=True,
+                                                  elapsedTime=True, remainingTime=True)
 
-    reporters = [state_reporter, progress_reporter, traj_reporter]
+        reporters.append(progress_reporter)
+
+    if opt['trajectory_interval']:
+        # Default to NetCDF since VMD compatible.
+        traj_reporter = mdtraj.reporters.NetCDFReporter(outfname+'.nc', opt['trajectory_interval'])
+
+        reporters.append(traj_reporter)
+
     return reporters
 
 

@@ -591,6 +591,8 @@ def openmmTop_to_oemol(topology, positions):
                 oe_atom = oe_mol.NewAtom(openmm_at.element._atomic_number)
                 # Set atom name
                 oe_atom.SetName(openmm_at.name)
+                # Set Symbol
+                oe_atom.SetType(openmm_at.element.symbol)
                 # Set Atom index
                 oe_res.SetSerialNumber(openmm_at.index + 1)
                 # Commit the changes
@@ -631,6 +633,8 @@ def openmmTop_to_oemol(topology, positions):
     oe_mol.SetCoords(pos)
 
     return oe_mol
+
+
 
 def order_check(mol, fname):
     """

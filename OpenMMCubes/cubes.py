@@ -220,13 +220,15 @@ class OpenMMnvtCube(ParallelOEMolComputeCube):
 
     trajectory_interval = parameter.IntegerParameter(
         'trajectory_interval',
-        default=1000,
-        help_text="Step interval for trajectory snapshots")
+        default=0,
+        help_text="Step interval for trajectory snapshots. If 0 the trajectory"
+                  "file will not be generated")
 
     reporter_interval = parameter.IntegerParameter(
         'reporter_interval',
-        default=10000,
-        help_text="Step interval for reporting data")
+        default=0,
+        help_text="Step interval for reporting data. If 0 the reporter file"
+                  "will not be generated")
 
     outfname = parameter.StringParameter(
         'outfname',
@@ -253,6 +255,12 @@ class OpenMMnvtCube(ParallelOEMolComputeCube):
         default='Auto',
         choices=['Auto', 'Reference', 'CPU', 'CUDA', 'OpenCL'],
         help_text='Select which platform to use to run the simulation')
+
+    cuda_opencl_precision = parameter.StringParameter(
+        'cuda_opencl_precision',
+        default='single',
+        choices=['single', 'mixed', 'double'],
+        help_text='Select the CUDA or OpenCL precision')
 
     def begin(self):
         self.opt = vars(self.args)
@@ -398,13 +406,15 @@ class OpenMMnptCube(ParallelOEMolComputeCube):
 
     trajectory_interval = parameter.IntegerParameter(
         'trajectory_interval',
-        default=1000,
-        help_text="Step interval for trajectory snapshots.")
+        default=0,
+        help_text="Step interval for trajectory snapshots. If 0 the trajectory"
+                  "file will not be generated")
 
     reporter_interval = parameter.IntegerParameter(
         'reporter_interval',
-        default=10000,
-        help_text="Step interval for reporting data.")
+        default=0,
+        help_text="Step interval for reporting data. If 0 the reporter file"
+                  "will not be generated")
 
     outfname = parameter.StringParameter(
         'outfname',
@@ -431,6 +441,12 @@ class OpenMMnptCube(ParallelOEMolComputeCube):
         default='Auto', 
         choices=['Auto', 'Reference', 'CPU', 'CUDA', 'OpenCL'],
         help_text='Select which platform to use to run the simulation')
+
+    cuda_opencl_precision = parameter.StringParameter(
+        'cuda_opencl_precision',
+        default='single',
+        choices=['single', 'mixed', 'double'],
+        help_text='Select the CUDA or OpenCL precision')
 
     def begin(self):
         self.opt = vars(self.args)
