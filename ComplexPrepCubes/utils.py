@@ -132,6 +132,55 @@ def delete_shell(core_mol, del_mol, cut_off, in_out='in'):
     return reset_del
 
 
+def check_shell(core_mol, check_mol, cutoff):
+    """
+    This function checks if at least one atomic distance from the passed
+    check_mol molecule to the core_mol molecule is less than the selected
+    cutoff distance in A.
+
+    Parameters:
+    -----------
+    core_mol: OEMol molecule
+        The core molecule
+    check_mol: OEMol molecule
+        The molecule to be checked if inside or outside a shell of
+        cutoff threshold
+    cut_off: python float number
+        The threshold distance in A used to mark atom inside or outside
+        the shell
+
+    Return:
+    -------
+    in_out: python boolean
+         True if at least one of check_mol atom distance is less than
+          the selected cutoff
+    """
+
+    # Create a OE bit vector mask for each atoms of the
+    # molecule to be checked
+    bv = oechem.OEBitVector(check_mol.GetMaxAtomIdx())
+
+    # Create the Nearest neighbours
+    nn = oechem.OENearestNbrs(check_mol, cutoff)
+
+    # Check neighbours setting the atom bit mask
+    for nbrs in nn.GetNbrs(core_mol):
+        bv.SetBitOn(nbrs.GetBgn().GetIdx())
+
+    # Create predicate based on the atom bit mask
+    pred = oechem.OEAtomIdxSelected(bv)
+
+    # Checking flag
+    in_out = False
+
+    # If just one chem_mol atom is inside the cutoff distance return True
+    for atom in check_mol.GetAtoms(pred):
+        in_out = True
+        break
+
+    return in_out
+
+
 def solvate(system, opt):
     """
     This function solvates the system by using PDBFixer

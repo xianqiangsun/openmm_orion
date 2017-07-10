@@ -4,6 +4,8 @@ from floe.api import OEMolComputeCube, ParallelOEMolComputeCube, parameter, OEMo
 from floe.api.orion import StreamingDataset, config_from_env
 from openeye import oechem
 import traceback
+from simtk import unit
+from simtk.openmm import app
 
 
 class Reader(OEMolIStreamCube):
@@ -204,13 +206,44 @@ class ComplexPrep(OEMolComputeCube):
                     conf_mol = oechem.OEMol(conf)
                     complx = self.system.CreateCopy()
                     oechem.OEAddMols(complx, conf_mol)
+
+                    # Split the complex in components
+                    protein, ligand, water, excipients = utils.split(complx)
+
+                    # If the protein does not contain any atom emit a failure
+                    if not protein.NumAtoms():  # Error: protein molecule is empty
+                        oechem.OEThrow.Fatal("The protein molecule is empty")
+
+                    # If the ligand does not contain any atom emit a failure
+                    if not ligand.NumAtoms():  # Error: ligand molecule is empty
+                        oechem.OEThrow.Fatal("The Ligand molecule is empty")
+
+                    # If the water does not contain any atom emit a failure
+                    if not water.NumAtoms():  # Error: water molecule is empty
+                        oechem.OEThrow.Fatal("The water is empty. This could happen if not"
+                                             "solvation process has been called")
+
+                    # Check if the ligand is inside the binding site. Cutoff distance 3A
+                    if not utils.check_shell(ligand, protein, 3):
+                        oechem.OEThrow.Fatal("The ligand is probably outside the protein binding site")
+
+                    # Removing possible clashes between the ligand and water or excipients
+                    water_del = utils.delete_shell(ligand, water, 1.5, in_out='in')
+                    excipient_del = utils.delete_shell(ligand, excipients, 1.5, in_out='in')
+
+                    # Reassemble the complex
+                    new_complex = protein.CreateCopy()
+                    oechem.OEAddMols(new_complex, ligand)
+                    oechem.OEAddMols(new_complex, excipient_del)
+                    oechem.OEAddMols(new_complex, water_del)
+
                     name_c = name
                     if mol.GetMaxConfIdx() > 1:
                         name_c = name + '_c' + str(num_conf)
-                    complx.SetData(oechem.OEGetTag('IDTag'), name_c)
-                    complx.SetTitle(name_c)
+                    new_complex.SetData(oechem.OEGetTag('IDTag'), name_c)
+                    new_complex.SetTitle(name_c)
                     num_conf += 1
-                    self.success.emit(complx)
+                    self.success.emit(new_complex)
                 self.count += 1
 
         except Exception as e:
@@ -280,10 +313,6 @@ class ForceFieldPrep(ParallelOEMolComputeCube):
             # Split the complex in components in order to apply the FF
             protein, ligand, water, excipients = utils.split(mol)
 
-            # Removing possible clashes between the ligand and water or excipients
-            water_del = utils.delete_shell(ligand, water, 1.5, in_out='in')
-            excipient_del = utils.delete_shell(ligand, excipients, 1.5, in_out='in')
-
             # Unique prefix name used to output parametrization files
             self.opt['prefix_name'] = mol.GetTitle()
 
@@ -291,11 +320,11 @@ class ForceFieldPrep(ParallelOEMolComputeCube):
             protein_structure = utils.applyffProtein(protein, self.opt)
 
             # Apply FF to water molecules
-            water_structure = utils.applyffWater(water_del, self.opt)
+            water_structure = utils.applyffWater(water, self.opt)
 
             # Apply FF to the excipients
             if excipients.NumAtoms() > 0:
-                excipient_structure = utils.applyffExcipients(excipient_del, self.opt)
+                excipient_structure = utils.applyffExcipients(excipients, self.opt)
 
             # Apply FF to the ligand
             ligand_structure = utils.applyffLigand(ligand, self.opt)
@@ -307,7 +336,7 @@ class ForceFieldPrep(ParallelOEMolComputeCube):
             else:
                 complex_structure = protein_structure + ligand_structure + water_structure
 
-            num_atom_system = protein.NumAtoms() + ligand.NumAtoms() + excipient_del.NumAtoms() + water_del.NumAtoms()
+            num_atom_system = protein.NumAtoms() + ligand.NumAtoms() + excipients.NumAtoms() + water.NumAtoms()
 
             if not num_atom_system == complex_structure.topology.getNumAtoms():
                 oechem.OEThrow.Fatal("Parmed and OE topologies mismatch atom number error")
@@ -316,8 +345,8 @@ class ForceFieldPrep(ParallelOEMolComputeCube):
             # to match the defined Parmed structure complex
             complx = protein.CreateCopy()
             oechem.OEAddMols(complx, ligand)
-            oechem.OEAddMols(complx, excipient_del)
-            oechem.OEAddMols(complx, water_del)
+            oechem.OEAddMols(complx, excipients)
+            oechem.OEAddMols(complx, water)
 
             complx.SetTitle(mol.GetTitle())
 
@@ -346,6 +375,12 @@ class ForceFieldPrep(ParallelOEMolComputeCube):
 
             if packed_complex.GetMaxAtomIdx() != complex_structure.topology.getNumAtoms():
                 raise ValueError("OEMol complex and Parmed structure mismatch atom numbers")
+
+            # Check if it is possible to create the OpenMM System
+            system = complex_structure.createSystem(nonbondedMethod=app.CutoffPeriodic,
+                                                    nonbondedCutoff=10.0 * unit.angstroms,
+                                                    constraints=app.HBonds,
+                                                    removeCMMotion=False)
 
             self.success.emit(packed_complex)
         except Exception as e:

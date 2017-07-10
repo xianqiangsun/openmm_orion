@@ -2,7 +2,6 @@ import subprocess, tempfile, parmed
 from openeye import oechem, oequacpac
 import openmoltools
 from openmoltools.openeye import *
-from OpenMMCubes.utils import get_data_filename
 
 
 def assignELF10charges(molecule, max_confs=800, strictStereo=True):
@@ -146,7 +145,7 @@ class ParamLigStructure(object):
         try:
             molecule_structure = generateSMIRNOFFStructure(molecule)
         except:
-            raise RuntimeError('Error generating SMIRNOFF Sstructure for %s' % molecule.GetTitle())
+            raise RuntimeError('Error generating SMIRNOFF Structure for %s' % molecule.GetTitle())
         return molecule_structure
 
     def getGaffStructure(self, molecule=None, forcefield=None):
@@ -161,7 +160,7 @@ class ParamLigStructure(object):
         # Determine formal charge (antechamber needs as argument)
         chg = 0
         for atom in molecule.GetAtoms():
-            chg+=atom.GetFormalCharge()
+            chg += atom.GetFormalCharge()
 
         # Write out mol to a mol2 file to process via AmberTools
         mol2file = tempfile.NamedTemporaryFile(suffix='.mol2')

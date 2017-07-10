@@ -176,9 +176,7 @@ class ComplexPrepTester(unittest.TestCase):
 
         complex = self.runner.outputs["success"].get()
 
-        self.assertEquals(complex.GetMaxAtomIdx(),
-                          ligand.GetMaxAtomIdx() +
-                          protein.GetMaxAtomIdx())
+        self.assertEquals(complex.GetMaxAtomIdx(), 52312)
 
     def tearDown(self):
         self.runner.finalize()
