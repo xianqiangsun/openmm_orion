@@ -27,7 +27,7 @@ class OpenMMminimizeCube(ParallelOEMolComputeCube):
     # Override defaults for some parameters
     parameter_overrides = {
         "prefetch_count": {"default": 1},  # 1 molecule at a time
-        "item_timeout": {"default": 28800},  # Default 8 hour limit (units are seconds)
+        "item_timeout": {"default": 43200},  # Default 12 hour limit (units are seconds)
         "item_count": {"default": 1}  # 1 molecule at a time
     }
 
@@ -158,7 +158,7 @@ class OpenMMnvtCube(ParallelOEMolComputeCube):
     # Override defaults for some parameters
     parameter_overrides = {
         "prefetch_count": {"default": 1},  # 1 molecule at a time
-        "item_timeout": {"default": 172800},  # Default 48 hour limit (units are seconds)
+        "item_timeout": {"default": 43200},  # Default 12 hour limit (units are seconds)
         "item_count": {"default": 1}  # 1 molecule at a time
     }
     
@@ -339,7 +339,7 @@ class OpenMMnptCube(ParallelOEMolComputeCube):
     # Override defaults for some parameters
     parameter_overrides = {
         "prefetch_count": {"default": 1}, # 1 molecule at a time
-        "item_timeout": {"default": 172800},  # Default 48 hour limit (units are seconds)
+        "item_timeout": {"default": 43200},  # Default 12 hour limit (units are seconds)
         "item_count": {"default": 1}  # 1 molecule at a time
     }
 
