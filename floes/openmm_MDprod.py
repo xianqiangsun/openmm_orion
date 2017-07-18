@@ -2,7 +2,7 @@ from __future__ import unicode_literals
 from floe.api import WorkFloe, OEMolIStreamCube, OEMolOStreamCube
 from OpenMMCubes.cubes import OpenMMnptCube
 
-job = WorkFloe("RunOpenMMSimulation")
+job = WorkFloe("Production Run")
 
 job.description = """
 Run an unrestrained NPT simulation at 300K and 1atm

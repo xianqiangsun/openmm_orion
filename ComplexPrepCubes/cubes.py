@@ -212,16 +212,16 @@ class ComplexPrep(OEMolComputeCube):
 
                     # If the protein does not contain any atom emit a failure
                     if not protein.NumAtoms():  # Error: protein molecule is empty
-                        oechem.OEThrow.Fatal("The protein molecule is empty")
+                        oechem.OEThrow.Fatal("The protein molecule does not contains atoms")
 
                     # If the ligand does not contain any atom emit a failure
                     if not ligand.NumAtoms():  # Error: ligand molecule is empty
-                        oechem.OEThrow.Fatal("The Ligand molecule is empty")
+                        oechem.OEThrow.Fatal("The Ligand molecule does not contains atoms")
 
                     # If the water does not contain any atom emit a failure
                     if not water.NumAtoms():  # Error: water molecule is empty
-                        oechem.OEThrow.Fatal("The water is empty. This could happen if not"
-                                             "solvation process has been called")
+                        oechem.OEThrow.Fatal("The water does not contains atoms. This could happen if not"
+                                             "solvation process has occurred")
 
                     # Check if the ligand is inside the binding site. Cutoff distance 3A
                     if not utils.check_shell(ligand, protein, 3):
