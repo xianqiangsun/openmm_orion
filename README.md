@@ -3,13 +3,21 @@
 ## Cube sets
 
 * `PlatformTestCubes/` - simple example cube for testing available OpenMM PlatformTestCubes
+  * `PlatformTestCube`- Checks available OpenMM Platforms
+  * `BenchmarkCube` - Benchmark available OpenMM Platforms
 * `LigPrepCubes/` - Cubes for preparing molecules
-  * `ChargeMCMol` - Assigns partial charges and generates multi-conf molecules with OMEGA
+  * `LigChargeCube`- Charges ligands by using the ELF10 charge method
   * `FREDDocking` - Dock MCMols using FRED to a prepared receptor
-  * `LigandParameterization` - Parametrize molecules with either GAFF/GAFF2/SMIRNOFF forcefields
+* `ComplexPrepCubes`
+  * `Reader` - Protein Reader Cube
+  * `Splitter`- Splits bio-molecular system into: protein, ligand, water and excipients
+  * `SolvationCube` - Solvates the molecular system.
+  * `ComplexPrep` - Assembles complex made of solvated system and ligands
+  * `ForceFieldPrep` - Parameterizes the system given a forcefield.
 * `OpenMMCubes/` - OpenMM utility cubes
-  * `OpenMMComplexSetup` - Generate a solvated protein:ligand complex.
-  * `OpenMMSimulation` - Runs and OpenMM MD simulation. Minimizes or restarts from saved State.
+  * `OpenMMminimizeCube` - Minimize the protein:ligand complex.
+  * `OpenMMnvtCube` - NVT simulation of the protein:ligand complex
+  * `OpenMMnptCube`- NPT simulation of the protein:ligand complex.
 * `YankCubes/` - YANK cubes
   * `YankHydrationCube` - YANK hydration free energy calculations
   * `YankBindingCube` - YANK absolute binding free energy calculations
