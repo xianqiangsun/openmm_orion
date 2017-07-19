@@ -125,6 +125,17 @@ def simulation(mdData, **opt):
     # new velocity vectors are generated otherwise the system is
     # restarted from the previous State
     if opt['SimType'] in ['nvt', 'npt']:
+
+        if opt['trajectory_interval']:
+            structure.save(opt['outfname']+'.pdb', overwrite=True)
+            # GAC ADDED - TESTING
+            # Preserve original pdb file residue numbers
+            pdbfname_test = opt['outfname'] + '_ordering_test' + '.pdb'
+            ofs = oechem.oemolostream(pdbfname_test)
+            flavor = ofs.GetFlavor(oechem.OEFormat_PDB) ^ oechem.OEOFlavor_PDB_OrderAtoms
+            ofs.SetFlavor(oechem.OEFormat_PDB, flavor)
+            oechem.OEWriteConstMolecule(ofs, opt['molecule'])
+
         if velocities is not None:
             opt['Logger'].info('RESTARTING simulation from a previous State')
             simulation.context.setVelocities(velocities)
@@ -147,7 +158,7 @@ def simulation(mdData, **opt):
     if opt['verbose']:
         # Host information
         from platform import uname
-        for k,v in uname()._asdict().items():
+        for k, v in uname()._asdict().items():
             print(k, ':', v, file=printfile)
         # Platform properties
         for prop in mmplat.getPropertyNames():

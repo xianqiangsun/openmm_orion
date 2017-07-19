@@ -162,17 +162,7 @@ class PackageOEMol(object):
                 pdbfname = outfname+'.pdb'
                 print("\tStructure to %s" % pdbfname)
                 data.save(pdbfname, overwrite=True)
-
-                # GAC ADDED - TESTING
-                # Preserve original residue numbers
-                pdbfname_test = outfname+'_ordering_test'+'.pdb'
-                ofs = oechem.oemolostream(pdbfname_test)
-                flavor = ofs.GetFlavor(oechem.OEFormat_PDB) ^ oechem.OEOFlavor_PDB_OrderAtoms
-                ofs.SetFlavor(oechem.OEFormat_PDB, flavor)
-                oechem.OEWriteConstMolecule(ofs, molecule)
-
                 totar.append(pdbfname)
-                totar.append(pdbfname_test)
             if isinstance(data, openmm.openmm.State):
                 statefname = outfname+'-state.xml'
                 print('\tState to %s' % statefname)
@@ -223,7 +213,7 @@ class PackageOEMol(object):
         # Attach the encoded OpenMM State and log file from the Simulation.
         if isinstance(data, openmm.app.simulation.Simulation):
             tag_data = cls.encodeSimData(data)
-            for k,v in tag_data.items():
+            for k, v in tag_data.items():
                 molecule.SetData(oechem.OEGetTag(k), v)
         return molecule
 
@@ -234,6 +224,45 @@ def cleanup(tmpfiles):
             os.remove(tmp)
         except Exception as e:
             pass
+
+
+def tar_trj_log(molecule, outfname):
+
+    tarname = outfname + '.tar.xz'
+
+    trj_fn = outfname+'.nc'
+    pdb_fn = outfname+'.pdb'
+    pdb_order_fn = outfname + '_ordering_test' + '.pdb'
+    log_fn = outfname+'.log'
+
+    fnames = [trj_fn, pdb_fn, pdb_order_fn, log_fn]
+
+    totar = []
+
+    for fn in fnames:
+        if os.path.isfile(fn):
+            print('Adding {} to {}'.format(fn, tarname))
+            totar.append(fn)
+        else:
+            print('Skipping file: {}'.format(fn))
+
+    if totar:
+        print('Creating tarxz file: {}'.format(tarname))
+
+        tar = tarfile.open(tarname, "w:xz")
+
+        for name in totar:
+            tar.add(name)
+        tar.close()
+
+        if in_orion():
+            # MUST upload tar file directly back to Orion or they disappear.
+            upload_file(tarname, tarname, tags=['TAR'])
+
+        # Clean up files that have been added to tar.
+        cleanup(totar)
+
+    return
 
 
 def get_data_filename(package_root, relative_path):
@@ -289,7 +318,7 @@ def combinePositions(proteinPositions, molPositions):
 
 def download_dataset_to_file(dataset_id):
     """
-    Used to retrieve a dataset either from Orion or from the local machine
+    Used to retrieve a data set either from Orion or from the local machine
     """
     if in_orion():
         if dataset_id in download_cache:
@@ -323,9 +352,9 @@ def dump_query(prefix, name, qmol, receptor):
 class MDData(object):
     """
     This class is used to handle the MDData recovered
-    from the Parmed stucture attached to the OEMol()
+    from the Parmed structure attached to the OEMol()
     passed between cubes. The class is designed to
-    track changes in the pointed Parmed sturcture
+    track changes in the pointed Parmed structure
     
     Notes
     -----
@@ -403,7 +432,7 @@ class MDData(object):
         Parameters
         ----------
         mol : OEMol() OpenEye Molecule object
-            the moleculur system
+            the molecular system
 
         Returns
         -------
@@ -414,7 +443,8 @@ class MDData(object):
             # Try to attach the Parmed structure to the molecule. The molecule is changed in place
             mol = PackageOEMol.pack(mol, self.__parmed_structure__)
         except Exception as e:
-            raise RuntimeError('It was not possible to attached the parmed structure to the molecule {}'.format(e))
+            raise RuntimeError('It was not possible to attached '
+                               'the parmed structure to the molecule {}'.format(e))
             
         if self.ref_positions:
             packedpos = PackageOEMol.encodePyObj(self.ref_positions)
