@@ -6,6 +6,7 @@ from simtk import unit, openmm
 from simtk.openmm import app
 import pyparsing as pyp
 from floe.api.orion import in_orion,  upload_file
+from ComplexPrepCubes import utils as complex_utils
 
 try:
     import cPickle as pickle
@@ -135,6 +136,10 @@ def simulation(mdData, **opt):
             ofs = oechem.oemolostream(pdbfname_test)
             flavor = ofs.GetFlavor(oechem.OEFormat_PDB) ^ oechem.OEOFlavor_PDB_OrderAtoms
             ofs.SetFlavor(oechem.OEFormat_PDB, flavor)
+
+            new_temp_mol = complex_utils.openmmTop_to_oemol(structure.topology, structure.positions)
+            new_pos = new_temp_mol.GetCoords()
+            opt['molecule'].SetCoords(new_pos)
             oechem.OEWriteConstMolecule(ofs, opt['molecule'])
 
         if velocities is not None:
@@ -203,14 +208,20 @@ def simulation(mdData, **opt):
         # If required uploading files to Orion
         _file_processing(**opt)
 
+        # Update the OEMol complex positions to match the new
+        # Parmed structure
+        new_temp_mol = complex_utils.openmmTop_to_oemol(structure.topology, structure.positions)
+        new_pos = new_temp_mol.GetCoords()
+        opt['molecule'].SetCoords(new_pos)
+
     return
 
 
 def _file_processing(**opt):
     """
-    This supporting function compresses the produced trajectory file
-    and supporting files in a .tar if required file and eventually
-    uploaded them to Orion. If no .tar file is selected then all the
+    This supporting function compresses the produced trajectory
+    and supporting files in a .tar file (if required ) and eventually
+    uploaded them to Orion. If not .tar file is selected then all the
     generated files are eventually uploaded in Orion
 
     Parameters
@@ -242,13 +253,10 @@ def _file_processing(**opt):
     # Check which file names are actually produced files
     for fn in fnames:
         if os.path.isfile(fn):
-            opt['Logger'].info('Adding {}'.format(fn))
             ex_files.append(fn)
-        else:
-            opt['Logger'].info('Skipping file: {}'.format(fn))
 
     # Tar the outputted files if required
-    if opt['totar']:
+    if opt['tarxz']:
 
         tarname = opt['outfname'] + '.tar.xz'
 
@@ -257,6 +265,7 @@ def _file_processing(**opt):
         tar = tarfile.open(tarname, "w:xz")
 
         for name in ex_files:
+            opt['Logger'].info('Adding {} to {}'.format(name, tarname))
             tar.add(name)
         tar.close()
 

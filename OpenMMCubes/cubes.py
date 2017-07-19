@@ -231,7 +231,7 @@ class OpenMMnvtCube(ParallelOEMolComputeCube):
 
     tarxz = parameter.BooleanParameter(
         'tarxz',
-        default=True,
+        default=False,
         description='Create a tar.xz file of the attached data')
 
     center = parameter.BooleanParameter(
@@ -281,12 +281,6 @@ class OpenMMnvtCube(ParallelOEMolComputeCube):
             simtools.simulation(mdData, **opt)
                 
             packedmol = mdData.packMDData(mol)
-
-            # Update the OEMol complex positions to match the new
-            # Parmed structure
-            new_temp_mol = complex_utils.openmmTop_to_oemol(mdData.topology, mdData.positions)
-            new_pos = new_temp_mol.GetCoords()
-            packedmol.SetCoords(new_pos)
 
             self.success.emit(packedmol)
 
@@ -400,7 +394,7 @@ class OpenMMnptCube(ParallelOEMolComputeCube):
 
     tarxz = parameter.BooleanParameter(
         'tarxz',
-        default=True,
+        default=False,
         description='Create a tar.xz file of the attached data')
 
     center = parameter.BooleanParameter(
@@ -450,12 +444,6 @@ class OpenMMnptCube(ParallelOEMolComputeCube):
             simtools.simulation(mdData, **opt)
                 
             packedmol = mdData.packMDData(mol)
-
-            # Update the OEMol complex positions to match the new
-            # Parmed structure
-            new_temp_mol = complex_utils.openmmTop_to_oemol(mdData.topology, mdData.positions)
-            new_pos = new_temp_mol.GetCoords()
-            packedmol.SetCoords(new_pos)
 
             self.success.emit(packedmol)
 
