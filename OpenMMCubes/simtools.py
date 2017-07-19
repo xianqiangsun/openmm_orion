@@ -1,10 +1,11 @@
-import sys, mdtraj
+import sys, mdtraj, tarfile, os
 import numpy as np
 from sys import stdout
 from openeye import oechem
 from simtk import unit, openmm
 from simtk.openmm import app
 import pyparsing as pyp
+from floe.api.orion import in_orion,  upload_file
 
 try:
     import cPickle as pickle
@@ -174,12 +175,6 @@ def simulation(mdData, **opt):
         # Start Simulation
         simulation.step(opt['steps'])
 
-        if opt['convert']:
-            opt['Logger'].info('Converting trajectories to: {trajectory_filetype}'.format(**opt))
-            mdTrajConvert(simulation, outfname=opt['outfname'],
-                          trajectory_selection=opt['trajectory_selection'],
-                          trajectory_filetype=opt['trajectory_filetype'], logger=opt['Logger'])
-
         state = simulation.context.getState(getPositions=True, getVelocities=True,
                                             getEnergy=True, enforcePeriodicBox=True)
         
@@ -204,7 +199,81 @@ def simulation(mdData, **opt):
     if opt['SimType'] in ['nvt', 'npt']:
         # numpy array in units of angstrom/picosecond
         structure.velocities = state.getVelocities(asNumpy=False)
- 
+
+        # If required uploading files to Orion
+        _file_processing(**opt)
+
+    return
+
+
+def _file_processing(**opt):
+    """
+    This supporting function compresses the produced trajectory file
+    and supporting files in a .tar if required file and eventually
+    uploaded them to Orion. If no .tar file is selected then all the
+    generated files are eventually uploaded in Orion
+
+    Parameters
+    ----------
+    opt: python dictionary
+        A dictionary containing all the MD setting info
+    """
+
+    # Set the trajectory file name
+    if opt['trajectory_filetype'] == 'NetCDF':
+        trj_fn = opt['outfname'] +'.nc'
+    elif opt['trajectory_filetype'] == 'DCD':
+        trj_fn = opt['outfname'] +'.dcd'
+    elif opt['trajectory_filetype'] == 'HDF5':
+        trj_fn = opt['outfname'] + '.hdf5'
+    else:
+        oechem.OEThrow.Fatal("The selected trajectory filetype is not supported: {}"
+                             .format(opt['trajectory_filetype']))
+    # Set .pdb file names
+    pdb_fn = opt['outfname'] + '.pdb'
+    pdb_order_fn = opt['outfname'] + '_ordering_test' + '.pdb'
+    log_fn = opt['outfname'] + '.log'
+
+    # List all the file names
+    fnames = [trj_fn, pdb_fn, pdb_order_fn, log_fn]
+
+    ex_files = []
+
+    # Check which file names are actually produced files
+    for fn in fnames:
+        if os.path.isfile(fn):
+            opt['Logger'].info('Adding {}'.format(fn))
+            ex_files.append(fn)
+        else:
+            opt['Logger'].info('Skipping file: {}'.format(fn))
+
+    # Tar the outputted files if required
+    if opt['totar']:
+
+        tarname = opt['outfname'] + '.tar.xz'
+
+        opt['Logger'].info('Creating tarxz file: {}'.format(tarname))
+
+        tar = tarfile.open(tarname, "w:xz")
+
+        for name in ex_files:
+            tar.add(name)
+        tar.close()
+
+        if in_orion():
+            upload_file(tarname, tarname, tags=['TRJ_INFO'])
+
+        # Clean up files that have been added to tar.
+        for tmp in ex_files:
+            try:
+                os.remove(tmp)
+            except:
+                pass
+    else:  # If not .tar file is required the files are eventually uploaded in Orion
+        if in_orion():
+            for fn in ex_files:
+                upload_file(fn, fn, tags=['TRJ_INFO'])
+
     return
 
 
@@ -253,62 +322,21 @@ def getReporters(totalSteps=None, outfname=None, **opt):
         reporters.append(progress_reporter)
 
     if opt['trajectory_interval']:
-        # Default to NetCDF since VMD compatible.
-        traj_reporter = mdtraj.reporters.NetCDFReporter(outfname+'.nc', opt['trajectory_interval'])
+
+        # Trajectory file format selection
+        if opt['trajectory_filetype'] == 'NetCDF':
+            traj_reporter = mdtraj.reporters.NetCDFReporter(outfname+'.nc', opt['trajectory_interval'])
+        elif opt['trajectory_filetype'] == 'DCD':
+            traj_reporter = app.DCDReporter(outfname+'.dcd', opt['trajectory_interval'])
+        elif opt['trajectory_filetype'] == 'HDF5':
+            mdtraj.reporters.HDF5Reporter(outfname+'.hdf5', opt['trajectory_interval'])
+        else:
+            oechem.OEThrow.Fatal("The selected trajectory file format is not supported: {}"
+                                 .format(opt['trajectory_filetype']))
 
         reporters.append(traj_reporter)
 
     return reporters
-
-
-def mdTrajConvert(simulation=None, outfname=None, trajectory_selection=None, trajectory_filetype='NetCDF', logger=None):
-    """
-    Used to convert the (mdTraj) trajectory file between: HDF5, DCD, or NetCDF.
-    Can also be used to write out a subset of the trajectory.
-    See mdTraj atom selection docs:
-        http://mdtraj.org/1.8.0/examples/atom-selection.html
-
-    Parameters
-    ----------
-    simulation : openmm.app.simulation.Simulation
-        The OpenMM Simulation object used to generate the mdTraj topology for
-        writing to DCD or NetCDF files.
-    trajectory_selection : str, default=None (writes all atoms)
-        Examples: 'protein', 'resname LIG', 'protein or resname LIG'
-        See mdTraj atom selection docs:
-            http://mdtraj.org/1.8.0/examples/atom-selection.html
-    trajectory_filetype : str, default='NetCDF'
-        Can be HDF5, DCD, or NetCDF.
-    outfname : str
-        Specifies the filename prefix for the trajectory files.
-    logger: Logger object
-        The logger used to output messages
-
-    """
-    if logger is None:
-        printfile = sys.stdout
-    else:
-        printfile = logger.file
-
-    atom_indices = None
-    traj_dict = { 'HDF5' : outfname +'.h5',
-                  'DCD' : outfname +'.dcd',
-                  'NetCDF' : outfname +'.nc' }
-    for rep in simulation.reporters:
-        try:
-            trajfile = rep._traj_file
-            trajfname = trajfile._handle.filename
-            if trajectory_selection is not None:
-                atom_indices = trajfile.topology.select('%s' % trajectory_selection)
-            trajfile.close()
-        except Exception as e:
-            pass
-    top = mdtraj.Topology.from_openmm(simulation.topology)
-    outfile = traj_dict.get(trajectory_filetype)
-    traj = mdtraj.load(trajfname, atom_indices=atom_indices, top=top)
-    print("\tTrajectory subset: '{}'\n\t{}".format(trajectory_selection, traj), file=printfile)
-    print("\tConverted trajectory to %s" % (outfile), file=printfile)
-    traj.save(outfile)
 
 
 def restraints(system, mask=''):

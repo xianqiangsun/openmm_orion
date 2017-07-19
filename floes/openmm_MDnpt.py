@@ -40,7 +40,7 @@ npt.promote_parameter('pressure', promoted_name='pressure', default=1.0,
 
 # Restraints
 npt.promote_parameter('restraints', promoted_name='restraints', default="ca_protein or (noh ligand)",
-                      description='Select mask to apply restarints')
+                      description='Select mask to apply restraints')
 npt.promote_parameter('restraintWt', promoted_name='restraintWt', default=2.0, description='Restraint weight')
 
 # Trajectory and logging info frequency intervals
