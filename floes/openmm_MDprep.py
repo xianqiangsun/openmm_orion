@@ -48,7 +48,6 @@ splitter = Splitter("Splitter")
 
 # The solvation cube is used to solvate the system and define the ionic strength of the solution
 solvate = SolvationCube("Solvation")
-solvate.promote_parameter('pH', promoted_name='pH', default=7.4)
 solvate.promote_parameter('solvent_padding', promoted_name='solvent_padding', default=10)
 solvate.promote_parameter('salt_concentration', promoted_name='salt_conc', default=100)
 
@@ -72,7 +71,7 @@ minComplex.promote_parameter('restraintWt', promoted_name='m_restraintWt', defau
 
 # NVT simulation. Here the assembled system is warmed up to the final selected temperature
 warmup = OpenMMnvtCube('warmup', title='warmup')
-warmup.promote_parameter('time', promoted_name='warm_psec', default=10.0,
+warmup.promote_parameter('time', promoted_name='warm_psec', default=100.0,
                          description='Length of MD run in picoseconds')
 warmup.promote_parameter('restraints', promoted_name='w_restraints', default="noh (ligand or protein)",
                          description='Select mask to apply restarints')
@@ -91,7 +90,7 @@ warmup.promote_parameter('outfname', promoted_name='w_outfname', default='warmup
 
 # NPT Equilibration stage 1
 equil1 = OpenMMnptCube('equil1', title='equil1')
-equil1.promote_parameter('time', promoted_name='eq1_psec', default=10.0,
+equil1.promote_parameter('time', promoted_name='eq1_psec', default=100.0,
                          description='Length of MD run in picoseconds')
 equil1.promote_parameter('restraints', promoted_name='eq1_restraints', default="noh (ligand or protein)",
                          description='Select mask to apply restarints')
@@ -105,7 +104,7 @@ equil1.promote_parameter('outfname', promoted_name='eq1_outfname', default='equi
 
 # NPT Equilibration stage 2
 equil2 = OpenMMnptCube('equil2', title='equil2')
-equil2.promote_parameter('time', promoted_name='eq2_psec', default=10.0,
+equil2.promote_parameter('time', promoted_name='eq2_psec', default=100.0,
                          description='Length of MD run in picoseconds')
 equil2.promote_parameter('restraints', promoted_name='eq2_restraints', default="noh (ligand or protein)",
                          description='Select mask to apply restarints')
@@ -120,7 +119,7 @@ equil2.promote_parameter('outfname', promoted_name='eq2_outfname', default='equi
 
 # NPT Equilibration stage 3
 equil3 = OpenMMnptCube('equil3', title='equil3')
-equil3.promote_parameter('time', promoted_name='eq3_psec', default=10.0,
+equil3.promote_parameter('time', promoted_name='eq3_psec', default=200.0,
                          description='Length of MD run in picoseconds')
 equil3.promote_parameter('restraints', promoted_name='eq3_restraints', default="ca_protein or (noh ligand)",
                          description='Select mask to apply restarints')

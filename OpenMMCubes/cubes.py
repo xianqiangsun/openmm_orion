@@ -27,7 +27,7 @@ class OpenMMminimizeCube(ParallelOEMolComputeCube):
     # Override defaults for some parameters
     parameter_overrides = {
         "prefetch_count": {"default": 1},  # 1 molecule at a time
-        "item_timeout": {"default": 28800},  # Default 8 hour limit (units are seconds)
+        "item_timeout": {"default": 43200},  # Default 12 hour limit (units are seconds)
         "item_count": {"default": 1}  # 1 molecule at a time
     }
 
@@ -157,9 +157,9 @@ class OpenMMnvtCube(ParallelOEMolComputeCube):
 
     # Override defaults for some parameters
     parameter_overrides = {
-        "prefetch_count": {"default": 1}, # 1 molecule at a time
-        "item_timeout": {"default": 28800}, # Default 8 hour limit (units are seconds)
-        "item_count": {"default": 1} # 1 molecule at a time
+        "prefetch_count": {"default": 1},  # 1 molecule at a time
+        "item_timeout": {"default": 43200},  # Default 12 hour limit (units are seconds)
+        "item_count": {"default": 1}  # 1 molecule at a time
     }
 
     temperature = parameter.DecimalParameter(
@@ -237,7 +237,7 @@ class OpenMMnvtCube(ParallelOEMolComputeCube):
 
     tarxz = parameter.BooleanParameter(
         'tarxz',
-        default=True,
+        default=False,
         description='Create a tar.xz file of the attached data')
 
     center = parameter.BooleanParameter(
@@ -305,10 +305,10 @@ class OpenMMnvtCube(ParallelOEMolComputeCube):
             new_pos = new_temp_mol.GetCoords()
             packedmol.SetCoords(new_pos)
 
-            # Create a tar.xz archive of the generic data and trajectories
+            # Create a tar.xz archive of the info data and trajectory
             if opt['tarxz']:
-                utils.PackageOEMol.dump(
-                    packedmol, outfname=opt['outfname'], tarxz=opt['tarxz'])
+                utils.tar_trj_log(packedmol, opt['outfname'])
+
             self.success.emit(packedmol)
 
         except Exception as e:
@@ -343,7 +343,7 @@ class OpenMMnptCube(ParallelOEMolComputeCube):
     # Override defaults for some parameters
     parameter_overrides = {
         "prefetch_count": {"default": 1}, # 1 molecule at a time
-        "item_timeout": {"default": 28800},  # Default 8 hour limit (units are seconds)
+        "item_timeout": {"default": 43200},  # Default 12 hour limit (units are seconds)
         "item_count": {"default": 1}  # 1 molecule at a time
     }
 
@@ -427,7 +427,7 @@ class OpenMMnptCube(ParallelOEMolComputeCube):
 
     tarxz = parameter.BooleanParameter(
         'tarxz',
-        default=True,
+        default=False,
         description='Create a tar.xz file of the attached data')
 
     center = parameter.BooleanParameter(
@@ -494,10 +494,10 @@ class OpenMMnptCube(ParallelOEMolComputeCube):
             new_pos = new_temp_mol.GetCoords()
             packedmol.SetCoords(new_pos)
 
-            # Create a tar.xz archive of the generic data and trajectories
+            # Create a tar.xz archive of the info data and trajectory
             if opt['tarxz']:
-                utils.PackageOEMol.dump(
-                    packedmol, outfname=opt['outfname'], tarxz=opt['tarxz'])
+                utils.tar_trj_log(packedmol, opt['outfname'])
+
             self.success.emit(packedmol)
 
         except Exception as e:

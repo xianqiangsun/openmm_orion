@@ -2,7 +2,7 @@ from __future__ import unicode_literals
 from floe.api import WorkFloe, OEMolIStreamCube, OEMolOStreamCube
 from OpenMMCubes.cubes import OpenMMnvtCube
 
-job = WorkFloe("NVT")
+job = WorkFloe("NVT Run")
 
 job.description = """
 NVT simulation of an OpenMM-ready solvated complex
