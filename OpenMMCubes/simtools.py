@@ -25,7 +25,7 @@ def simulation(mdData, **opt):
     opt: python dictionary
         A dictionary containing all the MD setting info
     """
-    
+
     if opt['Logger'] is None:
         printfile = sys.stdout
     else:
@@ -39,7 +39,11 @@ def simulation(mdData, **opt):
     box = mdData.box
 
     # Time step in ps
-    stepLen = 0.002 * unit.picoseconds
+    #stepLen = 0.002 * unit.picoseconds
+    #HMR option
+    stepLen = 0.004 * unit.picoseconds
+    constraints = app.HBonds
+    hydrogenMass = 3.024*unit.daltons
 
     if opt['SimType'] in ['nvt', 'npt']:
         # Centering the system to the OpenMM Unit Cell
@@ -60,13 +64,15 @@ def simulation(mdData, **opt):
             positions = structure.positions
 
     # OpenMM system
+    print('HMR Settings: \n\ttimestep: {} \n\tconstraints: {} \n\tHydrogenMass: {}'.format(stepLen, constraints, hydrogenMass))
     system = structure.createSystem(nonbondedMethod=eval("app.%s" % opt['nonbondedMethod']),
                                     nonbondedCutoff=opt['nonbondedCutoff']*unit.angstroms,
-                                    constraints=eval("app.%s" % opt['constraints']),
+                                    #constraints=eval("app.%s" % opt['constraints']),
+                                    constraints=constraints, hydrogenMass=hydrogenMass,
                                     removeCMMotion=False)
     # OpenMM Integrator
     integrator = openmm.LangevinIntegrator(opt['temperature']*unit.kelvin, 1/unit.picoseconds, stepLen)
-    
+
     if opt['SimType'] == 'npt':
         # Add Force Barostat to the system
         system.addForce(openmm.MonteCarloBarostat(opt['pressure']*unit.atmospheres, opt['temperature']*unit.kelvin, 25))
@@ -93,7 +99,7 @@ def simulation(mdData, **opt):
             if idx in res_atom_set:
                 xyz = positions[idx].in_units_of(unit.nanometers)/unit.nanometers
                 force_restr.addParticle(idx, xyz)
-        
+
         system.addForce(force_restr)
 
     if opt['platform'] == 'Auto':
@@ -106,14 +112,15 @@ def simulation(mdData, **opt):
 
         try:
             # Set platform CUDA or OpenCL precision
-            properties = {'Precision': opt['cuda_opencl_precision']}
+            #properties['Precision'] = opt['cuda_opencl_precision']}
+            properties = {}
+            properties['DeviceIndex'] = opt['DeviceIndex']
 
             simulation = app.Simulation(topology, system, integrator,
                                         platform=platform,
                                         platformProperties=properties)
-        except Exception:
-            oechem.OEThrow.Fatal('It was not possible to set the {} precision for the {} platform'
-                                 .format(opt['cuda_opencl_precision'], opt['platform']))
+        except Exception as e:
+            oechem.OEThrow.Fatal('The platform {} does not support: {}'.format(platform, str(e)))
 
     # Set starting positions and velocities
     simulation.context.setPositions(positions)
@@ -135,11 +142,11 @@ def simulation(mdData, **opt):
 
         # Convert simulation time in steps
         opt['steps'] = int(round(opt['time']/(stepLen.in_units_of(unit.picoseconds)/unit.picoseconds)))
-        
+
         # Set Reporters
         for rep in getReporters(**opt):
             simulation.reporters.append(rep)
-            
+
     # OpenMM platform information
     mmver = openmm.version.version
     mmplat = simulation.context.getPlatform()
@@ -153,13 +160,13 @@ def simulation(mdData, **opt):
         for prop in mmplat.getPropertyNames():
             val = mmplat.getPropertyValue(simulation.context, prop)
             print(prop, ':', val, file=printfile)
-            
+
     print('OpenMM({}) simulation generated for {} platform'.format(mmver, mmplat.getName()), file=printfile)
 
     if opt['SimType'] in ['nvt', 'npt']:
 
         opt['Logger'].info('Running {time} ps = {steps} steps of {SimType} at {temperature} K'.format(**opt))
-        
+
         # Start Simulation
         simulation.step(opt['steps'])
 
@@ -171,7 +178,7 @@ def simulation(mdData, **opt):
 
         state = simulation.context.getState(getPositions=True, getVelocities=True,
                                             getEnergy=True, enforcePeriodicBox=True)
-        
+
     elif opt['SimType'] == 'min':
         # Start Simulation
         opt['Logger'].info('Minimization steps: {steps}'.format(**opt))
@@ -193,7 +200,7 @@ def simulation(mdData, **opt):
     if opt['SimType'] in ['nvt', 'npt']:
         # numpy array in units of angstrom/picosecond
         structure.velocities = state.getVelocities(asNumpy=False)
- 
+
     return
 
 

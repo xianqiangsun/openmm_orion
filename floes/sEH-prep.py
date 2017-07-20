@@ -47,7 +47,7 @@ splitter = Splitter("Splitter")
 
 # The solvation cube is used to solvate the system and define the ionic strength of the solution
 solvate = SolvationCube("Solvation")
-solvate.promote_parameter('pH', promoted_name='pH', default=8.5)
+#solvate.promote_parameter('pH', promoted_name='pH', default=8.5)
 solvate.promote_parameter('solvent_padding', promoted_name='solvent_padding', default=10)
 solvate.promote_parameter('salt_concentration', promoted_name='salt_conc', default=100)
 
@@ -135,12 +135,9 @@ equil3.promote_parameter('outfname', promoted_name='eq3_outfname', default='equi
 ofs = OEMolOStreamCube('ofs', title='OFS-Success')
 ofs.set_parameters(backend='s3')
 
-fail = OEMolOStreamCube('fail', title='OFS-Failure')
-fail.set_parameters(backend='s3')
-fail.set_parameters(data_out='fail.oeb.gz')
 
 job.add_cubes(iprot, splitter, solvate, iligs, chargelig, complx, ff,
-              minComplex, warmup, equil1, equil2, equil3, ofs, fail)
+              minComplex, warmup, equil1, equil2, equil3, ofs)
 
 iprot.success.connect(splitter.intake)
 splitter.success.connect(solvate.intake)
@@ -154,7 +151,6 @@ warmup.success.connect(equil1.intake)
 equil1.success.connect(equil2.intake)
 equil2.success.connect(equil3.intake)
 equil3.success.connect(ofs.intake)
-equil3.failure.connect(fail.intake)
 
 if __name__ == "__main__":
     job.run()

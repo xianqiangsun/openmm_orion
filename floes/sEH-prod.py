@@ -28,9 +28,9 @@ prod.promote_parameter('pressure', promoted_name='pressure', default=1.0,
                        description='Selected pressure in atm')
 
 # Trajectory and logging info frequency intervals
-prod.promote_parameter('trajectory_interval', promoted_name='trajectory_interval', default=10,
+prod.promote_parameter('trajectory_interval', promoted_name='trajectory_interval', default=10000,
                        description='Trajectory saving interval')
-prod.promote_parameter('reporter_interval', promoted_name='reporter_interval', default=100,
+prod.promote_parameter('reporter_interval', promoted_name='reporter_interval', default=10000,
                        description='Reporter saving interval')
 
 prod.promote_parameter('outfname', promoted_name='suffix', default='prod',
@@ -38,13 +38,12 @@ prod.promote_parameter('outfname', promoted_name='suffix', default='prod',
 
 ofs = OEMolOStreamCube('ofs', title='OFS-Success')
 ofs.set_parameters(backend='auto')
-fail = OEMolOStreamCube('fail', title='OFS-Failure')
-fail.set_parameters(backend='auto')
 
-job.add_cubes(ifs, prod, ofs, fail)
+
+job.add_cubes(ifs, prod, ofs)
 ifs.success.connect(prod.intake)
 prod.success.connect(ofs.intake)
-prod.failure.connect(fail.intake)
+
 
 
 if __name__ == "__main__":

@@ -23,7 +23,7 @@ class OpenMMminimizeCube(ParallelOEMolComputeCube):
     steps (integer): the number of steps of minimization to apply. If 0
     the minimization will proceed until convergence is reached
     """
-    
+
     # Override defaults for some parameters
     parameter_overrides = {
         "prefetch_count": {"default": 1},  # 1 molecule at a time
@@ -34,15 +34,15 @@ class OpenMMminimizeCube(ParallelOEMolComputeCube):
     steps = parameter.IntegerParameter(
         'steps',
         default=0,
-        help_text="""Number of minimization steps. 
-                  If 0 the minimization will continue 
+        help_text="""Number of minimization steps.
+                  If 0 the minimization will continue
                   until convergence""")
 
     restraints = parameter.StringParameter(
         'restraints',
         default='',
         help_text="""Mask selection to apply restraints. Possible keywords are:
-                  ligand, protein, water, ions, ca_protein, cofactors. 
+                  ligand, protein, water, ions, ca_protein, cofactors.
                   Operational tokens are: and, not, noh""")
 
     restraintWt = parameter.DecimalParameter(
@@ -89,7 +89,7 @@ class OpenMMminimizeCube(ParallelOEMolComputeCube):
 
     platform = parameter.StringParameter(
         'platform',
-        default='Auto', 
+        default='Auto',
         choices=['Auto', 'Reference', 'CPU', 'CUDA', 'OpenCL'],
         help_text='Select which platform to use to run the simulation')
 
@@ -133,10 +133,10 @@ class OpenMMminimizeCube(ParallelOEMolComputeCube):
             mol.SetData('error', str(e))
             # Return failed mol
             self.failure.emit(mol)
-   
+
         return
 
-            
+
 class OpenMMnvtCube(ParallelOEMolComputeCube):
     title = 'OpenMM NVT simulation'
     version = "0.0.0"
@@ -161,7 +161,7 @@ class OpenMMnvtCube(ParallelOEMolComputeCube):
         "item_timeout": {"default": 28800}, # Default 8 hour limit (units are seconds)
         "item_count": {"default": 1} # 1 molecule at a time
     }
-    
+
     temperature = parameter.DecimalParameter(
         'temperature',
         default=300.0,
@@ -176,7 +176,7 @@ class OpenMMnvtCube(ParallelOEMolComputeCube):
         'restraints',
         default='',
         help_text=""""Mask selection to apply restraints. Possible keywords are:
-                  ligand, protein, water, ions, ca_protein, cofactors. 
+                  ligand, protein, water, ions, ca_protein, cofactors.
                   Operational tokens are: and, not, noh""")
 
     restraintWt = parameter.DecimalParameter(
@@ -256,21 +256,25 @@ class OpenMMnvtCube(ParallelOEMolComputeCube):
         choices=['Auto', 'Reference', 'CPU', 'CUDA', 'OpenCL'],
         help_text='Select which platform to use to run the simulation')
 
-    cuda_opencl_precision = parameter.StringParameter(
-        'cuda_opencl_precision',
-        default='single',
-        choices=['single', 'mixed', 'double'],
-        help_text='Select the CUDA or OpenCL precision')
+    DeviceIndex = parameter.StringParameter(
+        'DeviceIndex',
+         default=0)
+
+    #cuda_opencl_precision = parameter.StringParameter(
+    #    'cuda_opencl_precision',
+    #    default='single',
+    #    choices=['single', 'mixed', 'double'],
+    #    help_text='Select the CUDA or OpenCL precision')
 
     def begin(self):
         self.opt = vars(self.args)
         self.opt['convert'] = False
         self.opt['Logger'] = self.log
         self.opt['SimType'] = 'nvt'
-        
+
         conv_rule = [self.opt['trajectory_selection'] != None,
                      self.opt['trajectory_filetype'] != 'NetCDF']
-        
+
         if any(conv_rule):
             self.opt['convert'] = True
 
@@ -292,7 +296,7 @@ class OpenMMnvtCube(ParallelOEMolComputeCube):
 
             self.log.info('START NVT SIMULATION: %s' % gd['IDTag'])
             simtools.simulation(mdData, **opt)
-                
+
             packedmol = mdData.packMDData(mol)
 
             # Update the OEMol complex positions to match the new
@@ -313,10 +317,10 @@ class OpenMMnvtCube(ParallelOEMolComputeCube):
             mol.SetData('error', str(e))
             # Return failed mol
             self.failure.emit(mol)
-         
+
         return
 
-    
+
 class OpenMMnptCube(ParallelOEMolComputeCube):
     title = 'OpenMM NPT simulation'
     version = "0.0.0"
@@ -335,7 +339,7 @@ class OpenMMnptCube(ParallelOEMolComputeCube):
       temperature (decimal): target temperature
       pressure (decimal): target pressure
     """
-    
+
     # Override defaults for some parameters
     parameter_overrides = {
         "prefetch_count": {"default": 1}, # 1 molecule at a time
@@ -362,7 +366,7 @@ class OpenMMnptCube(ParallelOEMolComputeCube):
         'restraints',
         default='',
         help_text=""""Mask selection to apply restraints. Possible keywords are:
-                  ligand, protein, water, ions, ca_protein, cofactors. 
+                  ligand, protein, water, ions, ca_protein, cofactors.
                   Operational tokens are: and, not, noh""")
 
     restraintWt = parameter.DecimalParameter(
@@ -438,15 +442,19 @@ class OpenMMnptCube(ParallelOEMolComputeCube):
 
     platform = parameter.StringParameter(
         'platform',
-        default='Auto', 
+        default='Auto',
         choices=['Auto', 'Reference', 'CPU', 'CUDA', 'OpenCL'],
         help_text='Select which platform to use to run the simulation')
 
-    cuda_opencl_precision = parameter.StringParameter(
-        'cuda_opencl_precision',
-        default='single',
-        choices=['single', 'mixed', 'double'],
-        help_text='Select the CUDA or OpenCL precision')
+    DeviceIndex = parameter.StringParameter(
+        'DeviceIndex',
+         default=0)
+
+    #cuda_opencl_precision = parameter.StringParameter(
+    #    'cuda_opencl_precision',
+    #    default='single',
+    #    choices=['single', 'mixed', 'double'],
+    #    help_text='Select the CUDA or OpenCL precision')
 
     def begin(self):
         self.opt = vars(self.args)
@@ -455,7 +463,7 @@ class OpenMMnptCube(ParallelOEMolComputeCube):
         self.opt['SimType'] = 'npt'
         conv_rule = [self.opt['trajectory_selection'] != None,
                      self.opt['trajectory_filetype'] != 'NetCDF']
-        
+
         if any(conv_rule):
             self.opt['convert'] = True
 
@@ -477,7 +485,7 @@ class OpenMMnptCube(ParallelOEMolComputeCube):
 
             self.log.info('START NPT SIMULATION %s' % gd['IDTag'])
             simtools.simulation(mdData, **opt)
-                
+
             packedmol = mdData.packMDData(mol)
 
             # Update the OEMol complex positions to match the new
