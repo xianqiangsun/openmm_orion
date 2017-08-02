@@ -208,11 +208,11 @@ def simulation(mdData, **opt):
         # If required uploading files to Orion
         _file_processing(**opt)
 
-        # Update the OEMol complex positions to match the new
-        # Parmed structure
-        new_temp_mol = complex_utils.openmmTop_to_oemol(structure.topology, structure.positions)
-        new_pos = new_temp_mol.GetCoords()
-        opt['molecule'].SetCoords(new_pos)
+    # Update the OEMol complex positions to match the new
+    # Parmed structure after the simulation
+    new_temp_mol = complex_utils.openmmTop_to_oemol(structure.topology, structure.positions)
+    new_pos = new_temp_mol.GetCoords()
+    opt['molecule'].SetCoords(new_pos)
 
     return
 

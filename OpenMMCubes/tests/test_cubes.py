@@ -180,7 +180,7 @@ class NVTCubeTester(unittest.TestCase):
         # Check 3*std volume
         # Average volume and its standard deviation (in nm^3) measured along
         # one 10ns run for the selected system
-        avg_volume = 683.492706 * (unit.nanometers ** 3)
+        avg_volume = 682.7474608 * (unit.nanometers ** 3)
         std_volume = 0.000001
 
         self.assertAlmostEqual(avg_volume/(unit.nanometers ** 3),
@@ -191,7 +191,7 @@ class NVTCubeTester(unittest.TestCase):
         # Average temperature and its standard deviation (in K) measured along
         # one 10ns run for the selected system
         avg_temperature = 300.0 * unit.kelvin
-        std_temperature = 0.9
+        std_temperature = 1.1
         self.assertAlmostEqual(avg_temperature/unit.kelvin,
                                temp_f.in_units_of(unit.kelvin)/unit.kelvin,
                                delta=3*std_temperature)
@@ -300,8 +300,8 @@ class NPTCubeTester(unittest.TestCase):
         # Check 3*std volume
         # Average volume and its standard deviation (in nm^3) measured along
         # one 10ns run for the selected system
-        avg_volume = 683.0 * (unit.nanometers**3)
-        std_volume = 1.0
+        avg_volume = 683.6 * (unit.nanometers**3)
+        std_volume = 1.3
 
         self.assertAlmostEqual(avg_volume/(unit.nanometers**3),
                                vol_f.in_units_of(unit.nanometers**3)/(unit.nanometers**3),
@@ -311,7 +311,7 @@ class NPTCubeTester(unittest.TestCase):
         # Average temperature and its standard deviation (in K) measured along
         # one 10ns run for the selected system
         avg_temperature = 300.0 * unit.kelvin
-        std_temperature = 1.0
+        std_temperature = 1.1
 
         self.assertAlmostEqual(avg_temperature/unit.kelvin,
                                temp_f.in_units_of(unit.kelvin)/unit.kelvin,

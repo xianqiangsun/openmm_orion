@@ -1,14 +1,14 @@
 from ComplexPrepCubes import utils
 from OpenMMCubes import utils as pack_utils
-from floe.api import OEMolComputeCube, ParallelOEMolComputeCube, parameter, OEMolIStreamCube, MoleculeInputPort
-from floe.api.orion import StreamingDataset, config_from_env
+from floe.api import (OEMolComputeCube, ParallelOEMolComputeCube, parameter,
+                      OEMolIStreamCube, MoleculeInputPort)
 from openeye import oechem
 import traceback
 from simtk import unit
 from simtk.openmm import app
 
 
-class Reader(OEMolIStreamCube):
+class ProteinReader(OEMolIStreamCube):
     title = "Protein Reader Cube"
     version = "0.0.0"
     classification = [["Reader Cube", "OEChem", "Reader Cube"]]
@@ -17,15 +17,15 @@ class Reader(OEMolIStreamCube):
         A Protein Reader Cube 
         Input:
         -------
-        oechem.OEMCMol or - Streamed-in of the bio-molecular system.
-        The input file can be an .oeb or a .pdb file
-
+        oechem.OEMCMol or - Streamed-in of the bio-molecular system
+        The input file can be an .oeb, .oeb.gz, .pdb  or a .mol2 file
+        
         Output:
         -------
         oechem.OEMCMol - Emits the bio-molecular system
         """
-    protein_suffix = parameter.StringParameter(
-        'protein_suffix',
+    protein_prefix = parameter.StringParameter(
+        'protein_prefix',
         default='PRT',
         help_text='The protein suffix name used to identify the protein')
 
@@ -33,29 +33,9 @@ class Reader(OEMolIStreamCube):
         self.opt = vars(self.args)
 
     def __iter__(self):
-        max_idx = self.args.limit
-        if max_idx is not None:
-            max_idx = int(max_idx)
-        count = 0
-        self.config = config_from_env()
-        in_orion = self.config is not None
-        if not in_orion:
-            with oechem.oemolistream(str(self.args.data_in)) as ifs:
-                for mol in ifs.GetOEMols():
-                    mol.SetTitle(self.opt['protein_suffix'])
-                    yield mol
-                    count += 1
-                    if max_idx is not None and count == max_idx:
-                        break
-        else:
-            stream = StreamingDataset(self.args.data_in,
-                                      input_format=self.args.download_format)
-            for mol in stream:
-                mol.SetTitle(self.opt['protein_suffix'])
-                yield mol
-                count += 1
-                if max_idx is not None and count == max_idx:
-                    break
+        for mol in super(ProteinReader, self).__iter__():
+            mol.SetTitle(self.args.protein_prefix)
+            yield mol
 
 
 class Splitter(OEMolComputeCube):
@@ -116,7 +96,7 @@ class Splitter(OEMolComputeCube):
 
 
 class SolvationCube(OEMolComputeCube):
-    title = "Solvate Cube"
+    title = "Solvation Cube"
     version = "0.0.0"
     classification = [["Complex Preparation", "OEChem", "Complex preparation"]]
     tags = ['OEChem', 'OpenMM', 'PDBFixer']
@@ -164,7 +144,7 @@ class SolvationCube(OEMolComputeCube):
 
 
 class ComplexPrep(OEMolComputeCube):
-    title = "Complex Cube Preparation"
+    title = "Complex Preparation Cube"
     version = "0.0.0"
     classification = [["Complex Preparation", "OEChem", "Complex preparation"]]
     tags = ['OEChem']
@@ -257,7 +237,7 @@ class ComplexPrep(OEMolComputeCube):
 
 
 class ForceFieldPrep(ParallelOEMolComputeCube):
-    title = "Force Field Preparation"
+    title = "Force Field Preparation Cube"
     version = "0.0.0"
     classification = [["Force Field Preparation", "OEChem", "Force Field preparation"]]
     tags = ['OEChem', 'OEBio', 'OpenMM']
@@ -325,6 +305,11 @@ class ForceFieldPrep(ParallelOEMolComputeCube):
             # Apply FF to the excipients
             if excipients.NumAtoms() > 0:
                 excipient_structure = utils.applyffExcipients(excipients, self.opt)
+
+                # The excipient order is set equal to the order in related
+                # parmed structure to avoid possible atom index mismatching
+                excipients = utils.openmmTop_to_oemol(excipient_structure.topology,
+                                                      excipient_structure.positions)
 
             # Apply FF to the ligand
             ligand_structure = utils.applyffLigand(ligand, self.opt)

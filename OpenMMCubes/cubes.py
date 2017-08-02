@@ -2,12 +2,11 @@ import traceback
 
 import OpenMMCubes.simtools as simtools
 import OpenMMCubes.utils as utils
-from ComplexPrepCubes import utils as complex_utils
 from floe.api import ParallelOEMolComputeCube, parameter
 
 
 class OpenMMminimizeCube(ParallelOEMolComputeCube):
-    title = 'Minimize the molecule system'
+    title = 'Minimization Cube'
 
     version = "0.0.0"
     classification = [["Simulation", "OpenMM", "Minimization"]]
@@ -119,12 +118,6 @@ class OpenMMminimizeCube(ParallelOEMolComputeCube):
 
             packedmol = mdData.packMDData(mol)
 
-            # Update the OEMol complex positions to match the new
-            # Parmed structure
-            new_temp_mol = complex_utils.openmmTop_to_oemol(mdData.topology, mdData.positions)
-
-            new_pos = new_temp_mol.GetCoords()
-            packedmol.SetCoords(new_pos)
             self.success.emit(packedmol)
 
         except Exception as e:
@@ -138,7 +131,7 @@ class OpenMMminimizeCube(ParallelOEMolComputeCube):
 
             
 class OpenMMnvtCube(ParallelOEMolComputeCube):
-    title = 'OpenMM NVT simulation'
+    title = 'NVT Cube'
     version = "0.0.0"
     classification = [["Simulation", "OpenMM", "NVT"]]
     tags = ['OpenMM', 'Parallel Cube']
@@ -295,7 +288,7 @@ class OpenMMnvtCube(ParallelOEMolComputeCube):
 
     
 class OpenMMnptCube(ParallelOEMolComputeCube):
-    title = 'OpenMM NPT simulation'
+    title = 'NPT Cube'
     version = "0.0.0"
     classification = [["Simulation", "OpenMM", "NPT"]]
     tags = ['OpenMM', 'Parallel Cube']

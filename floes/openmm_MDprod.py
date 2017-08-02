@@ -11,8 +11,9 @@ Run an unrestrained NPT simulation at 300K and 1atm
 job.classification = [['Simulation']]
 job.tags = [tag for lists in job.classification for tag in lists]
 
-ifs = OEMolIStreamCube("ifs")
-ifs.promote_parameter("data_in", promoted_name="complex", description="OEB of the protein:ligand complex")
+ifs = OEMolIStreamCube("complex", title="Complex Reader")
+ifs.promote_parameter("data_in", promoted_name="complex", title='Complex Input File',
+                      description="protein:ligand complex input file")
 
 prod = OpenMMnptCube('production')
 
@@ -40,9 +41,6 @@ prod.promote_parameter('tarxz', promoted_name='tarxz', default=True,
 prod.promote_parameter('outfname', promoted_name='suffix', default='npt',
                        description='Production suffix name')
 
-
-prod.promote_parameter('outfname', promoted_name='suffix', default='prod',
-                       description='Production suffix name')
 
 ofs = OEMolOStreamCube('ofs', title='OFS-Success')
 ofs.set_parameters(backend='s3')

@@ -371,7 +371,7 @@ def applyffExcipients(excipients, opt):
                             "by the protein FF: {}"
                             "\nThey will be parametrized by using the FF: {}".format(residues, opt['other_forcefield']))
 
-        # Create a bit vector mask used to dived recognized from un recognize excipients
+        # Create a bit vector mask used to split recognized from un-recognize excipients
         bv = oechem.OEBitVector(excipients.GetMaxAtomIdx())
         bv.NegateBits()
 
@@ -482,9 +482,9 @@ def applyffExcipients(excipients, opt):
         unrc_struc.coordinates = unrc_coords
 
         # Set the parmed excipient structure merging
-        # the recognized and the unrecognized parmed
+        # the unrecognized and recognized parmed
         # structures together
-        excipients_structure = rec_struc + unrc_struc
+        excipients_structure = unrc_struc + rec_struc
 
         return excipients_structure
     else:  # All the excipients are recognized by the selected FF
@@ -543,7 +543,9 @@ def oemol_to_openmmTop(mol):
         generated topology in Angstrom units
     """
     # OE Hierarchical molecule view
-    hv = oechem.OEHierView(mol, oechem.OEAssumption_BondedResidue + oechem.OEAssumption_ResPerceived)
+    hv = oechem.OEHierView(mol, oechem.OEAssumption_BondedResidue +
+                           oechem.OEAssumption_ResPerceived +
+                           oechem.OEAssumption_PDBOrder)
 
     # Create empty OpenMM Topology
     topology = app.Topology()
@@ -573,8 +575,18 @@ def oemol_to_openmmTop(mol):
                     # Add atom to the mapping dictionary
                     oe_atom_to_openmm_at[oe_at] = openmm_at
 
+    if topology.getNumAtoms() != mol.NumAtoms():
+        oechem.OEThrow.Fatal("OpenMM topology and OEMol number of atoms mismatching: "
+                             "OpenMM = {} vs OEMol  = {}".format(topology.GetNumAtoms(), mol.NumAtoms()))
+
+    # Count the number of bonds in the openmm topology
+    omm_bond_count = 0
+
     # Create bonds preserving the bond ordering
     for bond in mol.GetBonds():
+
+        omm_bond_count += 1
+
         aromatic = None
 
         # Set the bond aromaticity
@@ -583,6 +595,10 @@ def oemol_to_openmmTop(mol):
 
         topology.addBond(oe_atom_to_openmm_at[bond.GetBgn()], oe_atom_to_openmm_at[bond.GetEnd()],
                          type=aromatic, order=bond.GetOrder())
+
+    if omm_bond_count != mol.NumBonds():
+        oechem.OEThrow.Fatal("OpenMM topology and OEMol number of bonds mismatching: "
+                             "OpenMM = {} vs OEMol  = {}".format(omm_bond_count, mol.NumBonds()))
 
     dic = mol.GetCoords()
     positions = [Vec3(v[0], v[1], v[2]) for k, v in dic.items()] * unit.angstrom
@@ -649,8 +665,18 @@ def openmmTop_to_oemol(topology, positions):
                 # Update the dictionary OpenMM to OE
                 openmm_atom_to_oe_atom[openmm_at] = oe_atom
 
+    if topology.getNumAtoms() != oe_mol.NumAtoms():
+        oechem.OEThrow.Fatal("OpenMM topology and OEMol number of atoms mismatching: "
+                             "OpenMM = {} vs OEMol  = {}".format(topology.GetNumAtoms(), oe_mol.NumAtoms()))
+
+    # Count the number of bonds in the openmm topology
+    omm_bond_count = 0
+
     # Create the bonds
     for bond in topology.bonds():
+
+        omm_bond_count += 1
+
         at0 = bond[0]
         at1 = bond[1]
         # Read in the bond order from the OpenMM topology
@@ -676,13 +702,16 @@ def openmmTop_to_oemol(topology, positions):
         if bond.type:
             oe_bond.SetAromatic(True)
 
+    if omm_bond_count != oe_mol.NumBonds():
+        oechem.OEThrow.Fatal("OpenMM topology and OEMol number of bonds mismatching: "
+                             "OpenMM = {} vs OEMol  = {}".format(omm_bond_count, oe_mol.NumBonds()))
+
     # Set the OEMol positions
     pos = positions.in_units_of(unit.angstrom) / unit.angstrom
     pos = list(itertools.chain.from_iterable(pos))
     oe_mol.SetCoords(pos)
 
     return oe_mol
-
 
 
 def order_check(mol, fname):

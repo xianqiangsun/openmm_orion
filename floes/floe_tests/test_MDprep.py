@@ -17,7 +17,7 @@ class MDPrepTestCase(TestCase):
             '--protein', protein_path,
             '--Ligands-data_in', ligand_path,
             '--max_conformers', '800',
-            '--protein_suffix', 'Bace',
+            '--protein_prefix', 'Bace',
             '--pH', '7.4',
             '--solvent_padding', '10',
             '--salt_conc', '100',

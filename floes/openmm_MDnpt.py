@@ -27,8 +27,9 @@ ofs: Outputs the constant temperature and pressure system
 job.classification = [['NPT']]
 job.tags = [tag for lists in job.classification for tag in lists]
 
-ifs = OEMolIStreamCube("ifs")
-ifs.promote_parameter("data_in", promoted_name="complex", description="OEB of the protein:ligand complex")
+ifs = OEMolIStreamCube("complex", title="Complex Reader")
+ifs.promote_parameter("data_in", promoted_name="complex", title='Complex Input File',
+                      description="protein:ligand complex input file")
 
 npt = OpenMMnptCube('npt')
 npt.promote_parameter('time', promoted_name='picosec', default=10.0,

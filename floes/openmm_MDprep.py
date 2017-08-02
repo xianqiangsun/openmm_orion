@@ -1,7 +1,7 @@
 from __future__ import unicode_literals
 from floe.api import WorkFloe, OEMolIStreamCube, OEMolOStreamCube
 from OpenMMCubes.cubes import OpenMMminimizeCube, OpenMMnvtCube, OpenMMnptCube
-from ComplexPrepCubes.cubes import Reader, Splitter, SolvationCube, \
+from ComplexPrepCubes.cubes import ProteinReader, Splitter, SolvationCube, \
     ComplexPrep, ForceFieldPrep
 
 from LigPrepCubes.cubes import LigChargeCube
@@ -30,18 +30,20 @@ job.classification = [['Complex Setup', 'FrosstMD']]
 job.tags = [tag for lists in job.classification for tag in lists]
 
 # Ligand reading cube
-iligs = OEMolIStreamCube("Ligands")
-# iligs.promote_parameter("data_in", promoted_name="ligand", description="PDB of docked ligand")
+iligs = OEMolIStreamCube("Ligands", title='Ligand Reader')
+iligs.data_in.title = 'Ligand Input File'
+
 chargelig = LigChargeCube("LigCharge")
 chargelig.promote_parameter('max_conformers', promoted_name='max_conformers',
                             description="Set the max number of conformers per ligand", default=800)
 
-# Protein Reading cube. The protein suffix parameter is used to select a name for the
+# Protein Reading cube. The protein prefix parameter is used to select a name for the
 # output system files
-iprot = Reader("ProteinReader")
-iprot.promote_parameter("data_in", promoted_name="protein", description="Protein file name")
-iprot.promote_parameter("protein_suffix", promoted_name="protein_suffix",
-                       default='PRT', description="Protein suffix")
+iprot = ProteinReader("ProteinReader")
+iprot.promote_parameter("data_in", promoted_name="protein", title='Protein Input File',
+                        description="Protein file name")
+iprot.promote_parameter("protein_prefix", promoted_name="protein_prefix",
+                        default='PRT', description="Protein prefix")
 
 # The spitter cube will be used to pre-process the read in protein system
 splitter = Splitter("Splitter")
