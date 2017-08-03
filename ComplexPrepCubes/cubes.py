@@ -6,6 +6,7 @@ from openeye import oechem
 import traceback
 from simtk import unit
 from simtk.openmm import app
+from oeommtools import utils as oeommutils
 
 
 class ProteinReader(OEMolIStreamCube):
@@ -204,12 +205,12 @@ class ComplexPrep(OEMolComputeCube):
                                              "solvation process has occurred")
 
                     # Check if the ligand is inside the binding site. Cutoff distance 3A
-                    if not utils.check_shell(ligand, protein, 3):
+                    if not oeommutils.check_shell(ligand, protein, 3):
                         oechem.OEThrow.Fatal("The ligand is probably outside the protein binding site")
 
                     # Removing possible clashes between the ligand and water or excipients
-                    water_del = utils.delete_shell(ligand, water, 1.5, in_out='in')
-                    excipient_del = utils.delete_shell(ligand, excipients, 1.5, in_out='in')
+                    water_del = oeommutils.delete_shell(ligand, water, 1.5, in_out='in')
+                    excipient_del = oeommutils.delete_shell(ligand, excipients, 1.5, in_out='in')
 
                     # Reassemble the complex
                     new_complex = protein.CreateCopy()
@@ -308,8 +309,9 @@ class ForceFieldPrep(ParallelOEMolComputeCube):
 
                 # The excipient order is set equal to the order in related
                 # parmed structure to avoid possible atom index mismatching
-                excipients = utils.openmmTop_to_oemol(excipient_structure.topology,
-                                                      excipient_structure.positions)
+                excipients = oeommutils.openmmTop_to_oemol(excipient_structure.topology,
+                                                           excipient_structure.positions,
+                                                           verbose=False)
 
             # Apply FF to the ligand
             ligand_structure = utils.applyffLigand(ligand, self.opt)

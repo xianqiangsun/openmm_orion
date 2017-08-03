@@ -6,7 +6,7 @@ from simtk import unit, openmm
 from simtk.openmm import app
 import pyparsing as pyp
 from floe.api.orion import in_orion,  upload_file
-from ComplexPrepCubes import utils as complex_utils
+from oeommtools import utils as oeommutils
 
 try:
     import cPickle as pickle
@@ -137,7 +137,7 @@ def simulation(mdData, **opt):
             flavor = ofs.GetFlavor(oechem.OEFormat_PDB) ^ oechem.OEOFlavor_PDB_OrderAtoms
             ofs.SetFlavor(oechem.OEFormat_PDB, flavor)
 
-            new_temp_mol = complex_utils.openmmTop_to_oemol(structure.topology, structure.positions)
+            new_temp_mol = oeommutils.openmmTop_to_oemol(structure.topology, structure.positions, verbose=False)
             new_pos = new_temp_mol.GetCoords()
             opt['molecule'].SetCoords(new_pos)
             oechem.OEWriteConstMolecule(ofs, opt['molecule'])
@@ -210,7 +210,7 @@ def simulation(mdData, **opt):
 
     # Update the OEMol complex positions to match the new
     # Parmed structure after the simulation
-    new_temp_mol = complex_utils.openmmTop_to_oemol(structure.topology, structure.positions)
+    new_temp_mol = oeommutils.openmmTop_to_oemol(structure.topology, structure.positions, verbose=False)
     new_pos = new_temp_mol.GetCoords()
     opt['molecule'].SetCoords(new_pos)
 

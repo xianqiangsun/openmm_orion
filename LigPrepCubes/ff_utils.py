@@ -46,46 +46,6 @@ def assignELF10charges(molecule, max_confs=800, strictStereo=True):
     return mol_copy
 
 
-def sanitizeOEMolecule(molecule):
-    """
-    This function checks if the molecule has coordinates,
-    explicit hydrogens and aromaticity. If the molecule
-    does not have coordinates a fatal error is raised.
-    If the molecule does not have hydrogens or aramatic
-    flags are missing then a copy of the molecule is fixed
-
-    Parameters:
-    -----------
-    molecule: OEMol
-        The molecule to be checked
-
-    Return:
-    -------
-    mol_copy: OEMol
-        A copy of the checked molecule with fixed aromaticity
-        and hydrogens
-    """
-    mol_copy = molecule.CreateCopy()
-
-    # Check if the molecule has 3D coordinates
-    if not oechem.OEGetDimensionFromCoords(mol_copy):
-        oechem.OEThrow.Fatal("The molecule coordinates are set to zero")
-    # Check if the molecule has hydrogens
-    if not oechem.OEHasExplicitHydrogens(mol_copy):
-        oechem.OEAddExplicitHydrogens(mol_copy)
-    # Check if the molecule has assigned aromaticity
-    if not mol_copy.HasPerceived(oechem.OEPerceived_Aromaticity):
-        oechem.OEAssignAromaticFlags(mol_copy, oechem.OEAroModelOpenEye)
-
-    # TEMPORARY PATCH FOR SMIRNOFF
-    oechem.OETriposAtomNames(mol_copy)
-    # # Check for any missing atom names, if found reassign all of them
-    # if any([atom.GetName() == '' for atom in mol_copy.GetAtoms()]):
-    #     oechem.OETriposAtomNames(mol_copy)
-
-    return mol_copy
-
-
 class ParamLigStructure(object):
     """
     Generates parametrized ParmEd structure of the molecule with a chosen force field
