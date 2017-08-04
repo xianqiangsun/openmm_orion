@@ -11,7 +11,7 @@ job = WorkFloe('Preparation MD')
 job.description = """
 Set up an OpenMM complex then minimize, warm up and equilibrate a system by using three equilibration stages
 
-Ex: python floes/openmm_MDprep.py --Ligands-data_in ligands.oeb --protein protein.oeb --ofs-data_out prep.oeb
+Ex: python floes/openmm_MDprep.py --ligands ligands.oeb --protein protein.oeb --ofs-data_out prep.oeb
 
 Parameters:
 -----------
@@ -29,9 +29,10 @@ ofs: Outputs a ready system to MD production run
 job.classification = [['Complex Setup', 'FrosstMD']]
 job.tags = [tag for lists in job.classification for tag in lists]
 
-# Ligand reading cube
-iligs = OEMolIStreamCube("Ligands", title='Ligand Reader')
-iligs.data_in.title = 'Ligand Input File'
+# Ligand reading cube setting
+iligs = OEMolIStreamCube("Ligands", title="Ligand Reader")
+iligs.promote_parameter("data_in", promoted_name="ligands", title="Ligand Input File", description="Ligand file name")
+
 
 chargelig = LigChargeCube("LigCharge")
 chargelig.promote_parameter('max_conformers', promoted_name='max_conformers',

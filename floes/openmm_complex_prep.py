@@ -9,7 +9,7 @@ job.description = """
 Complex Preparation Workflow
 
 Ex. python floes/openmm_complex_prep.py --protein protein.oeb
---Ligands-data_in ligands.oeb  --ofs-data_out complex.oeb
+--ligands ligands.oeb  --ofs-data_out complex.oeb
 
 Parameters:
 -----------
@@ -27,7 +27,7 @@ job.tags = [tag for lists in job.classification for tag in lists]
 
 # Ligand setting
 iligs = OEMolIStreamCube("Ligands", title="Ligand Reader")
-iligs.data_in.title = 'Ligand Input Files'
+iligs.promote_parameter("data_in", promoted_name="ligands", title="Ligand Input File", description="Ligand file name")
 
 chargelig = LigChargeCube("LigCharge")
 chargelig.promote_parameter('max_conformers', promoted_name='max_conformers',
@@ -35,7 +35,7 @@ chargelig.promote_parameter('max_conformers', promoted_name='max_conformers',
 
 # Protein Setting
 iprot = ProteinReader("ProteinReader")
-iprot.promote_parameter("data_in", promoted_name="protein", description="Protein file name")
+iprot.promote_parameter("data_in", promoted_name="protein", title="Protein Input File", description="Protein file name")
 iprot.promote_parameter("protein_prefix", promoted_name="protein_prefix", default='PRT',
                         description="Protein Prefix")
 

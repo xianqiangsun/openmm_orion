@@ -29,7 +29,7 @@ prod.promote_parameter('pressure', promoted_name='pressure', default=1.0,
                        description='Selected pressure in atm')
 
 # Trajectory and logging info frequency intervals
-prod.promote_parameter('trajectory_interval', promoted_name='trajectory_interval', default=100,
+prod.promote_parameter('trajectory_interval', promoted_name='trajectory_interval', default=1000,
                        description='Trajectory saving interval')
 prod.promote_parameter('reporter_interval', promoted_name='reporter_interval', default=10000,
                        description='Reporter saving interval')
