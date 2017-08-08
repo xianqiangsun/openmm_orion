@@ -226,45 +226,6 @@ def cleanup(tmpfiles):
             pass
 
 
-def tar_trj_log(molecule, outfname):
-
-    tarname = outfname + '.tar.xz'
-
-    trj_fn = outfname+'.nc'
-    pdb_fn = outfname+'.pdb'
-    pdb_order_fn = outfname + '_ordering_test' + '.pdb'
-    log_fn = outfname+'.log'
-
-    fnames = [trj_fn, pdb_fn, pdb_order_fn, log_fn]
-
-    totar = []
-
-    for fn in fnames:
-        if os.path.isfile(fn):
-            print('Adding {} to {}'.format(fn, tarname))
-            totar.append(fn)
-        else:
-            print('Skipping file: {}'.format(fn))
-
-    if totar:
-        print('Creating tarxz file: {}'.format(tarname))
-
-        tar = tarfile.open(tarname, "w:xz")
-
-        for name in totar:
-            tar.add(name)
-        tar.close()
-
-        if in_orion():
-            # MUST upload tar file directly back to Orion or they disappear.
-            upload_file(tarname, tarname, tags=['TAR'])
-
-        # Clean up files that have been added to tar.
-        cleanup(totar)
-
-    return
-
-
 def get_data_filename(package_root, relative_path):
     """Get the full path of the files installed in python packages or included
     in this package.

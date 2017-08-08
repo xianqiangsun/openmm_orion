@@ -3,10 +3,11 @@ from ComplexPrepCubes.cubes import Splitter, SolvationCube, ComplexPrep, ForceFi
 from simtk import unit
 from simtk.openmm import app
 from openeye import oechem
-import ComplexPrepCubes.utils as utils
+from oeommtools import utils as oeommtools
+from ComplexPrepCubes import utils
 from OpenMMCubes.cubes import utils as ommutils
 from floe.test import CubeTestRunner
-
+import numpy as np
 
 class SplitterCubeTester(unittest.TestCase):
     """
@@ -289,7 +290,7 @@ class ConversionTester(unittest.TestCase):
         ifs = oechem.oemolistream(protein)
         oechem.OEReadMolecule(ifs, mol)
 
-        top, omm_pos = utils.oemol_to_openmmTop(mol)
+        top, omm_pos = oeommtools.oemol_to_openmmTop(mol)
 
         # Assert Atom numbers
         self.assertEqual(top.getNumAtoms(), mol.NumAtoms())
@@ -330,7 +331,7 @@ class ConversionTester(unittest.TestCase):
         
         pdb = app.PDBFile(protein)
 
-        oe_mol = utils.openmmTop_to_oemol(pdb.topology, pdb.positions)
+        oe_mol = oeommtools.openmmTop_to_oemol(pdb.topology, pdb.positions)
 
         # Assert 
         self.assertEqual(pdb.topology.getNumAtoms(), oe_mol.NumAtoms())
@@ -338,7 +339,6 @@ class ConversionTester(unittest.TestCase):
         for (op_at, oe_at) in zip(pdb.topology.atoms(), oe_mol.GetAtoms()):
             self.assertEqual(op_at.index, oe_at.GetIdx())
 
-        import numpy as np
         oe_pos = [v for k, v in oe_mol.GetCoords().items()]
         np.testing.assert_almost_equal(pdb.getPositions(asNumpy=True).in_units_of(unit.angstrom)/unit.angstrom,
                                        np.array(oe_pos), decimal=2)

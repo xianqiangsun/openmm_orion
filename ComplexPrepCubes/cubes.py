@@ -1,33 +1,54 @@
 from ComplexPrepCubes import utils
 from OpenMMCubes import utils as pack_utils
-from floe.api import OEMolComputeCube, ParallelOEMolComputeCube, parameter, OEMolIStreamCube, MoleculeInputPort
+from floe.api import (OEMolComputeCube, ParallelOEMolComputeCube, parameter,
+                      MoleculeOutputPort, MoleculeInputPort, SourceCube)
 from floe.api.orion import StreamingDataset, config_from_env
 from openeye import oechem
 import traceback
 from simtk import unit
 from simtk.openmm import app
+from oeommtools import utils as oeommutils
 
 
-class Reader(OEMolIStreamCube):
+class ProteinReader(SourceCube):
     title = "Protein Reader Cube"
     version = "0.0.0"
-    classification = [["Reader Cube", "OEChem", "Reader Cube"]]
+    classification = [["Protein Reader Cube", "OEChem", "Reader Cube"]]
     tags = ['OEChem']
     description = """
-        A Protein Reader Cube 
-        Input:
-        -------
-        oechem.OEMCMol or - Streamed-in of the bio-molecular system.
-        The input file can be an .oeb or a .pdb file
+    A Protein Reader Cube 
+    Input:
+    -------
+    oechem.OEMCMol or - Streamed-in of the protein system
+    The input file can be an .oeb, .oeb.gz, .pdb or a .mol2 file
 
-        Output:
-        -------
-        oechem.OEMCMol - Emits the bio-molecular system
-        """
-    protein_suffix = parameter.StringParameter(
-        'protein_suffix',
+    Output:
+    -------
+    oechem.OEMCMol - Emits the protein system
+    """
+
+    success = MoleculeOutputPort("success")
+
+    data_in = parameter.DataSetInputParameter(
+        "data_in",
+        help_text="Protein to read in",
+        required=True,
+        description="The Protein to read in")
+
+    limit = parameter.IntegerParameter(
+        "limit",
+        required=False)
+
+    download_format = parameter.StringParameter(
+        "download_format",
+        choices=[".oeb.gz", ".oeb", ".pdb", ".mol2", ".smi"],
+        required=False,
+        default=".oeb.gz")
+
+    protein_prefix = parameter.StringParameter(
+        'protein_prefix',
         default='PRT',
-        help_text='The protein suffix name used to identify the protein')
+        help_text='The protein prefix name used to identify the protein')
 
     def begin(self):
         self.opt = vars(self.args)
@@ -42,7 +63,7 @@ class Reader(OEMolIStreamCube):
         if not in_orion:
             with oechem.oemolistream(str(self.args.data_in)) as ifs:
                 for mol in ifs.GetOEMols():
-                    mol.SetTitle(self.opt['protein_suffix'])
+                    mol.SetTitle(self.opt['protein_prefix'])
                     yield mol
                     count += 1
                     if max_idx is not None and count == max_idx:
@@ -51,7 +72,7 @@ class Reader(OEMolIStreamCube):
             stream = StreamingDataset(self.args.data_in,
                                       input_format=self.args.download_format)
             for mol in stream:
-                mol.SetTitle(self.opt['protein_suffix'])
+                mol.SetTitle(self.opt['protein_prefix'])
                 yield mol
                 count += 1
                 if max_idx is not None and count == max_idx:
@@ -116,7 +137,7 @@ class Splitter(OEMolComputeCube):
 
 
 class SolvationCube(OEMolComputeCube):
-    title = "Solvate Cube"
+    title = "Solvation Cube"
     version = "0.0.0"
     classification = [["Complex Preparation", "OEChem", "Complex preparation"]]
     tags = ['OEChem', 'OpenMM', 'PDBFixer']
@@ -164,7 +185,7 @@ class SolvationCube(OEMolComputeCube):
 
 
 class ComplexPrep(OEMolComputeCube):
-    title = "Complex Cube Preparation"
+    title = "Complex Preparation Cube"
     version = "0.0.0"
     classification = [["Complex Preparation", "OEChem", "Complex preparation"]]
     tags = ['OEChem']
@@ -224,12 +245,12 @@ class ComplexPrep(OEMolComputeCube):
                                              "solvation process has occurred")
 
                     # Check if the ligand is inside the binding site. Cutoff distance 3A
-                    if not utils.check_shell(ligand, protein, 3):
+                    if not oeommutils.check_shell(ligand, protein, 3):
                         oechem.OEThrow.Fatal("The ligand is probably outside the protein binding site")
 
                     # Removing possible clashes between the ligand and water or excipients
-                    water_del = utils.delete_shell(ligand, water, 1.5, in_out='in')
-                    excipient_del = utils.delete_shell(ligand, excipients, 1.5, in_out='in')
+                    water_del = oeommutils.delete_shell(ligand, water, 1.5, in_out='in')
+                    excipient_del = oeommutils.delete_shell(ligand, excipients, 1.5, in_out='in')
 
                     # Reassemble the complex
                     new_complex = protein.CreateCopy()
@@ -257,7 +278,7 @@ class ComplexPrep(OEMolComputeCube):
 
 
 class ForceFieldPrep(ParallelOEMolComputeCube):
-    title = "Force Field Preparation"
+    title = "Force Field Preparation Cube"
     version = "0.0.0"
     classification = [["Force Field Preparation", "OEChem", "Force Field preparation"]]
     tags = ['OEChem', 'OEBio', 'OpenMM']
@@ -325,6 +346,12 @@ class ForceFieldPrep(ParallelOEMolComputeCube):
             # Apply FF to the excipients
             if excipients.NumAtoms() > 0:
                 excipient_structure = utils.applyffExcipients(excipients, self.opt)
+
+                # The excipient order is set equal to the order in related
+                # parmed structure to avoid possible atom index mismatching
+                excipients = oeommutils.openmmTop_to_oemol(excipient_structure.topology,
+                                                           excipient_structure.positions,
+                                                           verbose=False)
 
             # Apply FF to the ligand
             ligand_structure = utils.applyffLigand(ligand, self.opt)

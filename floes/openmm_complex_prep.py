@@ -1,6 +1,6 @@
 from __future__ import unicode_literals
 from floe.api import WorkFloe, OEMolIStreamCube, OEMolOStreamCube
-from ComplexPrepCubes.cubes import Reader, Splitter, SolvationCube, ComplexPrep, ForceFieldPrep
+from ComplexPrepCubes.cubes import ProteinReader, Splitter, SolvationCube, ComplexPrep, ForceFieldPrep
 from LigPrepCubes.cubes import LigChargeCube
 
 job = WorkFloe("ComplexPrep")
@@ -9,7 +9,7 @@ job.description = """
 Complex Preparation Workflow
 
 Ex. python floes/openmm_complex_prep.py --protein protein.oeb
---Ligands-data_in ligands.oeb  --ofs-data_out complex.oeb
+--ligands ligands.oeb  --ofs-data_out complex.oeb
 
 Parameters:
 -----------
@@ -26,18 +26,18 @@ job.classification = [['Simulation']]
 job.tags = [tag for lists in job.classification for tag in lists]
 
 # Ligand setting
-iligs = OEMolIStreamCube("Ligands")
-# iligs.promote_parameter("data_in", promoted_name="ligands", description="Input ligands")
+iligs = OEMolIStreamCube("Ligands", title="Ligand Reader")
+iligs.promote_parameter("data_in", promoted_name="ligands", title="Ligand Input File", description="Ligand file name")
 
 chargelig = LigChargeCube("LigCharge")
 chargelig.promote_parameter('max_conformers', promoted_name='max_conformers',
                             description="Set the max number of conformers per ligand", default=800)
 
 # Protein Setting
-iprot = Reader("ProteinReader")
-iprot.promote_parameter("data_in", promoted_name="protein", description="Protein file name")
-iprot.promote_parameter("protein_suffix", promoted_name="protein_suffix", default='PRT',
-                        description="Protein suffix")
+iprot = ProteinReader("ProteinReader")
+iprot.promote_parameter("data_in", promoted_name="protein", title="Protein Input File", description="Protein file name")
+iprot.promote_parameter("protein_prefix", promoted_name="protein_prefix", default='PRT',
+                        description="Protein Prefix")
 
 splitter = Splitter("Splitter")
 solvate = SolvationCube("Solvation")

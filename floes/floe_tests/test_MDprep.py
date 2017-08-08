@@ -15,10 +15,9 @@ class MDPrepTestCase(TestCase):
 
         run_args = [
             '--protein', protein_path,
-            '--Ligands-data_in', ligand_path,
+            '--ligands', ligand_path,
             '--max_conformers', '800',
-            '--protein_suffix', 'Bace',
-            '--pH', '7.4',
+            '--protein_prefix', 'Bace',
             '--solvent_padding', '10',
             '--salt_conc', '100',
             '--protein_ff', 'amber99sbildn.xml',

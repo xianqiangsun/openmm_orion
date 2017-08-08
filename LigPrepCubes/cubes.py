@@ -3,7 +3,7 @@ from openeye import oechem, oedocking
 import OpenMMCubes.utils as utils
 from LigPrepCubes import ff_utils
 from floe.api import OEMolComputeCube, ParallelOEMolComputeCube, parameter
-
+from oeommtools import utils as oeommutils
 
 class LigChargeCube(ParallelOEMolComputeCube):
     title = "Ligand Charge Cube"
@@ -44,12 +44,13 @@ class LigChargeCube(ParallelOEMolComputeCube):
             charged_ligand = None
 
             # Ligand sanitation
-            ligand = ff_utils.sanitizeOEMolecule(ligand)
+            ligand = oeommutils.sanitizeOEMolecule(ligand)
 
             if not oechem.OEHasPartialCharges(ligand):
                 # Charge the ligand
                 charged_ligand = ff_utils.assignELF10charges(ligand,
-                                                             self.opt['max_conformers'], strictStereo=True)
+                                                             self.opt['max_conformers'],
+                                                             strictStereo=True)
 
             # If the ligand has been charged then transfer the computed
             # charges to the starting ligand

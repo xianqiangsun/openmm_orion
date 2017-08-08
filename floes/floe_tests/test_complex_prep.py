@@ -13,8 +13,8 @@ class ComplexPrepTestCase(TestCase):
 
         run_args = [
             '--protein', protein_path,
-            '--Ligands-data_in', ligand_path,
-            '--max_conformers', '800'
+            '--ligands', ligand_path,
+            '--max_conformers', '800',
             '--ofs-data_out', 'success.oeb',
             '--fail-data_out', 'fail.oeb',
         ]

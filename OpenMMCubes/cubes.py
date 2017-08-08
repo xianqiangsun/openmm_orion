@@ -2,12 +2,11 @@ import traceback
 
 import OpenMMCubes.simtools as simtools
 import OpenMMCubes.utils as utils
-from ComplexPrepCubes import utils as complex_utils
 from floe.api import ParallelOEMolComputeCube, parameter
 
 
 class OpenMMminimizeCube(ParallelOEMolComputeCube):
-    title = 'Minimize the molecule system'
+    title = 'Minimization Cube'
 
     version = "0.0.0"
     classification = [["Simulation", "OpenMM", "Minimization"]]
@@ -119,12 +118,6 @@ class OpenMMminimizeCube(ParallelOEMolComputeCube):
 
             packedmol = mdData.packMDData(mol)
 
-            # Update the OEMol complex positions to match the new
-            # Parmed structure
-            new_temp_mol = complex_utils.openmmTop_to_oemol(mdData.topology, mdData.positions)
-
-            new_pos = new_temp_mol.GetCoords()
-            packedmol.SetCoords(new_pos)
             self.success.emit(packedmol)
 
         except Exception as e:
@@ -138,7 +131,7 @@ class OpenMMminimizeCube(ParallelOEMolComputeCube):
 
             
 class OpenMMnvtCube(ParallelOEMolComputeCube):
-    title = 'OpenMM NVT simulation'
+    title = 'NVT Cube'
     version = "0.0.0"
     classification = [["Simulation", "OpenMM", "NVT"]]
     tags = ['OpenMM', 'Parallel Cube']
@@ -208,15 +201,9 @@ class OpenMMnvtCube(ParallelOEMolComputeCube):
 
     trajectory_filetype = parameter.StringParameter(
         'trajectory_filetype',
-        default='NetCDF',
-        choices=['NetCDF', 'DCD', 'HDF5'],
+        default='DCD',
+        choices=['DCD', 'NetCDF', 'HDF5'],
         help_text="NetCDF, DCD, HDF5. File type to write trajectory files")
-
-    trajectory_selection = parameter.StringParameter(
-        'trajectory_selection',
-        default=None,
-        choices=[None, 'protein or resname LIG', 'protein', 'resname LIG'],
-        help_text='atoms subset to write in trajectory')
 
     trajectory_interval = parameter.IntegerParameter(
         'trajectory_interval',
@@ -264,15 +251,8 @@ class OpenMMnvtCube(ParallelOEMolComputeCube):
 
     def begin(self):
         self.opt = vars(self.args)
-        self.opt['convert'] = False
         self.opt['Logger'] = self.log
         self.opt['SimType'] = 'nvt'
-        
-        conv_rule = [self.opt['trajectory_selection'] != None,
-                     self.opt['trajectory_filetype'] != 'NetCDF']
-        
-        if any(conv_rule):
-            self.opt['convert'] = True
 
         return
 
@@ -295,16 +275,6 @@ class OpenMMnvtCube(ParallelOEMolComputeCube):
                 
             packedmol = mdData.packMDData(mol)
 
-            # Update the OEMol complex positions to match the new
-            # Parmed structure
-            new_temp_mol = complex_utils.openmmTop_to_oemol(mdData.topology, mdData.positions)
-            new_pos = new_temp_mol.GetCoords()
-            packedmol.SetCoords(new_pos)
-
-            # Create a tar.xz archive of the info data and trajectory
-            if opt['tarxz']:
-                utils.tar_trj_log(packedmol, opt['outfname'])
-
             self.success.emit(packedmol)
 
         except Exception as e:
@@ -318,7 +288,7 @@ class OpenMMnvtCube(ParallelOEMolComputeCube):
 
     
 class OpenMMnptCube(ParallelOEMolComputeCube):
-    title = 'OpenMM NPT simulation'
+    title = 'NPT Cube'
     version = "0.0.0"
     classification = [["Simulation", "OpenMM", "NPT"]]
     tags = ['OpenMM', 'Parallel Cube']
@@ -394,15 +364,9 @@ class OpenMMnptCube(ParallelOEMolComputeCube):
 
     trajectory_filetype = parameter.StringParameter(
         'trajectory_filetype',
-        default='NetCDF',
-        choices=['NetCDF', 'DCD', 'HDF5'],
+        default='DCD',
+        choices=['DCD', 'NetCDF', 'HDF5'],
         help_text="NetCDF, DCD, HDF5. File type to write trajectory files")
-
-    trajectory_selection = parameter.StringParameter(
-        'trajectory_selection',
-        default=None,
-        choices=[None, 'protein or resname LIG', 'protein', 'resname LIG'],
-        help_text='atoms subset to write in trajectory')
 
     trajectory_interval = parameter.IntegerParameter(
         'trajectory_interval',
@@ -450,14 +414,8 @@ class OpenMMnptCube(ParallelOEMolComputeCube):
 
     def begin(self):
         self.opt = vars(self.args)
-        self.opt['convert'] = False
         self.opt['Logger'] = self.log
         self.opt['SimType'] = 'npt'
-        conv_rule = [self.opt['trajectory_selection'] != None,
-                     self.opt['trajectory_filetype'] != 'NetCDF']
-        
-        if any(conv_rule):
-            self.opt['convert'] = True
 
         return
 
@@ -480,16 +438,6 @@ class OpenMMnptCube(ParallelOEMolComputeCube):
                 
             packedmol = mdData.packMDData(mol)
 
-            # Update the OEMol complex positions to match the new
-            # Parmed structure
-            new_temp_mol = complex_utils.openmmTop_to_oemol(mdData.topology, mdData.positions)
-            new_pos = new_temp_mol.GetCoords()
-            packedmol.SetCoords(new_pos)
-
-            # Create a tar.xz archive of the info data and trajectory
-            if opt['tarxz']:
-                utils.tar_trj_log(packedmol, opt['outfname'])
-
             self.success.emit(packedmol)
 
         except Exception as e:
@@ -498,4 +446,5 @@ class OpenMMnptCube(ParallelOEMolComputeCube):
             mol.SetData('error', str(e))
             # Return failed mol
             self.failure.emit(mol)
+
         return
