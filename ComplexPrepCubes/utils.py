@@ -360,9 +360,6 @@ def applyffExcipients(excipients, opt):
         # Merge all the unrecognized Parmed structure
         unrc_struc = parmed.Structure()
 
-        # for struc_name in unrc_excipient_structures:
-        #     unrc_struc = unrc_struc + unmatched_excp[struc_name]*unrc_excipient_structures[struc_name]
-
         # It is important the order used to assemble the structures. In order to
         # avoid mismatch between the coordinates and the structures, it is convenient
         # to use the unrecognized residue order

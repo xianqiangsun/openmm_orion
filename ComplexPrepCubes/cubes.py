@@ -295,6 +295,8 @@ class ForceFieldPrep(ParallelOEMolComputeCube):
                 excipients = oeommutils.openmmTop_to_oemol(excipient_structure.topology,
                                                            excipient_structure.positions,
                                                            verbose=False)
+                oechem.OEPerceiveBondOrders(excipients)
+
 
             # Apply FF to the ligand
             ligand_structure = utils.applyffLigand(ligand, self.opt)
