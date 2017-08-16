@@ -79,63 +79,6 @@ class ProteinReader(SourceCube):
                     break
 
 
-class Splitter(OEMolComputeCube):
-    title = "Splitter Cube"
-    version = "0.0.0"
-    classification = [["Protein Preparation", "OEChem", "Split Molecule"]]
-    tags = ['OEChem', 'OEBio']
-    description = """
-        A starting  bio-molecular system is read in and split in four
-        components: the protein, the ligand, the water and the excipients 
-        by using OEBio functions
-
-        Input:
-        -------
-        oechem.OEMCMol - Streamed-in of the bio-molecular system.
-
-        Output:
-        -------
-        oechem.OEMCMol - Emits the assembled system made by the
-         protein,  water and excipients
-        """
-
-    def begin(self):
-        self.opt = vars(self.args)
-
-    def process(self, mol, port):
-
-        try:
-            # Split the bio molecular system
-            protein, ligand, water, excipients = utils.split(mol)
-
-            # self.log.info('Protein  number of atoms: {}'.format(protein.NumAtoms()))
-            # self.log.info('Ligand  number of atoms: {}'.format(ligand.NumAtoms()))
-            # self.log.info('Water number of atoms: {}'.format(water.NumAtoms()))
-            # self.log.info('Excipients number of atoms: {}'.format(excipients.NumAtoms()))
-
-            system = protein.CreateCopy()
-
-            oechem.OEAddMols(system, water)
-            oechem.OEAddMols(system, excipients)
-
-            system.SetTitle(mol.GetTitle())
-
-            # If the protein does not contain any atom emit a failure
-            if not protein.NumAtoms():   # Error: protein molecule is empty
-                oechem.OEThrow.Fatal("Splitting: Protein molecule after system splitting is empty")
-            else:
-                self.success.emit(system)
-
-        except Exception as e:
-            # Attach error message to the molecule that failed
-            self.log.error(traceback.format_exc())
-            mol.SetData('error', str(e))
-            # Return failed mol
-            self.failure.emit(mol)
-
-        return
-
-
 class SolvationCube(OEMolComputeCube):
     title = "Solvation Cube"
     version = "0.0.0"

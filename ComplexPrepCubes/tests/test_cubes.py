@@ -1,5 +1,5 @@
 import unittest
-from ComplexPrepCubes.cubes import Splitter, SolvationCube, ComplexPrep, ForceFieldPrep
+from ComplexPrepCubes.cubes import  SolvationCube, ComplexPrep, ForceFieldPrep
 from simtk import unit
 from simtk.openmm import app
 from openeye import oechem
@@ -8,62 +8,6 @@ from ComplexPrepCubes import utils
 from OpenMMCubes.cubes import utils as ommutils
 from floe.test import CubeTestRunner
 import numpy as np
-
-class SplitterCubeTester(unittest.TestCase):
-    """
-    Test the Splitter cube
-    Example inputs from `openmm_orion/examples/data`
-    """
-    def setUp(self):
-        self.cube = Splitter('Splitter')
-        self.runner = CubeTestRunner(self.cube)
-        self.runner.start()
-
-    def test_success(self):
-        print('Testing cube:', self.cube.name)
-        # File name
-        fname = ommutils.get_data_filename('examples', 'data/Bace_protein.pdb')
-
-        # Read OEMol molecule
-        mol = oechem.OEMol()
-
-        with oechem.oemolistream(fname) as ifs:
-            oechem.OEReadMolecule(ifs, mol)
-
-        atom_i = mol.GetMaxAtomIdx()
-
-        # Process the molecules
-        self.cube.process(mol, self.cube.intake.name)
-        # Assert that one molecule was emitted on the success port
-        self.assertEqual(self.runner.outputs['success'].qsize(), 1)
-        # Assert that zero molecules were emitted on the failure port
-        self.assertEqual(self.runner.outputs['failure'].qsize(), 0)
-
-        outmol = self.runner.outputs["success"].get()
-
-        atom_f = outmol.GetMaxAtomIdx()
-
-        self.assertEquals(atom_i, atom_f)
-
-        # Check Total number of atoms
-        prot, lig, wat, other = utils.split(outmol)
-
-        # Check protein, ligand, excipients and water number of atoms
-        npa = prot.GetMaxAtomIdx()
-        nla = lig.GetMaxAtomIdx()
-        noa = other.GetMaxAtomIdx()
-        nwa = wat.GetMaxAtomIdx()
-
-        self.assertEquals(npa, 6044)
-        self.assertEquals(nla, 0)
-        self.assertEquals(noa, 14)
-        self.assertEquals(nwa, 57)
-
-    def tearDown(self):
-        self.runner.finalize()
-
-    def test_failure(self):
-        pass
 
 
 class SolvationCubeTester(unittest.TestCase):
@@ -331,7 +275,7 @@ class ConversionTester(unittest.TestCase):
         
         pdb = app.PDBFile(protein)
 
-        oe_mol = oeommtools.openmmTop_to_oemol(pdb.topology, pdb.positions)
+        oe_mol = oeommtools.openmmTop_to_oemol(pdb.topology, pdb.positions, verbose=False)
 
         # Assert 
         self.assertEqual(pdb.topology.getNumAtoms(), oe_mol.NumAtoms())

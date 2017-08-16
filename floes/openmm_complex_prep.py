@@ -1,6 +1,6 @@
 from __future__ import unicode_literals
 from floe.api import WorkFloe, OEMolIStreamCube, OEMolOStreamCube
-from ComplexPrepCubes.cubes import ProteinReader, Splitter, SolvationCube, ComplexPrep, ForceFieldPrep
+from ComplexPrepCubes.cubes import ProteinReader, SolvationCube, ComplexPrep, ForceFieldPrep
 from LigPrepCubes.cubes import LigChargeCube
 
 job = WorkFloe("ComplexPrep")
@@ -39,7 +39,6 @@ iprot.promote_parameter("data_in", promoted_name="protein", title="Protein Input
 iprot.promote_parameter("protein_prefix", promoted_name="protein_prefix", default='PRT',
                         description="Protein Prefix")
 
-splitter = Splitter("Splitter")
 solvate = SolvationCube("Solvation")
 
 # Complex Setting
@@ -53,10 +52,9 @@ fail = OEMolOStreamCube('fail', title='OFS-Failure')
 fail.set_parameters(backend='s3')
 fail.set_parameters(data_out='fail.oeb.gz')
 
-job.add_cubes(iprot, splitter, solvate, iligs, chargelig, complx, ff, ofs, fail)
+job.add_cubes(iprot, solvate, iligs, chargelig, complx, ff, ofs, fail)
 
-iprot.success.connect(splitter.intake)
-splitter.success.connect(solvate.intake)
+iprot.success.connect(solvate.intake)
 solvate.success.connect(complx.system_port)
 iligs.success.connect(chargelig.intake)
 chargelig.success.connect(complx.intake)

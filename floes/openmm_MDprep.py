@@ -1,8 +1,7 @@
 from __future__ import unicode_literals
 from floe.api import WorkFloe, OEMolIStreamCube, OEMolOStreamCube
 from OpenMMCubes.cubes import OpenMMminimizeCube, OpenMMnvtCube, OpenMMnptCube
-from ComplexPrepCubes.cubes import ProteinReader, Splitter, SolvationCube, \
-    ComplexPrep, ForceFieldPrep
+from ComplexPrepCubes.cubes import ProteinReader, SolvationCube, ComplexPrep, ForceFieldPrep
 
 from LigPrepCubes.cubes import LigChargeCube
 
@@ -46,8 +45,6 @@ iprot.promote_parameter("data_in", promoted_name="protein", title='Protein Input
 iprot.promote_parameter("protein_prefix", promoted_name="protein_prefix",
                         default='PRT', description="Protein prefix")
 
-# The spitter cube will be used to pre-process the read in protein system
-splitter = Splitter("Splitter")
 
 # The solvation cube is used to solvate the system and define the ionic strength of the solution
 solvate = SolvationCube("Solvation")
@@ -142,11 +139,10 @@ fail = OEMolOStreamCube('fail', title='OFS-Failure')
 fail.set_parameters(backend='s3')
 fail.set_parameters(data_out='fail.oeb.gz')
 
-job.add_cubes(iprot, splitter, solvate, iligs, chargelig, complx, ff,
+job.add_cubes(iprot, solvate, iligs, chargelig, complx, ff,
               minComplex, warmup, equil1, equil2, equil3, ofs, fail)
 
-iprot.success.connect(splitter.intake)
-splitter.success.connect(solvate.intake)
+iprot.success.connect(solvate.intake)
 solvate.success.connect(complx.system_port)
 iligs.success.connect(chargelig.intake)
 chargelig.success.connect(complx.intake)
