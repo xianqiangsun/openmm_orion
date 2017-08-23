@@ -42,12 +42,21 @@ class OpenMMminimizeCube(ParallelOEMolComputeCube):
         default='',
         help_text="""Mask selection to apply restraints. Possible keywords are:
                   ligand, protein, water, ions, ca_protein, cofactors. 
-                  Operational tokens are: and, not, noh""")
+                  The selection can be refined by using logical tokens: 
+                  not, noh, and, or, diff, around""")
 
     restraintWt = parameter.DecimalParameter(
         'restraintWt',
         default=5.0,
         help_text="Restraint weight for xyz atom restraints in kcal/(mol A^2)")
+
+    freeze = parameter.StringParameter(
+        'freeze',
+        default='',
+        help_text="""Mask selection to freeze atoms along the MD 
+                  simulation. Possible keywords are: ligand, protein, water, 
+                  ions, ca_protein, cofactors. The selection can be refined by
+                  using logical tokens: not, noh, and, or, diff, around""")
 
     temperature = parameter.DecimalParameter(
         'temperature',
@@ -168,14 +177,23 @@ class OpenMMnvtCube(ParallelOEMolComputeCube):
     restraints = parameter.StringParameter(
         'restraints',
         default='',
-        help_text=""""Mask selection to apply restraints. Possible keywords are:
+        help_text=""""Mask selection to apply restraints. Possible keywords are: 
                   ligand, protein, water, ions, ca_protein, cofactors. 
-                  Operational tokens are: and, not, noh""")
+                  The selection can be refined by using logical tokens: 
+                  not, noh, and, or, diff, around""")
 
     restraintWt = parameter.DecimalParameter(
         'restraintWt',
         default=2.0,
         help_text="Restraint weight for xyz atom restraints in kcal/(mol A^2)")
+
+    freeze = parameter.StringParameter(
+        'freeze',
+        default='',
+        help_text="""Mask selection to freeze atoms along the MD 
+                  simulation. Possible keywords are: ligand, protein, water, 
+                  ions, ca_protein, cofactors. The selection can be refined by
+                  using logical tokens: not, noh, and, or, diff, around""")
 
     nonbondedMethod = parameter.StringParameter(
         'nonbondedMethod',
@@ -331,14 +349,23 @@ class OpenMMnptCube(ParallelOEMolComputeCube):
     restraints = parameter.StringParameter(
         'restraints',
         default='',
-        help_text=""""Mask selection to apply restraints. Possible keywords are:
+        help_text=""""Mask selection to apply restraints. Possible keywords are: 
                   ligand, protein, water, ions, ca_protein, cofactors. 
-                  Operational tokens are: and, not, noh""")
+                  The selection can be refined by using logical tokens: 
+                  not, noh, and, or, diff, around""")
 
     restraintWt = parameter.DecimalParameter(
         'restraintWt',
         default=2.0,
         help_text="Restraint weight for xyz atom restraints in kcal/(mol ang^2)")
+
+    freeze = parameter.StringParameter(
+        'freeze',
+        default='',
+        help_text="""Mask selection to freeze atoms along the MD simulation. 
+                  Possible keywords are: ligand, protein, water, ions, ca_protein, 
+                  cofactors. The selection can be refined by using logical tokens: 
+                  not, noh, and, or, diff, around""")
 
     nonbondedMethod = parameter.StringParameter(
         'nonbondedMethod',

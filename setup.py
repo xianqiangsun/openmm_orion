@@ -32,7 +32,7 @@ def get_version():
 
 setup(
     name="OpenMMCubes",
-    version='0.1.8',
+    version='0.1.9',
     packages=find_packages(include=['examples'], exclude=['tests*']),
     include_package_data=True,
     package_data={ 'examples' : find_package_data('examples/data', 'examples')},
