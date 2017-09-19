@@ -2,9 +2,9 @@ from __future__ import unicode_literals
 from floe.api import WorkFloe, OEMolOStreamCube
 from ComplexPrepCubes.cubes import SolvationCube, ComplexPrep, ForceFieldPrep
 from ComplexPrepCubes.port import ProteinReader
-from LigPrepCubes.ports import LigandReader
 from OpenMMCubes.cubes import OpenMMminimizeCube
 from LigPrepCubes.cubes import LigChargeCube
+from LigPrepCubes.ports import LigandReader
 
 job = WorkFloe("ComplexPrepMin")
 
@@ -31,7 +31,6 @@ job.tags = [tag for lists in job.classification for tag in lists]
 # Ligand setting
 iligs = LigandReader("Ligands", title="Ligand Reader")
 iligs.promote_parameter("data_in", promoted_name="ligands", title="Ligand Input File", description="Ligand file name")
-
 
 chargelig = LigChargeCube("LigCharge")
 chargelig.promote_parameter('max_conformers', promoted_name='max_conformers',
