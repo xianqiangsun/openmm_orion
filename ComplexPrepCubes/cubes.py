@@ -1,128 +1,110 @@
 from ComplexPrepCubes import utils
 from OpenMMCubes import utils as pack_utils
-from floe.api import (OEMolComputeCube, ParallelOEMolComputeCube, parameter,
-                      MoleculeOutputPort, MoleculeInputPort, SourceCube)
-from floe.api.orion import StreamingDataset, config_from_env
+from floe.api import (OEMolComputeCube, ParallelOEMolComputeCube, parameter, MoleculeInputPort)
 from openeye import oechem
 import traceback
 from simtk import unit
 from simtk.openmm import app
 from oeommtools import utils as oeommutils
+from oeommtools.packmol import oesolvate
+import parmed
 
 
-class ProteinReader(SourceCube):
-    title = "Protein Reader Cube"
+class SolvationCube(ParallelOEMolComputeCube):
+    title = "Solvation Cube Packmol"
     version = "0.0.0"
-    classification = [["Protein Reader Cube", "OEChem", "Reader Cube"]]
-    tags = ['OEChem']
+    classification = [["Preparation", "OEChem"]]
+    tags = ['OEChem', 'PackMol']
     description = """
-    A Protein Reader Cube 
+    This cube solvate the molecular system
+
     Input:
     -------
-    oechem.OEMCMol or - Streamed-in of the protein system
-    The input file can be an .oeb, .oeb.gz, .pdb or a .mol2 file
+    oechem.OEMCMol - Streamed-in of the molecular system
 
     Output:
     -------
-    oechem.OEMCMol - Emits the protein system
+    oechem.OEMCMol - Emits the solvated system
     """
 
-    success = MoleculeOutputPort("success")
+    # Override defaults for some parameters
+    parameter_overrides = {
+        "prefetch_count": {"default": 1},  # 1 molecule at a time
+        "item_timeout": {"default": 3600},  # Default 1 hour limit (units are seconds)
+        "item_count": {"default": 1}  # 1 molecule at a time
+    }
 
-    data_in = parameter.DataSetInputParameter(
-        "data_in",
-        help_text="Protein to read in",
+    density = parameter.DecimalParameter(
+        'density',
+        default=1.0,
+        help_text="Solution density in g/ml")
+
+    padding_distance = parameter.DecimalParameter(
+        'padding_distance',
+        default=10.0,
+        help_text="The padding distance between the solute and the box edge in A")
+
+    solvents = parameter.StringParameter(
+        'solvents',
         required=True,
-        description="The Protein to read in")
+        default='[H]O[H]',
+        help_text='Select solvents. The solvents are specified as comma separated smiles strings'
+                  'e.g. [H]O[H], C(Cl)(Cl)Cl, CS(=O)C')
 
-    limit = parameter.IntegerParameter(
-        "limit",
-        required=False)
+    molar_fractions = parameter.StringParameter(
+        'molar_fractions',
+        default='1.0',
+        help_text="Molar fractions of each solvent components. The molar fractions are specified"
+                  "as comma separated molar fractions strings e.g. 0.5,0.2,0.3")
 
-    download_format = parameter.StringParameter(
-        "download_format",
-        choices=[".oeb.gz", ".oeb", ".pdb", ".mol2", ".smi"],
-        required=False,
-        default=".oeb.gz")
+    geometry = parameter.StringParameter(
+        'geometry',
+        default='box',
+        choices=['box', 'sphere'],
+        help_text="Geometry selection: box or sphere. Sphere cannot be used as periodic system "
+                  "along with MD simulation")
+    
+    close_solvent = parameter.BooleanParameter(
+        'close_solvent',
+        default=False,
+        help_text="If Checked/True solvent molecules will be placed very close to the solute")
 
-    protein_prefix = parameter.StringParameter(
-        'protein_prefix',
-        default='PRT',
-        help_text='The protein prefix name used to identify the protein')
-
-    def begin(self):
-        self.opt = vars(self.args)
-
-    def __iter__(self):
-        max_idx = self.args.limit
-        if max_idx is not None:
-            max_idx = int(max_idx)
-        count = 0
-        self.config = config_from_env()
-        in_orion = self.config is not None
-        if not in_orion:
-            with oechem.oemolistream(str(self.args.data_in)) as ifs:
-                for mol in ifs.GetOEMols():
-                    mol.SetTitle(self.opt['protein_prefix'])
-                    yield mol
-                    count += 1
-                    if max_idx is not None and count == max_idx:
-                        break
-        else:
-            stream = StreamingDataset(self.args.data_in,
-                                      input_format=self.args.download_format)
-            for mol in stream:
-                mol.SetTitle(self.opt['protein_prefix'])
-                yield mol
-                count += 1
-                if max_idx is not None and count == max_idx:
-                    break
-
-
-class SolvationCube(OEMolComputeCube):
-    title = "Solvation Cube"
-    version = "0.0.0"
-    classification = [["Complex Preparation", "OEChem", "Complex preparation"]]
-    tags = ['OEChem', 'OpenMM', 'PDBFixer']
-    description = """
-           This cube solvate the molecular system
-
-           Input:
-           -------
-           oechem.OEMCMol - Streamed-in of the molecular system
-
-           Output:
-           -------
-           oechem.OEMCMol - Emits the solvated system
-           """
-
-    solvent_padding = parameter.DecimalParameter(
-        'solvent_padding',
-        default=10,
-        help_text="Padding around protein for solvent box (angstroms)")
+    salt = parameter.StringParameter(
+        'salt',
+        default='[Na+], [Cl-]',
+        help_text='Salt type. The salt is specified as list of smiles strings. '
+                  'Each smiles string is the salt component dissociated in the '
+                  'solution e.g. Na+, Cl-')
 
     salt_concentration = parameter.DecimalParameter(
         'salt_concentration',
-        default=100,
-        help_text="Salt concentration (millimolar)")
+        default=0.0,
+        help_text="Salt concentration in millimolar")
+
+    neutralize_solute = parameter.BooleanParameter(
+        'neutralize_solute',
+        default=True,
+        help_text='Neutralize the solute by adding Na+ and Cl- counter-ions based on'
+                  'the solute formal charge')
 
     def begin(self):
         self.opt = vars(self.args)
         self.opt['Logger'] = self.log
 
-    def process(self, system, port):
+    def process(self, solute, port):
 
         try:
             # Solvate the system
-            sol_system = utils.solvate(system, self.opt)
-            sol_system.SetTitle(system.GetTitle())
+            sol_system = oesolvate(solute, **self.opt)
+            self.log.info("Solvated System atom number {}".format(sol_system.NumAtoms()))
+            sol_system.SetTitle(solute.GetTitle())
             self.success.emit(sol_system)
         except Exception as e:
             # Attach error message to the molecule that failed
             self.log.error(traceback.format_exc())
-            system.SetData('error', str(e))
+            solute.SetData('error', str(e))
             # Return failed mol
-            self.failure.emit(system)
+            self.failure.emit(solute)
 
         return
 
@@ -153,7 +135,7 @@ class ComplexPrep(OEMolComputeCube):
         self.opt = vars(self.args)
         self.opt['Logger'] = self.log
         self.wait_on('system_port')
-        self.count=0
+        self.count = 0
         self.check_system = False
 
     def process(self, mol, port):
@@ -170,9 +152,9 @@ class ComplexPrep(OEMolComputeCube):
                     conf_mol = oechem.OEMol(conf)
                     complx = self.system.CreateCopy()
                     oechem.OEAddMols(complx, conf_mol)
-
+                    
                     # Split the complex in components
-                    protein, ligand, water, excipients = utils.split(complx)
+                    protein, ligand, water, excipients = oeommutils.split(complx)
 
                     # If the protein does not contain any atom emit a failure
                     if not protein.NumAtoms():  # Error: protein molecule is empty
@@ -182,24 +164,24 @@ class ComplexPrep(OEMolComputeCube):
                     if not ligand.NumAtoms():  # Error: ligand molecule is empty
                         oechem.OEThrow.Fatal("The Ligand molecule does not contains atoms")
 
-                    # If the water does not contain any atom emit a failure
-                    if not water.NumAtoms():  # Error: water molecule is empty
-                        oechem.OEThrow.Fatal("The water does not contains atoms. This could happen if not"
-                                             "solvation process has occurred")
-
                     # Check if the ligand is inside the binding site. Cutoff distance 3A
                     if not oeommutils.check_shell(ligand, protein, 3):
                         oechem.OEThrow.Fatal("The ligand is probably outside the protein binding site")
 
                     # Removing possible clashes between the ligand and water or excipients
-                    water_del = oeommutils.delete_shell(ligand, water, 1.5, in_out='in')
-                    excipient_del = oeommutils.delete_shell(ligand, excipients, 1.5, in_out='in')
+                    if water.NumAtoms():
+                        water_del = oeommutils.delete_shell(ligand, water, 1.5, in_out='in')
+
+                    if excipients.NumAtoms():
+                        excipient_del = oeommutils.delete_shell(ligand, excipients, 1.5, in_out='in')
 
                     # Reassemble the complex
                     new_complex = protein.CreateCopy()
                     oechem.OEAddMols(new_complex, ligand)
-                    oechem.OEAddMols(new_complex, excipient_del)
-                    oechem.OEAddMols(new_complex, water_del)
+                    if excipients.NumAtoms():
+                        oechem.OEAddMols(new_complex, excipient_del)
+                    if water.NumAtoms():
+                        oechem.OEAddMols(new_complex, water_del)
 
                     name_c = name
                     if mol.GetMaxConfIdx() > 1:
@@ -239,9 +221,9 @@ class ForceFieldPrep(ParallelOEMolComputeCube):
 
     # Override defaults for some parameters
     parameter_overrides = {
-        "prefetch_count": {"default": 1}, # 1 molecule at a time
-        "item_timeout": {"default": 3600}, # Default 1 hour limit (units are seconds)
-        "item_count": {"default": 1} # 1 molecule at a time
+        "prefetch_count": {"default": 1},  # 1 molecule at a time
+        "item_timeout": {"default": 3600},  # Default 1 hour limit (units are seconds)
+        "item_count": {"default": 1}  # 1 molecule at a time
     }
 
     protein_forcefield = parameter.DataSetInputParameter(
@@ -261,6 +243,12 @@ class ForceFieldPrep(ParallelOEMolComputeCube):
         choices=['GAFF', 'GAFF2', 'SMIRNOFF'],
         help_text='Force field to parametrize the ligand')
 
+    ligand_res_name = parameter.StringParameter(
+        'ligand_res_name',
+        required=True,
+        default='LIG',
+        help_text='Ligand residue name')
+
     other_forcefield = parameter.StringParameter(
         'other_forcefield',
         required=True,
@@ -274,21 +262,43 @@ class ForceFieldPrep(ParallelOEMolComputeCube):
 
     def process(self, mol, port):
         try:
+
             # Split the complex in components in order to apply the FF
-            protein, ligand, water, excipients = utils.split(mol)
+            protein, ligand, water, excipients = oeommutils.split(mol, ligand_res_name=self.opt['ligand_res_name'])
+
+            self.log.warn("Protein = {}".format(protein.NumAtoms()))
+            self.log.warn("ligand = {}".format(ligand.NumAtoms()))
+            self.log.warn("water = {}".format(water.NumAtoms()))
+            self.log.warn("excipients = {}".format(excipients.NumAtoms()))
 
             # Unique prefix name used to output parametrization files
             self.opt['prefix_name'] = mol.GetTitle()
 
+            oe_mol_list = []
+            par_mol_list = []
+
             # Apply FF to the Protein
-            protein_structure = utils.applyffProtein(protein, self.opt)
+            if protein.NumAtoms():
+                oe_mol_list.append(protein)
+                protein_structure = utils.applyffProtein(protein, self.opt)
+                par_mol_list.append(protein_structure)
+
+            # Apply FF to the ligand
+            if ligand.NumAtoms():
+                oe_mol_list.append(ligand)
+                ligand_structure = utils.applyffLigand(ligand, self.opt)
+                par_mol_list.append(ligand_structure)
 
             # Apply FF to water molecules
-            water_structure = utils.applyffWater(water, self.opt)
+            if water.NumAtoms():
+                oe_mol_list.append(water)
+                water_structure = utils.applyffWater(water, self.opt)
+                par_mol_list.append(water_structure)
 
             # Apply FF to the excipients
-            if excipients.NumAtoms() > 0:
+            if excipients.NumAtoms():
                 excipient_structure = utils.applyffExcipients(excipients, self.opt)
+                par_mol_list.append(excipient_structure)
 
                 # The excipient order is set equal to the order in related
                 # parmed structure to avoid possible atom index mismatching
@@ -296,36 +306,35 @@ class ForceFieldPrep(ParallelOEMolComputeCube):
                                                            excipient_structure.positions,
                                                            verbose=False)
                 oechem.OEPerceiveBondOrders(excipients)
+                oe_mol_list.append(excipients)
 
+            # Build the overall Parmed structure
+            complex_structure = parmed.Structure()
 
-            # Apply FF to the ligand
-            ligand_structure = utils.applyffLigand(ligand, self.opt)
+            for struc in par_mol_list:
+                complex_structure = complex_structure + struc
 
-            # Build the Parmed structure
-            if excipients.NumAtoms() > 0:
-                complex_structure = protein_structure + ligand_structure + \
-                                    excipient_structure + water_structure
-            else:
-                complex_structure = protein_structure + ligand_structure + water_structure
+            complx = oe_mol_list[0].CreateCopy()
+            num_atom_system = complx.NumAtoms()
 
-            num_atom_system = protein.NumAtoms() + ligand.NumAtoms() + excipients.NumAtoms() + water.NumAtoms()
+            for idx in range(1, len(oe_mol_list)):
+                oechem.OEAddMols(complx, oe_mol_list[idx])
+                num_atom_system += oe_mol_list[idx].NumAtoms()
 
             if not num_atom_system == complex_structure.topology.getNumAtoms():
                 oechem.OEThrow.Fatal("Parmed and OE topologies mismatch atom number error")
 
-            # Assemble a new OEMol complex in a specific order
-            # to match the defined Parmed structure complex
-            complx = protein.CreateCopy()
-            oechem.OEAddMols(complx, ligand)
-            oechem.OEAddMols(complx, excipients)
-            oechem.OEAddMols(complx, water)
-
             complx.SetTitle(mol.GetTitle())
 
             # Set Parmed structure box_vectors
-            vec_data = pack_utils.PackageOEMol.getData(complx, tag='box_vectors')
-            vec = pack_utils.PackageOEMol.decodePyObj(vec_data)
-            complex_structure.box_vectors = vec
+            is_periodic = True
+            try:
+                vec_data = pack_utils.PackageOEMol.getData(complx, tag='box_vectors')
+                vec = pack_utils.PackageOEMol.decodePyObj(vec_data)
+                complex_structure.box_vectors = vec
+            except:
+                is_periodic = False
+                self.log.warn("System has been parametrize without periodic box vectors for vacuum simulation")
 
             # Attach the Parmed structure to the complex
             packed_complex = pack_utils.PackageOEMol.pack(complx, complex_structure)
@@ -341,7 +350,7 @@ class ForceFieldPrep(ParallelOEMolComputeCube):
                 thisRes = oechem.OEAtomGetResidue(at)
                 thisRes.SetSerialNumber(at.GetIdx())
                 if thisRes.GetName() == 'UNL':
-                    thisRes.SetName("LIG")
+                    # thisRes.SetName("LIG")
                     thisRes.SetHetAtom(True)
                 oechem.OEAtomSetResidue(at, thisRes)
 
@@ -349,10 +358,15 @@ class ForceFieldPrep(ParallelOEMolComputeCube):
                 raise ValueError("OEMol complex and Parmed structure mismatch atom numbers")
 
             # Check if it is possible to create the OpenMM System
-            system = complex_structure.createSystem(nonbondedMethod=app.CutoffPeriodic,
-                                                    nonbondedCutoff=10.0 * unit.angstroms,
-                                                    constraints=app.HBonds,
-                                                    removeCMMotion=False)
+            if is_periodic:
+                complex_structure.createSystem(nonbondedMethod=app.CutoffPeriodic,
+                                               nonbondedCutoff=10.0 * unit.angstroms,
+                                               constraints=app.HBonds,
+                                               removeCMMotion=False)
+            else:
+                complex_structure.createSystem(nonbondedMethod=app.NoCutoff,
+                                               constraints=app.HBonds,
+                                               removeCMMotion=False)
 
             self.success.emit(packed_complex)
         except Exception as e:

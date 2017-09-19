@@ -37,7 +37,7 @@ def simulation(mdData, **opt):
     # Time step in ps
     stepLen = 0.002 * unit.picoseconds
 
-    if opt['SimType'] in ['nvt', 'npt']:
+    if opt['SimType'] in ['nvt', 'npt'] and box is not None:
         # Centering the system to the OpenMM Unit Cell
         if opt['center']:
             opt['Logger'].info("Centering is On")
@@ -56,14 +56,23 @@ def simulation(mdData, **opt):
             positions = structure.positions
 
     # OpenMM system
-    system = structure.createSystem(nonbondedMethod=eval("app.%s" % opt['nonbondedMethod']),
-                                    nonbondedCutoff=opt['nonbondedCutoff']*unit.angstroms,
-                                    constraints=eval("app.%s" % opt['constraints']),
-                                    removeCMMotion=False)
+    if box is not None:
+        system = structure.createSystem(nonbondedMethod=eval("app.%s" % opt['nonbondedMethod']),
+                                        nonbondedCutoff=opt['nonbondedCutoff']*unit.angstroms,
+                                        constraints=eval("app.%s" % opt['constraints']),
+                                        removeCMMotion=False)
+    else:  # Vacuum
+        system = structure.createSystem(nonbondedMethod=app.NoCutoff,
+                                        constraints=eval("app.%s" % opt['constraints']),
+                                        removeCMMotion=False)
+
     # OpenMM Integrator
     integrator = openmm.LangevinIntegrator(opt['temperature']*unit.kelvin, 1/unit.picoseconds, stepLen)
     
     if opt['SimType'] == 'npt':
+        if box is None:
+            oechem.OEThrow.Fatal("NPT simulation without box vector")
+
         # Add Force Barostat to the system
         system.addForce(openmm.MonteCarloBarostat(opt['pressure']*unit.atmospheres, opt['temperature']*unit.kelvin, 25))
 
@@ -126,7 +135,8 @@ def simulation(mdData, **opt):
     simulation.context.setPositions(positions)
 
     # Set Box dimensions
-    simulation.context.setPeriodicBoxVectors(box[0], box[1], box[2])
+    if box is not None:
+        simulation.context.setPeriodicBoxVectors(box[0], box[1], box[2])
 
     # If the velocities are not present in the Parmed structure
     # new velocity vectors are generated otherwise the system is
@@ -185,8 +195,12 @@ def simulation(mdData, **opt):
         # Start Simulation
         simulation.step(opt['steps'])
 
-        state = simulation.context.getState(getPositions=True, getVelocities=True,
-                                            getEnergy=True, enforcePeriodicBox=True)
+        if box is not None:
+            state = simulation.context.getState(getPositions=True, getVelocities=True,
+                                                getEnergy=True, enforcePeriodicBox=True)
+        else:
+            state = simulation.context.getState(getPositions=True, getVelocities=True,
+                                                getEnergy=True, enforcePeriodicBox=False)
         
     elif opt['SimType'] == 'min':
         # Start Simulation
@@ -204,7 +218,8 @@ def simulation(mdData, **opt):
     # OpenMM Quantity object
     structure.positions = state.getPositions(asNumpy=False)
     # OpenMM Quantity object
-    structure.box_vectors = state.getPeriodicBoxVectors()
+    if box is not None:
+        structure.box_vectors = state.getPeriodicBoxVectors()
 
     if opt['SimType'] in ['nvt', 'npt']:
         # numpy array in units of angstrom/picosecond

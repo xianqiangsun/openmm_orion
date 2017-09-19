@@ -11,14 +11,14 @@ Run an unrestrained NPT simulation at 300K and 1atm
 job.classification = [['Simulation']]
 job.tags = [tag for lists in job.classification for tag in lists]
 
-ifs = OEMolIStreamCube("complex", title="Complex Reader")
-ifs.promote_parameter("data_in", promoted_name="complex", title='Complex Input File',
-                      description="protein:ligand complex input file")
+ifs = OEMolIStreamCube("system", title="System Reader")
+ifs.promote_parameter("data_in", promoted_name="system", title='System Input File',
+                      description="System input file")
 
 prod = OpenMMnptCube('production')
 
 # Set simulation time
-prod.promote_parameter('time', promoted_name='picosec', default=10)
+prod.promote_parameter('time', promoted_name='picosec', default=100)
 
 # Set the temperature in K
 prod.promote_parameter('temperature', promoted_name='temperature', default=300.0,

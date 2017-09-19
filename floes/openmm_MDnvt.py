@@ -5,13 +5,13 @@ from OpenMMCubes.cubes import OpenMMnvtCube
 job = WorkFloe("NVT Run")
 
 job.description = """
-NVT simulation of an OpenMM-ready solvated complex
+NVT simulation of an OpenMM-ready System
 
-Ex: python floes/openmm_MDnvt.py --complex complex.oeb --ofs-data_out nvt.oeb --picosec 10.0
+Ex: python floes/openmm_MDnvt.py --system complex.oeb --ofs-data_out nvt.oeb --picosec 10.0
 
 Parameters:
 -----------
-complex (file): OEB file of the prepared protein:ligand complex
+complex (file): OEB file of the prepared system
 
 Optional:
 --------
@@ -26,9 +26,9 @@ ofs: Outputs the constant temperature and volume system
 job.classification = [['NVT']]
 job.tags = [tag for lists in job.classification for tag in lists]
 
-ifs = OEMolIStreamCube("complex", title="Complex Reader")
-ifs.promote_parameter("data_in", promoted_name="complex", title='Complex Input File',
-                      description="protein:ligand complex input file")
+ifs = OEMolIStreamCube("system", title="System Reader")
+ifs.promote_parameter("data_in", promoted_name="system", title='System Input File',
+                      description="System input file")
 
 nvt = OpenMMnvtCube('nvt')
 nvt.promote_parameter('time', promoted_name='picosec', default=10.0)

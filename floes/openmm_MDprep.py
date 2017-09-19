@@ -1,8 +1,9 @@
 from __future__ import unicode_literals
-from floe.api import WorkFloe, OEMolIStreamCube, OEMolOStreamCube
+from floe.api import WorkFloe, OEMolOStreamCube
 from OpenMMCubes.cubes import OpenMMminimizeCube, OpenMMnvtCube, OpenMMnptCube
-from ComplexPrepCubes.cubes import ProteinReader, SolvationCube, ComplexPrep, ForceFieldPrep
-
+from ComplexPrepCubes.cubes import SolvationCube, ComplexPrep, ForceFieldPrep
+from ComplexPrepCubes.port import ProteinReader
+from LigPrepCubes.ports import LigandReader
 from LigPrepCubes.cubes import LigChargeCube
 
 job = WorkFloe('Preparation MD')
@@ -28,8 +29,8 @@ ofs: Outputs a ready system to MD production run
 job.classification = [['Complex Setup', 'FrosstMD']]
 job.tags = [tag for lists in job.classification for tag in lists]
 
-# Ligand reading cube setting
-iligs = OEMolIStreamCube("Ligands", title="Ligand Reader")
+# Ligand setting
+iligs = LigandReader("Ligands", title="Ligand Reader")
 iligs.promote_parameter("data_in", promoted_name="ligands", title="Ligand Input File", description="Ligand file name")
 
 
@@ -48,8 +49,13 @@ iprot.promote_parameter("protein_prefix", promoted_name="protein_prefix",
 
 # The solvation cube is used to solvate the system and define the ionic strength of the solution
 solvate = SolvationCube("Solvation")
-solvate.promote_parameter('solvent_padding', promoted_name='solvent_padding', default=10)
-solvate.promote_parameter('salt_concentration', promoted_name='salt_conc', default=100)
+solvate.promote_parameter("density", promoted_name="density", title="Solution density in g/ml", default=1.0,
+                          description="Solution Density in g/ml")
+solvate.promote_parameter("solvents", promoted_name="solvents", title="Solvent components", default='[H]O[H]',
+                          description="Comma separated smiles strings of solvent components")
+solvate.promote_parameter("molar_fractions", promoted_name="molar_fractions",
+                          title="Molar fractions", default='1.0',
+                          description="Comma separated  strings of solvent molar fractions")
 
 # Complex cube used to assemble the ligands and the solvated protein
 complx = ComplexPrep("Complex")

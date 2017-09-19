@@ -3,15 +3,16 @@ from floe.api import WorkFloe, OEMolOStreamCube
 from ComplexPrepCubes.cubes import SolvationCube, ComplexPrep, ForceFieldPrep
 from ComplexPrepCubes.port import ProteinReader
 from LigPrepCubes.ports import LigandReader
+from OpenMMCubes.cubes import OpenMMminimizeCube
 from LigPrepCubes.cubes import LigChargeCube
 
-job = WorkFloe("ComplexPrep")
+job = WorkFloe("ComplexPrepMin")
 
 job.description = """
-Complex Preparation Workflow
+Complex Preparation and Minimization Workflow
 
 Ex. python floes/openmm_complex_prep.py --protein protein.oeb
---ligands ligands.oeb  --ofs-data_out complex.oeb
+--ligands ligands.oeb  --ofs-data_out min.oeb
 
 Parameters:
 -----------
@@ -21,7 +22,7 @@ ligands (file): OEB file of the prepared ligands
 
 Outputs:
 --------
-ofs: Output file
+ofs: Output file of the assembled and minimized complex
 """
 
 job.classification = [['Simulation']]
@@ -30,6 +31,7 @@ job.tags = [tag for lists in job.classification for tag in lists]
 # Ligand setting
 iligs = LigandReader("Ligands", title="Ligand Reader")
 iligs.promote_parameter("data_in", promoted_name="ligands", title="Ligand Input File", description="Ligand file name")
+
 
 chargelig = LigChargeCube("LigCharge")
 chargelig.promote_parameter('max_conformers', promoted_name='max_conformers',
@@ -42,17 +44,14 @@ iprot.promote_parameter("protein_prefix", promoted_name="protein_prefix", defaul
                         description="Protein Prefix")
 
 solvate = SolvationCube("Solvation")
-solvate.promote_parameter("density", promoted_name="density", title="Solution density in g/ml", default=1.0,
-                          description="Solution Density in g/ml")
-solvate.promote_parameter("solvents", promoted_name="solvents", title="Solvent components", default='[H]O[H], ClC(Cl)Cl, CS(=O)C, c1ccccc1',
-                          description="Comma separated smiles strings of solvent components")
-solvate.promote_parameter("molar_fractions", promoted_name="molar_fractions",
-                          title="Molar fractions", default='1.0, 0.0, 0.0, 0.0',
-                          description="Comma separated  strings of solvent molar fractions")
 
 # Complex Setting
 complx = ComplexPrep("Complex")
 ff = ForceFieldPrep("ForceField")
+
+# Minimization
+minComplex = OpenMMminimizeCube('minComplex')
+minComplex.promote_parameter('steps', promoted_name='steps')
 
 ofs = OEMolOStreamCube('ofs', title='OFS-Success')
 ofs.set_parameters(backend='s3')
@@ -61,15 +60,16 @@ fail = OEMolOStreamCube('fail', title='OFS-Failure')
 fail.set_parameters(backend='s3')
 fail.set_parameters(data_out='fail.oeb.gz')
 
-job.add_cubes(iprot, solvate, iligs, chargelig, complx, ff, ofs, fail)
+job.add_cubes(iprot, solvate, iligs, chargelig, complx, ff, minComplex, ofs, fail)
 
 iprot.success.connect(solvate.intake)
 solvate.success.connect(complx.system_port)
 iligs.success.connect(chargelig.intake)
 chargelig.success.connect(complx.intake)
 complx.success.connect(ff.intake)
-ff.success.connect(ofs.intake)
-ff.failure.connect(fail.intake)
+ff.success.connect(minComplex.intake)
+minComplex.success.connect(ofs.intake)
+minComplex.failure.connect(fail.intake)
 
 if __name__ == "__main__":
     job.run()

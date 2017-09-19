@@ -1,24 +1,22 @@
-import io, os, time, traceback, base64, shutil
+import traceback
 from openeye import oechem
-import numpy as np
-from simtk import unit, openmm
-from simtk.openmm import app
 import netCDF4 as netcdf
 from tempfile import TemporaryDirectory
-
-from floe.api import OEMolComputeCube, parameter, MoleculeInputPort, BinaryMoleculeInputPort, BinaryOutputPort, OutputPort, ParallelOEMolComputeCube
-from floe.api.orion import in_orion, StreamingDataset
-from floe.constants import BYTES
-
+from floe.api import (OEMolComputeCube, parameter, ParallelOEMolComputeCube,
+                      BatchMoleculeOutputPort, BatchMoleculeInputPort)
 from LigPrepCubes.ports import CustomMoleculeInputPort, CustomMoleculeOutputPort
-import YankCubes.utils as utils
-from YankCubes.utils import molecule_is_charged, download_dataset_to_file, get_data_filename
+from YankCubes.utils import molecule_is_charged, download_dataset_to_file
+#from yank.yamlbuild import *
 
-import yank
-import mdtraj
-from yank.yamlbuild import *
-import textwrap
-import subprocess
+from yank.experiment import ExperimentBuilder
+from oeommtools import utils as oeommutils
+from oeommtools import data_utils
+from simtk.openmm import app
+from simtk import unit
+from simtk.openmm import XmlSerializer
+import os
+import numpy as np
+
 
 ################################################################################
 # Hydration free energy calculations
@@ -484,3 +482,134 @@ class YankBindingCube(ParallelOEMolComputeCube):
                 mol.SetData('error', str(e))
                 # Return failed molecule
                 self.failure.emit(mol)
+
+
+yank_solvation_template = """\
+---
+options:
+  minimize: yes
+  verbose: yes
+  output_dir: ./cazzo
+  number_of_iterations: 1000
+  temperature: 300*kelvin
+  pressure: 1*atmosphere
+
+systems:
+  hydration-system:
+    phase1_path: [solvated.pdb, solvated.xml]
+    phase2_path: [solute.pdb, solute.xml]
+
+protocols:
+  hydration-protocol:
+    solvent1:
+      alchemical_path:
+        lambda_electrostatics: [1.00, 0.75, 0.50, 0.25, 0.00, 0.00, 0.00, 0.00, 0.00, 0.00, 0.00, 0.00, 0.00, 0.00,\
+         0.00, 0.00, 0.00, 0.00, 0.00]
+        lambda_sterics:        [1.00, 1.00, 1.00, 1.00, 1.00, 0.95, 0.90, 0.85, 0.80, 0.75, 0.70, 0.65, 0.60, 0.50,\
+         0.40, 0.30, 0.20, 0.10, 0.00]
+    solvent2:
+      alchemical_path:
+        lambda_electrostatics: [1.00, 0.75, 0.50, 0.25, 0.00, 0.00, 0.00, 0.00, 0.00, 0.00, 0.00, 0.00, 0.00, 0.00,\
+         0.00, 0.00, 0.00, 0.00, 0.00]
+        lambda_sterics:        [1.00, 1.00, 1.00, 1.00, 1.00, 0.95, 0.90, 0.85, 0.80, 0.75, 0.70, 0.65, 0.60, 0.50,\
+         0.40, 0.30, 0.20, 0.10, 0.00]
+
+experiments:
+  system: hydration-system
+  protocol: hydration-protocol
+"""
+
+
+class YankSolvationCube(ParallelOEMolComputeCube):
+    version = "0.0.0"
+    title = "YankSolvationCube"
+    description = """
+    Compute the hydration free energy of a small molecule with YANK.
+
+    This cube uses the YANK alchemical free energy code to compute the
+    transfer free energy of one or more small molecules from gas phase
+    to the selected solvent.
+
+    See http://getyank.org for more information about YANK.
+    """
+    classification = ["Alchemical free energy calculations"]
+    tags = [tag for lists in classification for tag in lists]
+
+    # Override defaults for some parameters
+    parameter_overrides = {
+        "prefetch_count": {"default": 1},  # 1 molecule at a time
+        "item_timeout": {"default": 3600},  # Default 1 hour limit (units are seconds)
+        "item_count": {"default": 1}  # 1 molecule at a time
+    }
+
+    temperature = parameter.DecimalParameter(
+        'temperature',
+        default=300.0,
+        help_text="Temperature (Kelvin)")
+
+    pressure = parameter.DecimalParameter(
+        'pressure',
+        default=1.0,
+        help_text="Pressure (atm)")
+
+    iterations = parameter.IntegerParameter('iterations', default=500,
+                                            help_text="Number of iterations")
+
+    verbose = parameter.BooleanParameter('verbose', default=False,
+                                         help_text="Print verbose YANK logging output")
+
+
+    def begin(self):
+        self.opt = vars(self.args)
+        self.opt['Logger'] = self.log
+
+    def process(self, solvated_system, port):
+        try:
+            # Split the complex in components in order to apply the FF
+            protein, solute, water, excipients = oeommutils.split(solvated_system, ligand_res_name='LIG')
+
+            mdData = data_utils.MDData(solvated_system)
+            solvated_structure = mdData.structure
+            solvated_structure.save("solvated.pdb", overwrite=True)
+
+            # Extract the ligand parmed structure
+            solute_structure = solvated_structure.split()[0][0]
+            solute_structure.box = None
+            solute_structure.save("solute.pdb", overwrite=True)
+
+            # Set the ligand title
+            solute.SetTitle(solvated_system.GetTitle())
+
+            solvated_omm_sys = solvated_structure.createSystem(nonbondedMethod=app.PME,
+                                                               nonbondedCutoff=10.0*unit.angstroms,
+                                                               constraints=app.HBonds,
+                                                               removeCMMotion=False)
+
+            solute_omm_sys = solute_structure.createSystem(nonbondedMethod=app.NoCutoff,
+                                                           constraints=app.HBonds,
+                                                           removeCMMotion=False)
+
+            solvated_omm_sys_serialized = XmlSerializer.serialize(solvated_omm_sys)
+            solvated_f = open('solvated.xml', 'w')
+            solvated_f.write(solvated_omm_sys_serialized)
+            solvated_f.close()
+
+            solute_omm_sys_serialized = XmlSerializer.serialize(solute_omm_sys)
+            solute_f = open('solute.xml', 'w')
+            solute_f.write(solute_omm_sys_serialized)
+            solute_f.close()
+
+            yaml_builder = ExperimentBuilder(yank_solvation_template)
+            yaml_builder.run_experiments()
+
+            # Emit the ligand
+            self.success.emit(solute)
+
+        except Exception as e:
+            # Attach an error message to the molecule that failed
+            self.log.error(traceback.format_exc())
+            solvated_system.SetData('error', str(e))
+            # Return failed mol
+            self.failure.emit(solvated_system)
+
+        return

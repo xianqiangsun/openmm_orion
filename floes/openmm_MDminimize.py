@@ -7,11 +7,11 @@ job = WorkFloe("MDminimize")
 job.description = """
 Minimize an OpenMM-ready solvated complex
 
-Ex: python floes/openmm_prepMDminimize.py --complex complex.oeb --ofs-data_out min.oeb --steps 1000`
+Ex: python floes/openmm_prepMDminimize.py --system complex.oeb --ofs-data_out min.oeb --steps 1000`
 
 Parameters:
 -----------
-complex (file): OEB file of the prepared protein:ligand complex
+complex (file): OEB file of the prepared system
 
 Optional:
 --------
@@ -25,12 +25,12 @@ ofs: Outputs the minimized system
 job.classification = [['Simulation']]
 job.tags = [tag for lists in job.classification for tag in lists]
 
-ifs = OEMolIStreamCube("complex", title="Complex Reader")
-ifs.promote_parameter("data_in", promoted_name="complex", title='Complex Input File',
-                      description="protein:ligand complex input file")
+ifs = OEMolIStreamCube("system", title="System Reader")
+ifs.promote_parameter("data_in", promoted_name="system", title='System Input File',
+                      description="System input file")
 
-minComplex = OpenMMminimizeCube('minComplex')
-minComplex.promote_parameter('steps', promoted_name='steps')
+min = OpenMMminimizeCube('Minimize')
+min.promote_parameter('steps', promoted_name='steps')
 
 ofs = OEMolOStreamCube('ofs', title='OFS-Success')
 ofs.set_parameters(backend='s3')
@@ -38,10 +38,10 @@ fail = OEMolOStreamCube('fail', title='OFS-Failure')
 fail.set_parameters(backend='s3')
 fail.set_parameters(data_out='fail.oeb.gz')
 
-job.add_cubes(ifs, minComplex, ofs, fail)
-ifs.success.connect(minComplex.intake)
-minComplex.success.connect(ofs.intake)
-minComplex.failure.connect(fail.intake)
+job.add_cubes(ifs, min, ofs, fail)
+ifs.success.connect(min.intake)
+min.success.connect(ofs.intake)
+min.failure.connect(fail.intake)
 
 if __name__ == "__main__":
     job.run()
