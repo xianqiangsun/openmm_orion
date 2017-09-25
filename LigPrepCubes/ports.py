@@ -123,7 +123,9 @@ class LigandReader(SourceCube):
         'IDTag',
         default=True,
         required=False,
-        help_text='If True/Checked a SD tag containing an integer is used to identify the ligand')
+        help_text='If True/Checked ligands are enumerated by sequentially integers.'
+                  'A SD tag containing part of the ligand name and an integer is used '
+                  'to create a unique IDTag which is attached to the ligand')
 
     def begin(self):
         self.opt = vars(self.args)
@@ -138,8 +140,8 @@ class LigandReader(SourceCube):
         if not in_orion:
             with oechem.oemolistream(str(self.args.data_in)) as ifs:
                 for mol in ifs.GetOEMols():
-                    oechem.OESetSDData(mol, 'prefix', self.opt['prefix'])
-                    oechem.OESetSDData(mol, 'suffix', self.opt['suffix'])
+                    mol.SetData(oechem.OEGetTag('prefix'), self.opt['prefix'])
+                    mol.SetData(oechem.OEGetTag('suffix'), self.opt['suffix'])
 
                     for at in mol.GetAtoms():
                         residue = oechem.OEAtomGetResidue(at)
@@ -147,7 +149,7 @@ class LigandReader(SourceCube):
                         oechem.OEAtomSetResidue(at, residue)
 
                     if self.opt['IDTag']:
-                        mol.SetData(oechem.OEGetTag('IDTag'), 'l_'+str(count))
+                        mol.SetData(oechem.OEGetTag('IDTag'), 'l_' + mol.GetTitle()[0:12] + str(count))
                     yield mol
                     count += 1
                     if max_idx is not None and count == max_idx:
@@ -156,8 +158,8 @@ class LigandReader(SourceCube):
             stream = StreamingDataset(self.args.data_in,
                                       input_format=self.args.download_format)
             for mol in stream:
-                oechem.OESetSDData(mol, 'prefix', self.opt['prefix'])
-                oechem.OESetSDData(mol, 'suffix', self.opt['suffix'])
+                mol.SetData(oechem.OEGetTag('prefix'), self.opt['prefix'])
+                mol.SetData(oechem.OEGetTag('suffix'), self.opt['suffix'])
 
                 for at in mol.GetAtoms():
                     residue = oechem.OEAtomGetResidue(at)
@@ -165,7 +167,7 @@ class LigandReader(SourceCube):
                     oechem.OEAtomSetResidue(at, residue)
 
                 if self.opt['IDTag']:
-                    mol.SetData(oechem.OEGetTag('IDTag'), 'l_' + str(count))
+                    mol.SetData(oechem.OEGetTag('IDTag'), 'l_' + mol.GetTitle()[0:12] + str(count))
                 yield mol
                 count += 1
                 if max_idx is not None and count == max_idx:

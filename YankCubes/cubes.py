@@ -2,12 +2,9 @@ import traceback
 from openeye import oechem
 import netCDF4 as netcdf
 from tempfile import TemporaryDirectory
-from floe.api import (OEMolComputeCube, parameter, ParallelOEMolComputeCube,
-                      BatchMoleculeOutputPort, BatchMoleculeInputPort)
+from floe.api import parameter, ParallelOEMolComputeCube
 from LigPrepCubes.ports import CustomMoleculeInputPort, CustomMoleculeOutputPort
 from YankCubes.utils import molecule_is_charged, download_dataset_to_file
-#from yank.yamlbuild import *
-
 from yank.experiment import ExperimentBuilder
 from oeommtools import utils as oeommutils
 from oeommtools import data_utils
@@ -16,6 +13,8 @@ from simtk import unit
 from simtk.openmm import XmlSerializer
 import os
 import numpy as np
+import yaml
+from yank.analyze import get_analyzer
 
 
 ################################################################################
@@ -487,20 +486,23 @@ class YankBindingCube(ParallelOEMolComputeCube):
 yank_solvation_template = """\
 ---
 options:
-  minimize: yes
-  verbose: yes
-  output_dir: ./cazzo
-  number_of_iterations: 1000
-  temperature: 300*kelvin
-  pressure: 1*atmosphere
+  verbose: {verbose}
+  minimize: {minimize}
+  output_dir: {output_directory}
+  timestep: {timestep:f}*femtoseconds
+  nsteps_per_iteration: {nsteps_per_iteration:d}
+  number_of_iterations: {number_iterations:d}
+  temperature: {temperature:f}*kelvin
+  pressure: {pressure:f}*atmosphere
+  anisotropic_dispersion_cutoff: 9*angstroms
 
 systems:
-  hydration-system:
-    phase1_path: [solvated.pdb, solvated.xml]
-    phase2_path: [solute.pdb, solute.xml]
+  solvation-system:
+    phase1_path: [{solvated_pdb_fn}, {solvated_xml_fn}]
+    phase2_path: [{solute_pdb_fn}, {solute_xml_fn}]
 
 protocols:
-  hydration-protocol:
+  solvation-protocol:
     solvent1:
       alchemical_path:
         lambda_electrostatics: [1.00, 0.75, 0.50, 0.25, 0.00, 0.00, 0.00, 0.00, 0.00, 0.00, 0.00, 0.00, 0.00, 0.00,\
@@ -515,8 +517,8 @@ protocols:
          0.40, 0.30, 0.20, 0.10, 0.00]
 
 experiments:
-  system: hydration-system
-  protocol: hydration-protocol
+  system: solvation-system
+  protocol: solvation-protocol
 """
 
 
@@ -552,64 +554,164 @@ class YankSolvationCube(ParallelOEMolComputeCube):
         default=1.0,
         help_text="Pressure (atm)")
 
-    iterations = parameter.IntegerParameter('iterations', default=500,
-                                            help_text="Number of iterations")
+    minimize = parameter.BooleanParameter(
+        'minimize',
+        default=False,
+        help_text="Minimize input system")
 
-    verbose = parameter.BooleanParameter('verbose', default=False,
-                                         help_text="Print verbose YANK logging output")
+    iterations = parameter.IntegerParameter(
+        'iterations',
+        default=1000,
+        help_text="Number of iterations")
 
+    nsteps_per_iteration = parameter.IntegerParameter(
+        'nsteps_per_iteration',
+        default=500,
+        help_text="Number of steps per iteration")
+
+    timestep = parameter.DecimalParameter(
+        'timestep',
+        default=2.0,
+        help_text="Timestep (fs)")
+
+    verbose = parameter.BooleanParameter(
+        'verbose',
+        default=True,
+        help_text="Print verbose YANK logging output")
+
+    @staticmethod
+    def analyze_directory(source_directory):
+        """
+        This Function has been copied and adapted from the Yank ver 0.17.0 source code
+        (yank.analyse.analyze_directory)
+
+        Analyze contents of store files to compute free energy differences.
+
+        This function is needed to preserve the old auto-analysis style of YANK. What it exactly does can be refined
+        when more analyzers and simulations are made available. For now this function exposes the API.
+
+        Parameters
+        ----------
+        source_directory : string
+           The location of the simulation storage files.
+
+        """
+        analysis_script_path = os.path.join(source_directory, 'analysis.yaml')
+        if not os.path.isfile(analysis_script_path):
+            err_msg = 'Cannot find analysis.yaml script in {}'.format(source_directory)
+            raise RuntimeError(err_msg)
+        with open(analysis_script_path, 'r') as f:
+            analysis = yaml.load(f)
+
+        data = dict()
+        for phase_name, sign in analysis:
+            phase_path = os.path.join(source_directory, phase_name + '.nc')
+            phase = get_analyzer(phase_path)
+            data[phase_name] = phase.analyze_phase()
+            kT = phase.kT
+
+        # Compute free energy and enthalpy
+        DeltaF = 0.0
+        dDeltaF = 0.0
+        DeltaH = 0.0
+        dDeltaH = 0.0
+        for phase_name, sign in analysis:
+            DeltaF -= sign * (data[phase_name]['DeltaF'] + data[phase_name]['DeltaF_standard_state_correction'])
+            dDeltaF += data[phase_name]['dDeltaF'] ** 2
+            DeltaH -= sign * (data[phase_name]['DeltaH'] + data[phase_name]['DeltaF_standard_state_correction'])
+            dDeltaH += data[phase_name]['dDeltaH'] ** 2
+        dDeltaF = np.sqrt(dDeltaF)
+        dDeltaH = np.sqrt(dDeltaH)
+
+        DeltaF = DeltaF * kT / unit.kilocalories_per_mole
+        dDeltaF = dDeltaF * kT / unit.kilocalories_per_mole
+        DeltaH = DeltaH * kT / unit.kilocalories_per_mole
+        dDeltaH = dDeltaH * kT / unit.kilocalories_per_mole
+
+        return DeltaF, dDeltaF, DeltaH, dDeltaH
 
     def begin(self):
         self.opt = vars(self.args)
         self.opt['Logger'] = self.log
 
     def process(self, solvated_system, port):
-        try:
-            # Split the complex in components in order to apply the FF
-            protein, solute, water, excipients = oeommutils.split(solvated_system, ligand_res_name='LIG')
 
-            mdData = data_utils.MDData(solvated_system)
-            solvated_structure = mdData.structure
-            solvated_structure.save("solvated.pdb", overwrite=True)
+        with TemporaryDirectory() as output_directory:
+            try:
+                self.opt['Logger'].info("Output Directory {}".format(output_directory))
+                # Split the complex in components in order to apply the FF
+                protein, solute, water, excipients = oeommutils.split(solvated_system, ligand_res_name='LIG')
 
-            # Extract the ligand parmed structure
-            solute_structure = solvated_structure.split()[0][0]
-            solute_structure.box = None
-            solute_structure.save("solute.pdb", overwrite=True)
+                mdData = data_utils.MDData(solvated_system)
+                solvated_structure = mdData.structure
+                solvated_structure_fn = os.path.join(output_directory, "solvated.pdb")
+                solvated_structure.save(solvated_structure_fn, overwrite=True)
 
-            # Set the ligand title
-            solute.SetTitle(solvated_system.GetTitle())
+                # Extract the ligand parmed structure
+                solute_structure = solvated_structure.split()[0][0]
+                solute_structure.box = None
+                solute_structure_fn = os.path.join(output_directory, "solute.pdb")
+                solute_structure.save(solute_structure_fn, overwrite=True)
 
-            solvated_omm_sys = solvated_structure.createSystem(nonbondedMethod=app.PME,
-                                                               nonbondedCutoff=10.0*unit.angstroms,
+                # Set the ligand title
+                solute.SetTitle(solvated_system.GetTitle())
+
+                solvated_omm_sys = solvated_structure.createSystem(nonbondedMethod=app.PME,
+                                                                   nonbondedCutoff=10.0*unit.angstroms,
+                                                                   constraints=app.HBonds,
+                                                                   removeCMMotion=False)
+
+                solute_omm_sys = solute_structure.createSystem(nonbondedMethod=app.NoCutoff,
                                                                constraints=app.HBonds,
                                                                removeCMMotion=False)
 
-            solute_omm_sys = solute_structure.createSystem(nonbondedMethod=app.NoCutoff,
-                                                           constraints=app.HBonds,
-                                                           removeCMMotion=False)
+                solvated_omm_sys_serialized = XmlSerializer.serialize(solvated_omm_sys)
+                solvated_omm_sys_serialized_fn = os.path.join(output_directory, "solvated.xml")
+                solvated_f = open(solvated_omm_sys_serialized_fn, 'w')
+                solvated_f.write(solvated_omm_sys_serialized)
+                solvated_f.close()
 
-            solvated_omm_sys_serialized = XmlSerializer.serialize(solvated_omm_sys)
-            solvated_f = open('solvated.xml', 'w')
-            solvated_f.write(solvated_omm_sys_serialized)
-            solvated_f.close()
+                solute_omm_sys_serialized = XmlSerializer.serialize(solute_omm_sys)
+                solute_omm_sys_serialized_fn = os.path.join(output_directory, "solute.xml")
+                solute_f = open(solute_omm_sys_serialized_fn, 'w')
+                solute_f.write(solute_omm_sys_serialized)
+                solute_f.close()
 
-            solute_omm_sys_serialized = XmlSerializer.serialize(solute_omm_sys)
-            solute_f = open('solute.xml', 'w')
-            solute_f.write(solute_omm_sys_serialized)
-            solute_f.close()
+                # Build the Yank Experiment
+                yaml_builder = ExperimentBuilder(yank_solvation_template.format(
+                                                 verbose='yes' if self.opt['verbose'] else 'no',
+                                                 minimize='yes' if self.opt['minimize'] else 'no',
+                                                 output_directory=output_directory,
+                                                 timestep=self.opt['timestep'],
+                                                 nsteps_per_iteration=self.opt['nsteps_per_iteration'],
+                                                 number_iterations=self.opt['iterations'],
+                                                 temperature=self.opt['temperature'],
+                                                 pressure=self.opt['pressure'],
+                                                 solvated_pdb_fn=solvated_structure_fn,
+                                                 solvated_xml_fn=solvated_omm_sys_serialized_fn,
+                                                 solute_pdb_fn=solute_structure_fn,
+                                                 solute_xml_fn=solute_omm_sys_serialized_fn))
 
-            yaml_builder = ExperimentBuilder(yank_solvation_template)
-            yaml_builder.run_experiments()
+                # Run Yank
+                yaml_builder.run_experiments()
 
-            # Emit the ligand
-            self.success.emit(solute)
+                exp_dir = os.path.join(output_directory, "experiments")
 
-        except Exception as e:
-            # Attach an error message to the molecule that failed
-            self.log.error(traceback.format_exc())
-            solvated_system.SetData('error', str(e))
-            # Return failed mol
-            self.failure.emit(solvated_system)
+                # Calculate hydration free energy, solvation Enthalpy and their errors
+                DeltaG_hydration, dDeltaG_hydration, DeltaH, dDeltaH = self.__class__.analyze_directory(exp_dir)
+
+                # Add result to original molecule
+                oechem.OESetSDData(solute, 'DeltaG_yank_hydration', str(DeltaG_hydration * unit.kilocalories_per_mole))
+                oechem.OESetSDData(solute, 'dDeltaG_yank_hydration', str(dDeltaG_hydration * unit.kilocalories_per_mole))
+
+                # Emit the ligand
+                self.success.emit(solute)
+
+            except Exception as e:
+                # Attach an error message to the molecule that failed
+                self.log.error(traceback.format_exc())
+                solvated_system.SetData('error', str(e))
+                # Return failed mol
+                self.failure.emit(solvated_system)
 
         return

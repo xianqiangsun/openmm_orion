@@ -73,9 +73,9 @@ warmup.promote_parameter('time', promoted_name='warm_psec', default=100.0,
 warmup.promote_parameter('restraints', promoted_name='w_restraints', default="noh (ligand or protein)",
                          description='Select mask to apply restarints')
 warmup.promote_parameter('restraintWt', promoted_name='w_restraintWt', default=2.0, description='Restraint weight')
-warmup.promote_parameter('trajectory_interval', promoted_name='w_trajectory_interval', default=1000,
+warmup.promote_parameter('trajectory_interval', promoted_name='w_trajectory_interval', default=0,
                          description='Trajectory saving interval')
-warmup.promote_parameter('reporter_interval', promoted_name='w_reporter_interval', default=10000,
+warmup.promote_parameter('reporter_interval', promoted_name='w_reporter_interval', default=0,
                          description='Reporter saving interval')
 warmup.promote_parameter('outfname', promoted_name='w_outfname', default='warmup',
                          description='Equilibration suffix name')
@@ -92,9 +92,9 @@ equil1.promote_parameter('time', promoted_name='eq1_psec', default=100.0,
 equil1.promote_parameter('restraints', promoted_name='eq1_restraints', default="noh (ligand or protein)",
                          description='Select mask to apply restarints')
 equil1.promote_parameter('restraintWt', promoted_name='eq1_restraintWt', default=2.0, description='Restraint weight')
-equil1.promote_parameter('trajectory_interval', promoted_name='eq1_trajectory_interval', default=1000,
+equil1.promote_parameter('trajectory_interval', promoted_name='eq1_trajectory_interval', default=0,
                          description='Trajectory saving interval')
-equil1.promote_parameter('reporter_interval', promoted_name='eq1_reporter_interval', default=10000,
+equil1.promote_parameter('reporter_interval', promoted_name='eq1_reporter_interval', default=0,
                          description='Reporter saving interval')
 equil1.promote_parameter('outfname', promoted_name='eq1_outfname', default='equil1',
                          description='Equilibration suffix name')
@@ -107,9 +107,9 @@ equil2.promote_parameter('restraints', promoted_name='eq2_restraints', default="
                          description='Select mask to apply restarints')
 equil2.promote_parameter('restraintWt', promoted_name='eq2_restraintWt', default=0.5,
                          description='Restraint weight')
-equil2.promote_parameter('trajectory_interval', promoted_name='eq2_trajectory_interval', default=1000,
+equil2.promote_parameter('trajectory_interval', promoted_name='eq2_trajectory_interval', default=0,
                          description='Trajectory saving interval')
-equil2.promote_parameter('reporter_interval', promoted_name='eq2_reporter_interval', default=10000,
+equil2.promote_parameter('reporter_interval', promoted_name='eq2_reporter_interval', default=0,
                          description='Reporter saving interval')
 equil2.promote_parameter('outfname', promoted_name='eq2_outfname', default='equil2',
                          description='Equilibration suffix name')
@@ -122,22 +122,40 @@ equil3.promote_parameter('restraints', promoted_name='eq3_restraints', default="
                          description='Select mask to apply restarints')
 equil3.promote_parameter('restraintWt', promoted_name='eq3_restraintWt', default=0.1,
                          description='Restraint weight')
-equil3.promote_parameter('trajectory_interval', promoted_name='eq3_trajectory_interval', default=1000,
+equil3.promote_parameter('trajectory_interval', promoted_name='eq3_trajectory_interval', default=0,
                          description='Trajectory saving interval')
-equil3.promote_parameter('reporter_interval', promoted_name='eq3_reporter_interval', default=10000,
+equil3.promote_parameter('reporter_interval', promoted_name='eq3_reporter_interval', default=0,
                          description='Reporter saving interval')
 equil3.promote_parameter('outfname', promoted_name='eq3_outfname', default='equil3',
                          description='Equilibration suffix name')
 
+prod = OpenMMnptCube("Production")
+prod.promote_parameter('time', promoted_name='prod_psec', default=2000.0,
+                       description='Length of MD run in picoseconds')
+
+prod.promote_parameter('trajectory_interval', promoted_name='prod_trajectory_interval', default=0,
+                       description='Trajectory saving interval')
+prod.promote_parameter('reporter_interval', promoted_name='prod_reporter_interval', default=0,
+                       description='Reporter saving interval')
+prod.promote_parameter('outfname', promoted_name='prod_outfname', default='prod',
+                       description='Equilibration suffix name')
+
+
 ofs = OEMolOStreamCube('ofs', title='OFS-Success')
 ofs.set_parameters(backend='s3')
+
+complex_prep_ofs = OEMolOStreamCube('complex_prep_ofs', title='ComplexPrep_OFS')
+complex_prep_ofs.set_parameters(backend='s3')
+
+minimization_ofs = OEMolOStreamCube('minimization_ofs', title='Minimization_OFS')
+minimization_ofs.set_parameters(backend='s3')
 
 fail = OEMolOStreamCube('fail', title='OFS-Failure')
 fail.set_parameters(backend='s3')
 fail.set_parameters(data_out='fail.oeb.gz')
 
-job.add_cubes(iprot, iligs, chargelig, complx, solvate, ff,
-              minComplex, warmup, equil1, equil2, equil3, ofs, fail)
+job.add_cubes(iprot, iligs, chargelig, complx, solvate, ff, complex_prep_ofs,
+              minComplex, minimization_ofs, warmup, equil1, equil2, equil3, prod, ofs, fail)
 
 iprot.success.connect(complx.system_port)
 iligs.success.connect(chargelig.intake)
@@ -145,12 +163,15 @@ chargelig.success.connect(complx.intake)
 complx.success.connect(solvate.intake)
 solvate.success.connect(ff.intake)
 ff.success.connect(minComplex.intake)
+ff.success.connect(complex_prep_ofs.intake)
 minComplex.success.connect(warmup.intake)
+minComplex.success.connect(minimization_ofs.intake)
 warmup.success.connect(equil1.intake)
 equil1.success.connect(equil2.intake)
 equil2.success.connect(equil3.intake)
-equil3.success.connect(ofs.intake)
-equil3.failure.connect(fail.intake)
+equil3.success.connect(prod.intake)
+prod.success.connect(ofs.intake)
+prod.failure.connect(fail.intake)
 
 if __name__ == "__main__":
     job.run()

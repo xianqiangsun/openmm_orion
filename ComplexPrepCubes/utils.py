@@ -6,7 +6,11 @@ from LigPrepCubes import ff_utils
 from OpenMMCubes import utils
 import numpy as np
 from oeommtools import utils as oeommutils
-
+from pdbfixer import PDBFixer
+from pkg_resources import resource_filename
+from simtk import unit
+from simtk.openmm import Vec3
+import math
 
 proteinResidues = ['ALA', 'ASN', 'CYS', 'GLU', 'HIS',
                    'LEU', 'MET', 'PRO', 'THR', 'TYR',
@@ -278,170 +282,6 @@ def applyffExcipients(excipients, opt):
         return excipients_structure
 
 
-# def applyffExcipients(excipients, opt):
-#     """
-#     This function applies the selected force field to the
-#     excipients
-#
-#     Parameters:
-#     -----------
-#     excipients: OEMol molecule
-#         The excipients molecules to parametrize
-#     opt: python dictionary
-#         The options used to parametrize the excipients
-#
-#     Return:
-#     -------
-#     excipient_structure: Parmed structure instance
-#         The parametrized excipient parmed structure
-#     """
-#
-#     # OpenMM topology and positions from OEMol
-#     topology, positions = oeommutils.oemol_to_openmmTop(excipients)
-#
-#     # Try to apply the selected FF on the excipients
-#     forcefield = app.ForceField(opt['protein_forcefield'])
-#
-#     # Unmatched residue templates
-#     [templates, residues] = forcefield.generateTemplatesForUnmatchedResidues(topology)
-#
-#     if templates:  # Some excipients are not recognized
-#         oechem.OEThrow.Info("The following excipients are not recognized "
-#                             "by the protein FF: {}"
-#                             "\nThey will be parametrized by using the FF: {}".format(residues, opt['other_forcefield']))
-#
-#         # Create a bit vector mask used to split recognized from un-recognize excipients
-#         bv = oechem.OEBitVector(excipients.GetMaxAtomIdx())
-#         bv.NegateBits()
-#
-#         # Dictionary containing the name and the parmed structures of the unrecognized excipients
-#         unrc_excipient_structures = {}
-#
-#         # Dictionary used to skip already selected unrecognized excipients and count them
-#         unmatched_excp = {}
-#
-#         # List to keep track of the unrecognized residue order
-#         unmatched_res_order = []
-#
-#         for t in templates:
-#             if t.name not in unmatched_excp:
-#                 unmatched_excp[t.name] = 0
-#
-#         hv = oechem.OEHierView(excipients)
-#
-#         for chain in hv.GetChains():
-#             for frag in chain.GetFragments():
-#                 for hres in frag.GetResidues():
-#                     r_name = hres.GetOEResidue().GetName()
-#                     if r_name not in unmatched_excp:
-#                         continue
-#                     else:
-#                         unmatched_res_order.append(r_name)
-#                         if unmatched_excp[r_name]:  # Test if we have selected the unknown excipient
-#                             # Set Bit mask
-#                             atms = hres.GetAtoms()
-#                             for at in atms:
-#                                 bv.SetBitOff(at.GetIdx())
-#                             unmatched_excp[r_name] += 1
-#                         else:
-#                             unmatched_excp[r_name] = 1
-#                             #  Create AtomBondSet to extract from the whole excipient system
-#                             #  the current selected FF unknown excipient
-#                             atms = hres.GetAtoms()
-#                             bond_set = set()
-#                             for at in atms:
-#                                 bv.SetBitOff(at.GetIdx())
-#                                 bonds = at.GetBonds()
-#                                 for bond in bonds:
-#                                     bond_set.add(bond)
-#                             atom_bond_set = oechem.OEAtomBondSet(atms)
-#                             for bond in bond_set:
-#                                 atom_bond_set.AddBond(bond)
-#
-#                             # Create the unrecognized excipient OEMol
-#                             unrc_excp = oechem.OEMol()
-#                             if not oechem.OESubsetMol(unrc_excp, excipients, atom_bond_set):
-#                                 oechem.OEThrow.Fatal("Is was not possible extract the residue: {}".format(r_name))
-#
-#                             # Charge the unrecognized excipient
-#                             if not oequacpac.OEAssignCharges(unrc_excp,
-#                                                              oequacpac.OEAM1BCCCharges(symmetrize=True)):
-#                                 oechem.OEThrow.Fatal("Is was not possible to "
-#                                                      "charge the extract residue: {}".format(r_name))
-#
-#                             # If GAFF or GAFF2 is selected as FF check for tleap command
-#                             if opt['other_forcefield'] in ['GAFF', 'GAFF2']:
-#                                 ff_utils.ParamLigStructure(oechem.OEMol(), opt['other_forcefield']).checkTleap
-#
-#                             if opt['other_forcefield'] == 'SMIRNOFF':
-#                                 unrc_excp = oeommutils.sanitizeOEMolecule(unrc_excp)
-#                                 #oechem.OETriposAtomNames(unrc_excp)
-#
-#                             # Parametrize the unrecognized excipient by using the selected FF
-#                             pmd = ff_utils.ParamLigStructure(unrc_excp, opt['other_forcefield'],
-#                                                              prefix_name=opt['prefix_name']+'_'+r_name)
-#                             unrc_excp_struc = pmd.parameterize()
-#                             unrc_excp_struc.residues[0].name = r_name
-#                             unrc_excipient_structures[r_name] = unrc_excp_struc
-#
-#         # Recognized FF excipients
-#         pred_rec = oechem.OEAtomIdxSelected(bv)
-#         rec_excp = oechem.OEMol()
-#         oechem.OESubsetMol(rec_excp, excipients, pred_rec)
-#         top_known, pos_known = oeommutils.oemol_to_openmmTop(rec_excp)
-#         ff_rec = app.ForceField(opt['protein_forcefield'])
-#
-#         if rec_excp.NumAtoms() > 0:
-#             try:
-#                 omm_system = ff_rec.createSystem(top_known, rigidWater=False)
-#                 rec_struc = parmed.openmm.load_topology(top_known, omm_system, xyz=pos_known)
-#             except:
-#                 oechem.OEThrow.Fatal("Error in the recognised excipient parametrization")
-#
-#         # Unrecognized FF excipients
-#         bv.NegateBits()
-#         pred_unrc = oechem.OEAtomIdxSelected(bv)
-#         unrc_excp = oechem.OEMol()
-#         oechem.OESubsetMol(unrc_excp, excipients, pred_unrc)
-#
-#         # ofs = oechem.oemolostream("gac.pdb")
-#         # oechem.OEWriteConstMolecule(ofs, unrc_excp)
-#
-#         # Unrecognized FF excipients coordinates
-#         oe_coord_dic = unrc_excp.GetCoords()
-#         unrc_coords = np.ndarray(shape=(unrc_excp.NumAtoms(), 3))
-#         for at_idx in oe_coord_dic:
-#             unrc_coords[at_idx] = oe_coord_dic[at_idx]
-#
-#         # Merge all the unrecognized Parmed structure
-#         unrc_struc = parmed.Structure()
-#
-#         # It is important the order used to assemble the structures. In order to
-#         # avoid mismatch between the coordinates and the structures, it is convenient
-#         # to use the unrecognized residue order
-#
-#         for res_name in unmatched_res_order:
-#             unrc_struc = unrc_struc + unrc_excipient_structures[res_name]
-#
-#         # Set the unrecognized coordinates
-#         unrc_struc.coordinates = unrc_coords
-#
-#         # Set the parmed excipient structure merging
-#         # the unrecognized and recognized parmed
-#         # structures together
-#         if rec_excp.NumAtoms() > 0:
-#             excipients_structure = unrc_struc + rec_struc
-#         else:
-#             excipients_structure = unrc_struc
-#
-#         return excipients_structure
-#     else:  # All the excipients are recognized by the selected FF
-#         omm_system = forcefield.createSystem(topology, rigidWater=False)
-#         excipients_structure = parmed.openmm.load_topology(topology, omm_system, xyz=positions)
-#
-#         return excipients_structure
-
-
 def applyffLigand(ligand, opt):
     """
     This function applies the selected force field to the
@@ -471,6 +311,264 @@ def applyffLigand(ligand, opt):
 
     return ligand_structure
 
+
+def hydrate(system, opt):
+    """
+    This function solvates the system by using PDBFixer
+
+    Parameters:
+    -----------
+    system: OEMol molecule
+        The system to solvate
+    opt: python dictionary
+        The parameters used to solvate the system
+
+    Return:
+    -------
+    oe_mol: OEMol
+        The solvated system
+    """
+
+    # Load a fake system to initialize PDBfixer
+    filename = resource_filename('pdbfixer', 'tests/data/test.pdb')
+    fixer = PDBFixer(filename=filename)
+
+    # Convert between OE and OpenMM topology
+    omm_top, omm_pos = oeommutils.oemol_to_openmmTop(system)
+
+    chain_names = []
+
+    for chain in omm_top.chains():
+        chain_names.append(chain.id)
+
+    # Set the correct topology to the fake system
+    fixer.topology = omm_top
+    fixer.positions = omm_pos
+
+    # Solvate the system
+    fixer.addSolvent(padding=unit.Quantity(opt['solvent_padding'], unit.angstroms),
+                     ionicStrength=unit.Quantity(opt['salt_concentration'], unit.millimolar))
+
+    # The OpenMM topology produced by the solvation fixer has missing bond
+    # orders and aromaticity. The following section is creating a new openmm
+    # topology made of just water molecules and ions. The new topology is then
+    # converted in an OEMol and added to the passed molecule to produce the
+    # solvated system
+
+    wat_ion_top = app.Topology()
+
+    # Atom dictionary between the the PDBfixer topology and the water_ion topology
+    fixer_atom_to_wat_ion_atom = {}
+
+    for chain in fixer.topology.chains():
+        if chain.id not in chain_names:
+            n_chain = wat_ion_top.addChain(chain.id)
+            for res in chain.residues():
+                n_res = wat_ion_top.addResidue(res.name, n_chain)
+                for at in res.atoms():
+                    n_at = wat_ion_top.addAtom(at.name, at.element, n_res)
+                    fixer_atom_to_wat_ion_atom[at] = n_at
+
+    for bond in fixer.topology.bonds():
+        at0 = bond[0]
+        at1 = bond[1]
+        try:
+            wat_ion_top.addBond(fixer_atom_to_wat_ion_atom[at0],
+                                fixer_atom_to_wat_ion_atom[at1], type=None, order=1)
+        except:
+            pass
+
+    wat_ion_pos = fixer.positions[len(omm_pos):]
+
+    oe_mol = oeommutils.openmmTop_to_oemol(wat_ion_top, wat_ion_pos)
+
+    # Setting the box vectors
+    omm_box_vectors = fixer.topology.getPeriodicBoxVectors()
+    box_vectors = utils.PackageOEMol.encodePyObj(omm_box_vectors)
+    oe_mol.SetData(oechem.OEGetTag('box_vectors'), box_vectors)
+
+    oechem.OEAddMols(oe_mol, system)
+
+    return oe_mol
+
+
+
+
+
+# def hydrate(system, opt):
+#     """
+#     This function solvates the system by using PDBFixer
+#
+#     Parameters:
+#     -----------
+#     system: OEMol molecule
+#         The system to solvate
+#     opt: python dictionary
+#         The parameters used to solvate the system
+#
+#     Return:
+#     -------
+#     oe_mol: OEMol
+#         The solvated system
+#     """
+#
+#     def BoundingBox(molecule):
+#         """
+#         This function calculates the Bounding Box of the passed
+#         molecule
+#
+#         molecule: OEMol
+#
+#         return: bb (numpy array)
+#             the calculated bounding box is returned as numpy array:
+#             [(xmin,ymin,zmin), (xmax,ymax,zmax)]
+#         """
+#         coords = [v for k, v in molecule.GetCoords().items()]
+#         np_coords = np.array(coords)
+#         min_coord = np_coords.min(axis=0)
+#         max_coord = np_coords.max(axis=0)
+#         bb = np.array([min_coord, max_coord])
+#         return bb
+#
+#     def wrapping(coords, BB, omm_box_vectors):
+#
+#         def ceil(x):
+#             if int(x) < x:
+#                 return math.ceil(x)
+#             else:
+#                 return int(x)+1
+#
+#         xmin = BB[0][0]
+#         ymin = BB[0][1]
+#         zmin = BB[0][2]
+#
+#         xmax = BB[1][0]
+#         ymax = BB[1][1]
+#         zmax = BB[1][2]
+#
+#         Lx = omm_box_vectors[0][0].in_units_of(unit.angstrom)/unit.angstrom
+#         kx = ceil(xmax / Lx)
+#
+#         Ly = omm_box_vectors[1][1].in_units_of(unit.angstrom)/unit.angstrom
+#         ky = ceil(ymax / Ly)
+#
+#         Lz = omm_box_vectors[2][2].in_units_of(unit.angstrom)/unit.angstrom
+#         kz = ceil(zmax / Lz)
+#
+#         new_coords = []
+#
+#         for coord in coords:
+#
+#             x = coord[0].in_units_of(unit.angstrom)/unit.angstrom
+#             y = coord[1].in_units_of(unit.angstrom)/unit.angstrom
+#             z = coord[2].in_units_of(unit.angstrom)/unit.angstrom
+#
+#             if ceil(xmin/Lx) == ceil(xmax/Lx):
+#                 xp = x + (kx - 1) * Lx
+#             else:
+#                 if x < Lx / 2.0:
+#                     xp = x + kx * Lx
+#                 else:
+#                     xp = x + (kx - 1) * Lx
+#
+#             if ceil(ymin / Ly) == ceil(ymax / Ly):
+#                 yp = y + (ky - 1) * Ly
+#             else:
+#                 if y < Ly / 2.0:
+#                     yp = y + ky * Ly
+#                 else:
+#                     yp = y + (ky - 1) * Ly
+#
+#             if ceil(zmin / Lz) == ceil(zmax / Lz):
+#                 zp = z + (kz - 1) * Lz
+#             else:
+#                 if z < Lz / 2.0:
+#                     zp = z + kz * Lz
+#                 else:
+#                     zp = z + (kz - 1) * Lz
+#
+#             coord_p = Vec3(xp, yp, zp)
+#
+#             new_coords.append(coord_p)
+#
+#         return new_coords * unit.angstrom
+#
+#     # Load a fake system to initialize PDBfixer
+#     filename = resource_filename('pdbfixer', 'tests/data/test.pdb')
+#     fixer = PDBFixer(filename=filename)
+#
+#     # Convert between OE and OpenMM topology
+#     omm_top, omm_pos = oeommutils.oemol_to_openmmTop(system)
+#
+#     chain_names = []
+#
+#     for chain in omm_top.chains():
+#         chain_names.append(chain.id)
+#
+#     # Set the correct topology to the fake system
+#     fixer.topology = omm_top
+#     fixer.positions = omm_pos
+#
+#     # Solvate the system
+#     fixer.addSolvent(padding=unit.Quantity(opt['solvent_padding'], unit.angstroms),
+#                      ionicStrength=unit.Quantity(opt['salt_concentration'], unit.millimolar))
+#
+#     # The OpenMM topology produced by the solvation fixer has missing bond
+#     # orders and aromaticity. The following section is creating a new openmm
+#     # topology made of just water molecules and ions. The new topology is then
+#     # converted in an OEMol and added to the passed molecule to produce the
+#     # solvated system
+#
+#     wat_ion_top = app.Topology()
+#
+#     # Atom dictionary between the the PDBfixer topology and the water_ion topology
+#     fixer_atom_to_wat_ion_atom = {}
+#
+#     for chain in fixer.topology.chains():
+#         if chain.id not in chain_names:
+#             n_chain = wat_ion_top.addChain(chain.id)
+#             for res in chain.residues():
+#                 n_res = wat_ion_top.addResidue(res.name, n_chain)
+#                 for at in res.atoms():
+#                     n_at = wat_ion_top.addAtom(at.name, at.element, n_res)
+#                     fixer_atom_to_wat_ion_atom[at] = n_at
+#
+#     for bond in fixer.topology.bonds():
+#         at0 = bond[0]
+#         at1 = bond[1]
+#         try:
+#             wat_ion_top.addBond(fixer_atom_to_wat_ion_atom[at0],
+#                                 fixer_atom_to_wat_ion_atom[at1], type=None, order=1)
+#         except:
+#             pass
+#     # Water and ions positions
+#     wat_ion_pos = fixer.positions[len(omm_pos):]
+#
+#     print(wat_ion_pos)
+#
+#     # Calculate system BoundingBox (Angstrom units)
+#     BB = BoundingBox(system)
+#
+#     # Setting the box vectors
+#     omm_box_vectors = fixer.topology.getPeriodicBoxVectors()
+#     box_vectors = utils.PackageOEMol.encodePyObj(omm_box_vectors)
+#
+#     print(omm_box_vectors)
+#     print(BB)
+#
+#     #wat_ion_pos = wrapping(wat_ion_pos, BB, omm_box_vectors)
+#
+#
+#
+#     oe_mol = oeommutils.openmmTop_to_oemol(wat_ion_top, wat_ion_pos)
+#     oe_mol.SetData(oechem.OEGetTag('box_vectors'), box_vectors)
+#
+#     oechem.OEAddMols(oe_mol, system)
+#
+#     ofs = oechem.oemolostream("test.pdb")
+#     oechem.OEWriteConstMolecule(ofs, oe_mol)
+#
+#     return oe_mol
 
 def order_check(mol, fname):
     """

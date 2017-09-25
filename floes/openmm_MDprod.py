@@ -11,14 +11,14 @@ Run an unrestrained NPT simulation at 300K and 1atm
 job.classification = [['Simulation']]
 job.tags = [tag for lists in job.classification for tag in lists]
 
-ifs = OEMolIStreamCube("system", title="System Reader")
+ifs = OEMolIStreamCube("SystemReader", title="System Reader")
 ifs.promote_parameter("data_in", promoted_name="system", title='System Input File',
                       description="System input file")
 
 prod = OpenMMnptCube('production')
 
 # Set simulation time
-prod.promote_parameter('time', promoted_name='picosec', default=100)
+prod.promote_parameter('time', promoted_name='picosec', default=2000)
 
 # Set the temperature in K
 prod.promote_parameter('temperature', promoted_name='temperature', default=300.0,
@@ -34,11 +34,10 @@ prod.promote_parameter('trajectory_interval', promoted_name='trajectory_interval
 prod.promote_parameter('reporter_interval', promoted_name='reporter_interval', default=10000,
                        description='Reporter saving interval')
 
-prod.promote_parameter('tarxz', promoted_name='tarxz', default=True,
+prod.promote_parameter('tar', promoted_name='tar', default=True,
                        description='Compress the output files')
 
-
-prod.promote_parameter('outfname', promoted_name='suffix', default='npt',
+prod.promote_parameter('outfname', promoted_name='suffix', default='prod',
                        description='Production suffix name')
 
 

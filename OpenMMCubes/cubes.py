@@ -101,6 +101,12 @@ class OpenMMminimizeCube(ParallelOEMolComputeCube):
         choices=['Auto', 'Reference', 'CPU', 'CUDA', 'OpenCL'],
         help_text='Select which platform to use to run the simulation')
 
+    cuda_opencl_precision = parameter.StringParameter(
+        'cuda_opencl_precision',
+        default='single',
+        choices=['single', 'mixed', 'double'],
+        help_text='Select the CUDA or OpenCL precision')
+
     def begin(self):
         self.opt = vars( self.args)
         self.opt['Logger'] = self.log
@@ -240,8 +246,8 @@ class OpenMMnvtCube(ParallelOEMolComputeCube):
         default='nvt',
         help_text='Filename suffix for output simulation files')
 
-    tarxz = parameter.BooleanParameter(
-        'tarxz',
+    tar = parameter.BooleanParameter(
+        'tar',
         default=False,
         description='Create a tar.xz file of the attached data')
 
@@ -412,8 +418,8 @@ class OpenMMnptCube(ParallelOEMolComputeCube):
         default='npt',
         help_text='Filename suffix for output simulation files. Formatted: <title>-<outfname>')
 
-    tarxz = parameter.BooleanParameter(
-        'tarxz',
+    tar = parameter.BooleanParameter(
+        'tar',
         default=False,
         description='Create a tar.xz file of the attached data')
 

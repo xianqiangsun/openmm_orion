@@ -25,7 +25,7 @@ ofs: Outputs the minimized system
 job.classification = [['Simulation']]
 job.tags = [tag for lists in job.classification for tag in lists]
 
-ifs = OEMolIStreamCube("system", title="System Reader")
+ifs = OEMolIStreamCube("SystemReader", title="System Reader")
 ifs.promote_parameter("data_in", promoted_name="system", title='System Input File',
                       description="System input file")
 

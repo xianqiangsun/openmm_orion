@@ -120,16 +120,19 @@ def simulation(mdData, **opt):
         except Exception as e:
             oechem.OEThrow.Fatal('The selected platform is not supported: {}'.format(str(e)))
 
-        try:
-            # Set platform CUDA or OpenCL precision
-            properties = {'Precision': opt['cuda_opencl_precision']}
+        if opt['platform'] in ['CUDA', 'OpenCL']:
+            try:
+                # Set platform CUDA or OpenCL precision
+                properties = {'Precision': opt['cuda_opencl_precision']}
 
-            simulation = app.Simulation(topology, system, integrator,
-                                        platform=platform,
-                                        platformProperties=properties)
-        except Exception:
-            oechem.OEThrow.Fatal('It was not possible to set the {} precision for the {} platform'
-                                 .format(opt['cuda_opencl_precision'], opt['platform']))
+                simulation = app.Simulation(topology, system, integrator,
+                                            platform=platform,
+                                            platformProperties=properties)
+            except Exception:
+                oechem.OEThrow.Fatal('It was not possible to set the {} precision for the {} platform'
+                                     .format(opt['cuda_opencl_precision'], opt['platform']))
+        else:
+            simulation = app.Simulation(topology, system, integrator, platform=platform)
 
     # Set starting positions and velocities
     simulation.context.setPositions(positions)
@@ -208,12 +211,14 @@ def simulation(mdData, **opt):
 
         state = simulation.context.getState(getEnergy=True)
 
-        print('Initial energy = {}'.format(state.getPotentialEnergy()), file=printfile)
+        print('Initial energy = {}'.format(state.getPotentialEnergy().in_units_of(unit.kilocalorie_per_mole)),
+              file=printfile)
 
         simulation.minimizeEnergy(maxIterations=opt['steps'])
 
         state = simulation.context.getState(getPositions=True, getEnergy=True)
-        print('Minimized energy = {}'.format(state.getPotentialEnergy()), file=printfile)
+        print('Minimized energy = {}'.format(state.getPotentialEnergy().in_units_of(unit.kilocalorie_per_mole)),
+              file=printfile)
 
     # OpenMM Quantity object
     structure.positions = state.getPositions(asNumpy=False)
@@ -276,18 +281,20 @@ def _file_processing(**opt):
             ex_files.append(fn)
 
     # Tar the outputted files if required
-    if opt['tarxz']:
+    if opt['tar']:
 
-        tarname = opt['outfname'] + '.tar.xz'
+        tarname = opt['outfname'] + '.tar'
 
-        opt['Logger'].info('Creating tarxz file: {}'.format(tarname))
+        opt['Logger'].info('Creating tar file: {}'.format(tarname))
 
-        tar = tarfile.open(tarname, "w:xz")
+        tar = tarfile.open(tarname, "w")
 
         for name in ex_files:
             opt['Logger'].info('Adding {} to {}'.format(name, tarname))
             tar.add(name)
         tar.close()
+
+        opt['molecule'].SetData(oechem.OEGetTag("Tar_fname"), tarname)
 
         if in_orion():
             upload_file(tarname, tarname, tags=['TRJ_INFO'])
@@ -324,7 +331,7 @@ def getReporters(totalSteps=None, outfname=None, **opt):
     reporters : list of three openmm.app.simulation.reporters
         (0) state_reporter: writes energies to '.log' file.
         (1) progress_reporter: prints simulation progress to 'sys.stdout'
-        (2) traj_reporter: writes trajectory to '.nc' file. AMBER NetCDF(3.0)
+        (2) traj_reporter: writes trajectory to file. Supported format .nc, .dcd, .hdf5
     """
     if totalSteps is None:
         totalSteps = opt['steps']
@@ -338,7 +345,7 @@ def getReporters(totalSteps=None, outfname=None, **opt):
                                                reportInterval=opt['reporter_interval'],
                                                step=True,
                                                potentialEnergy=True, totalEnergy=True,
-                                               volume=True, temperature=True)
+                                               volume=True, density=True, temperature=True)
 
         reporters.append(state_reporter)
 
@@ -352,16 +359,22 @@ def getReporters(totalSteps=None, outfname=None, **opt):
 
     if opt['trajectory_interval']:
 
+        trj_fname = outfname
         # Trajectory file format selection
         if opt['trajectory_filetype'] == 'NetCDF':
-            traj_reporter = mdtraj.reporters.NetCDFReporter(outfname+'.nc', opt['trajectory_interval'])
+            trj_fname += '.nc'
+            traj_reporter = mdtraj.reporters.NetCDFReporter(trj_fname, opt['trajectory_interval'])
         elif opt['trajectory_filetype'] == 'DCD':
-            traj_reporter = app.DCDReporter(outfname+'.dcd', opt['trajectory_interval'])
+            trj_fname += '.dcd'
+            traj_reporter = app.DCDReporter(trj_fname, opt['trajectory_interval'])
         elif opt['trajectory_filetype'] == 'HDF5':
-            mdtraj.reporters.HDF5Reporter(outfname+'.hdf5', opt['trajectory_interval'])
+            trj_fname += '.hdf5'
+            mdtraj.reporters.HDF5Reporter(trj_fname, opt['trajectory_interval'])
         else:
             oechem.OEThrow.Fatal("The selected trajectory file format is not supported: {}"
                                  .format(opt['trajectory_filetype']))
+
+        opt['molecule'].SetData(oechem.OEGetTag("Trj_fname"), trj_fname)
 
         reporters.append(traj_reporter)
 

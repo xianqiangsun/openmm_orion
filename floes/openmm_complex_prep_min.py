@@ -1,6 +1,6 @@
 from __future__ import unicode_literals
 from floe.api import WorkFloe, OEMolOStreamCube
-from ComplexPrepCubes.cubes import SolvationCube, ComplexPrep, ForceFieldPrep
+from ComplexPrepCubes.cubes import HydrationCube, ComplexPrep, ForceFieldPrep
 from ComplexPrepCubes.port import ProteinReader
 from OpenMMCubes.cubes import OpenMMminimizeCube
 from LigPrepCubes.cubes import LigChargeCube
@@ -29,7 +29,7 @@ job.classification = [['Simulation']]
 job.tags = [tag for lists in job.classification for tag in lists]
 
 # Ligand setting
-iligs = LigandReader("Ligands", title="Ligand Reader")
+iligs = LigandReader("LigandReader", title="Ligand Reader")
 iligs.promote_parameter("data_in", promoted_name="ligands", title="Ligand Input File", description="Ligand file name")
 
 chargelig = LigChargeCube("LigCharge")
@@ -42,11 +42,12 @@ iprot.promote_parameter("data_in", promoted_name="protein", title="Protein Input
 iprot.promote_parameter("protein_prefix", promoted_name="protein_prefix", default='PRT',
                         description="Protein Prefix")
 
-solvate = SolvationCube("Solvation")
-
 # Complex Setting
 complx = ComplexPrep("Complex")
 ff = ForceFieldPrep("ForceField")
+
+# Solvate the system
+solvate = HydrationCube("Hydration")
 
 # Minimization
 minComplex = OpenMMminimizeCube('minComplex')
@@ -59,16 +60,17 @@ fail = OEMolOStreamCube('fail', title='OFS-Failure')
 fail.set_parameters(backend='s3')
 fail.set_parameters(data_out='fail.oeb.gz')
 
-job.add_cubes(iprot, solvate, iligs, chargelig, complx, ff, minComplex, ofs, fail)
+job.add_cubes(iprot, iligs, chargelig, complx,  solvate, ff, minComplex, ofs, fail)
 
-iprot.success.connect(solvate.intake)
-solvate.success.connect(complx.system_port)
+iprot.success.connect(complx.system_port)
 iligs.success.connect(chargelig.intake)
 chargelig.success.connect(complx.intake)
-complx.success.connect(ff.intake)
+complx.success.connect(solvate.intake)
+solvate.success.connect(ff.intake)
 ff.success.connect(minComplex.intake)
 minComplex.success.connect(ofs.intake)
 minComplex.failure.connect(fail.intake)
+
 
 if __name__ == "__main__":
     job.run()

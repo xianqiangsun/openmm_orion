@@ -26,7 +26,7 @@ ofs: Outputs the constant temperature and volume system
 job.classification = [['NVT']]
 job.tags = [tag for lists in job.classification for tag in lists]
 
-ifs = OEMolIStreamCube("system", title="System Reader")
+ifs = OEMolIStreamCube("SystemReader", title="System Reader")
 ifs.promote_parameter("data_in", promoted_name="system", title='System Input File',
                       description="System input file")
 
@@ -36,7 +36,7 @@ nvt.promote_parameter('temperature', promoted_name='temperature', default=300.0,
                       description='Selected temperature in K')
 # Restraints
 nvt.promote_parameter('restraints', promoted_name='restraints', default='noh (ligand or protein)')
-nvt.promote_parameter('restraintWt', promoted_name='restraintWt', default=2.0)
+nvt.promote_parameter('restraintWt', promoted_name='restraintWt', default=5.0, description='Restraint weight')
 
 # Trajectory and logging info frequency intervals
 nvt.promote_parameter('trajectory_interval', promoted_name='trajectory_interval', default=100,
@@ -46,6 +46,7 @@ nvt.promote_parameter('reporter_interval', promoted_name='reporter_interval', de
 
 nvt.promote_parameter('outfname', promoted_name='suffix', default='nvt',
                       description='Equilibration suffix name')
+nvt.promote_parameter('tar', promoted_name='tar', default=True)
 
 ofs = OEMolOStreamCube('ofs', title='OFS-Success')
 ofs.set_parameters(backend='s3')

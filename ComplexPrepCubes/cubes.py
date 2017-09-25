@@ -10,6 +10,54 @@ from oeommtools.packmol import oesolvate
 import parmed
 
 
+class HydrationCube(OEMolComputeCube):
+    title = "Solvation Cube"
+    version = "0.0.0"
+    classification = [["Complex Preparation", "OEChem", "Complex preparation"]]
+    tags = ['OEChem', 'OpenMM', 'PDBFixer']
+    description = """
+           This cube solvate the molecular system
+
+           Input:
+           -------
+           oechem.OEMCMol - Streamed-in of the molecular system
+
+           Output:
+           -------
+           oechem.OEMCMol - Emits the solvated system
+           """
+
+    solvent_padding = parameter.DecimalParameter(
+        'solvent_padding',
+        default=10.0,
+        help_text="Padding around protein for solvent box (angstroms)")
+
+    salt_concentration = parameter.DecimalParameter(
+        'salt_concentration',
+        default=50.0,
+        help_text="Salt concentration (millimolar)")
+
+    def begin(self):
+        self.opt = vars(self.args)
+        self.opt['Logger'] = self.log
+
+    def process(self, system, port):
+
+        try:
+            # Solvate the system
+            sol_system = utils.hydrate(system, self.opt)
+            sol_system.SetTitle(system.GetTitle())
+            self.success.emit(sol_system)
+        except Exception as e:
+            # Attach error message to the molecule that failed
+            self.log.error(traceback.format_exc())
+            system.SetData('error', str(e))
+            # Return failed mol
+            self.failure.emit(system)
+
+        return
+
+
 class SolvationCube(ParallelOEMolComputeCube):
     title = "Solvation Cube Packmol"
     version = "0.0.0"
@@ -43,6 +91,11 @@ class SolvationCube(ParallelOEMolComputeCube):
         'padding_distance',
         default=10.0,
         help_text="The padding distance between the solute and the box edge in A")
+
+    distance_between_atoms = parameter.DecimalParameter(
+        'distance_between_atoms',
+        default=2.5,
+        help_text="The minimum distance between atoms in A")
 
     solvents = parameter.StringParameter(
         'solvents',
@@ -147,7 +200,13 @@ class ComplexPrep(OEMolComputeCube):
 
             if self.check_system:
                 num_conf = 0
-                name = 'p' + self.system.GetTitle() + '_l' + mol.GetTitle()[0:12] + '_' + str(self.count)
+
+                try:
+                    lig_id = mol.GetData("IDTag")
+                    name = 'p' + self.system.GetTitle() + '_' + lig_id
+                except:
+                    name = 'p' + self.system.GetTitle() + '_l' + mol.GetTitle()[0:12] + '_' + str(self.count)
+
                 for conf in mol.GetConfs():
                     conf_mol = oechem.OEMol(conf)
                     complx = self.system.CreateCopy()
