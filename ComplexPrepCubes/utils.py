@@ -308,6 +308,7 @@ def applyffLigand(ligand, opt):
     pmd = ff_utils.ParamLigStructure(ligand, opt['ligand_forcefield'], prefix_name=opt['prefix_name'])
     ligand_structure = pmd.parameterize()
     ligand_structure.residues[0].name = "LIG"
+    opt['Logger'].info("Ligand parametrized by using: {}".format(opt['ligand_forcefield']))
 
     return ligand_structure
 
@@ -328,6 +329,40 @@ def hydrate(system, opt):
     oe_mol: OEMol
         The solvated system
     """
+    def BoundingBox(molecule):
+        """
+        This function calculates the Bounding Box of the passed
+        molecule
+
+        molecule: OEMol
+
+        return: bb (numpy array)
+            the calculated bounding box is returned as numpy array:
+            [(xmin,ymin,zmin), (xmax,ymax,zmax)]
+        """
+        coords = [v for k, v in molecule.GetCoords().items()]
+        np_coords = np.array(coords)
+        min_coord = np_coords.min(axis=0)
+        max_coord = np_coords.max(axis=0)
+        bb = np.array([min_coord, max_coord])
+        return bb
+
+    # Calculate system BoundingBox (Angstrom units)
+    BB = BoundingBox(system)
+
+    # Estimation of the box cube length in A
+    box_edge = 2.0 * opt['solvent_padding'] + np.max(BB[1] - BB[0])
+
+    # BB center
+    xc = (BB[0][0]+BB[1][0])/2.
+    yc = (BB[0][1]+BB[1][1])/2.
+    zc = (BB[0][2]+BB[1][2])/2.
+
+    delta = np.array([box_edge/2., box_edge/2., box_edge/2.]) - np.array([xc, yc, zc])
+
+    sys_coord_dic = {k: (v+delta) for k, v in system.GetCoords().items()}
+
+    system.SetCoords(sys_coord_dic)
 
     # Load a fake system to initialize PDBfixer
     filename = resource_filename('pdbfixer', 'tests/data/test.pdb')

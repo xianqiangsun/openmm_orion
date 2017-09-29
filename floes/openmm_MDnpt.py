@@ -52,8 +52,6 @@ npt.promote_parameter('reporter_interval', promoted_name='reporter_interval', de
 npt.promote_parameter('outfname', promoted_name='suffix', default='npt',
                       description='Equilibration suffix name')
 
-npt.promote_parameter('outfname', promoted_name='suffix', default='nvt',
-                      description='Equilibration suffix name')
 npt.promote_parameter('tar', promoted_name='tar', default=True)
 
 

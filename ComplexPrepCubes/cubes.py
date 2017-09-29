@@ -10,7 +10,7 @@ from oeommtools.packmol import oesolvate
 import parmed
 
 
-class HydrationCube(OEMolComputeCube):
+class HydrationCube(ParallelOEMolComputeCube):
     title = "Solvation Cube"
     version = "0.0.0"
     classification = [["Complex Preparation", "OEChem", "Complex preparation"]]
@@ -26,6 +26,13 @@ class HydrationCube(OEMolComputeCube):
            -------
            oechem.OEMCMol - Emits the solvated system
            """
+
+    # Override defaults for some parameters
+    parameter_overrides = {
+        "prefetch_count": {"default": 1},  # 1 molecule at a time
+        "item_timeout": {"default": 3600},  # Default 1 hour limit (units are seconds)
+        "item_count": {"default": 1}  # 1 molecule at a time
+    }
 
     solvent_padding = parameter.DecimalParameter(
         'solvent_padding',
@@ -94,7 +101,7 @@ class SolvationCube(ParallelOEMolComputeCube):
 
     distance_between_atoms = parameter.DecimalParameter(
         'distance_between_atoms',
-        default=2.5,
+        default=2.0,
         help_text="The minimum distance between atoms in A")
 
     solvents = parameter.StringParameter(
@@ -151,6 +158,8 @@ class SolvationCube(ParallelOEMolComputeCube):
             sol_system = oesolvate(solute, **self.opt)
             self.log.info("Solvated System atom number {}".format(sol_system.NumAtoms()))
             sol_system.SetTitle(solute.GetTitle())
+            ofs = oechem.oemolostream("gac.oeb")
+            oechem.OEWriteConstMolecule(ofs, sol_system)
             self.success.emit(sol_system)
         except Exception as e:
             # Attach error message to the molecule that failed

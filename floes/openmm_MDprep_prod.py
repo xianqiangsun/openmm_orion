@@ -6,7 +6,8 @@ from ComplexPrepCubes.port import ProteinReader
 from LigPrepCubes.ports import LigandReader
 from LigPrepCubes.cubes import LigChargeCube
 
-job = WorkFloe('Preparation MD')
+
+job = WorkFloe('Merk Frosst MD Protocol')
 
 job.description = """
 Set up an OpenMM complex then minimize, warm up and equilibrate a system by using three equilibration stages
@@ -133,9 +134,9 @@ prod = OpenMMnptCube("Production")
 prod.promote_parameter('time', promoted_name='prod_psec', default=2000.0,
                        description='Length of MD run in picoseconds')
 
-prod.promote_parameter('trajectory_interval', promoted_name='prod_trajectory_interval', default=0,
+prod.promote_parameter('trajectory_interval', promoted_name='prod_trajectory_interval', default=1000,
                        description='Trajectory saving interval')
-prod.promote_parameter('reporter_interval', promoted_name='prod_reporter_interval', default=0,
+prod.promote_parameter('reporter_interval', promoted_name='prod_reporter_interval', default=1000,
                        description='Reporter saving interval')
 prod.promote_parameter('outfname', promoted_name='prod_outfname', default='prod',
                        description='Equilibration suffix name')
@@ -172,6 +173,8 @@ equil2.success.connect(equil3.intake)
 equil3.success.connect(prod.intake)
 prod.success.connect(ofs.intake)
 prod.failure.connect(fail.intake)
+
+
 
 if __name__ == "__main__":
     job.run()

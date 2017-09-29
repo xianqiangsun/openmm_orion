@@ -6,6 +6,8 @@ from OpenMMCubes.cubes import OpenMMminimizeCube
 from LigPrepCubes.cubes import LigChargeCube
 from LigPrepCubes.ports import LigandReader
 
+from ComplexPrepCubes.cubes import SolvationCube
+
 job = WorkFloe("ComplexPrepMin")
 
 job.description = """
@@ -48,6 +50,7 @@ ff = ForceFieldPrep("ForceField")
 
 # Solvate the system
 solvate = HydrationCube("Hydration")
+
 
 # Minimization
 minComplex = OpenMMminimizeCube('minComplex')

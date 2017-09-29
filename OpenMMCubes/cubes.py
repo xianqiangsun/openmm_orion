@@ -253,7 +253,7 @@ class OpenMMnvtCube(ParallelOEMolComputeCube):
 
     center = parameter.BooleanParameter(
         'center',
-        default=True,
+        default=False,
         description='Center the system to the OpenMM unit cell')
 
     verbose = parameter.BooleanParameter(
@@ -425,7 +425,7 @@ class OpenMMnptCube(ParallelOEMolComputeCube):
 
     center = parameter.BooleanParameter(
         'center',
-        default=True,
+        default=False,
         description='Center the system to the OpenMM unit cell')
 
     verbose = parameter.BooleanParameter(

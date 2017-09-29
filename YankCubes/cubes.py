@@ -8,9 +8,9 @@ from YankCubes.utils import molecule_is_charged, download_dataset_to_file
 from yank.experiment import ExperimentBuilder
 from oeommtools import utils as oeommutils
 from oeommtools import data_utils
-from simtk.openmm import app
-from simtk import unit
-from simtk.openmm import XmlSerializer
+from simtk.openmm import app, unit, XmlSerializer, openmm
+# from simtk import unit
+# from simtk.openmm import XmlSerializer
 import os
 import numpy as np
 import yaml
@@ -505,16 +505,14 @@ protocols:
   solvation-protocol:
     solvent1:
       alchemical_path:
-        lambda_electrostatics: [1.00, 0.75, 0.50, 0.25, 0.00, 0.00, 0.00, 0.00, 0.00, 0.00, 0.00, 0.00, 0.00, 0.00,\
-         0.00, 0.00, 0.00, 0.00, 0.00]
-        lambda_sterics:        [1.00, 1.00, 1.00, 1.00, 1.00, 0.95, 0.90, 0.85, 0.80, 0.75, 0.70, 0.65, 0.60, 0.50,\
-         0.40, 0.30, 0.20, 0.10, 0.00]
+        lambda_electrostatics: [1.00, 0.75, 0.50, 0.25, 0.00, 0.00, 0.00, 0.00, 0.00, 0.00, 0.00, 0.00, 0.00, 0.00, 
+        0.00, 0.00, 0.00, 0.00, 0.00, 0.00]
+        lambda_sterics:        [1.00, 1.00, 1.00, 1.00, 1.00, 0.95, 0.90, 0.80, 0.70, 0.60, 0.50, 0.40, 0.35, 0.30, 
+        0.25, 0.20, 0.15, 0.10, 0.05, 0.00]
     solvent2:
       alchemical_path:
-        lambda_electrostatics: [1.00, 0.75, 0.50, 0.25, 0.00, 0.00, 0.00, 0.00, 0.00, 0.00, 0.00, 0.00, 0.00, 0.00,\
-         0.00, 0.00, 0.00, 0.00, 0.00]
-        lambda_sterics:        [1.00, 1.00, 1.00, 1.00, 1.00, 0.95, 0.90, 0.85, 0.80, 0.75, 0.70, 0.65, 0.60, 0.50,\
-         0.40, 0.30, 0.20, 0.10, 0.00]
+        lambda_electrostatics: [1.00, 0.75, 0.50, 0.25, 0.00]
+        lambda_sterics:        [1.00, 1.00, 1.00, 1.00, 1.00]
 
 experiments:
   system: solvation-system
@@ -522,9 +520,9 @@ experiments:
 """
 
 
-class YankSolvationCube(ParallelOEMolComputeCube):
+class YankSolvationFECube(ParallelOEMolComputeCube):
     version = "0.0.0"
-    title = "YankSolvationCube"
+    title = "YankSolvationFECube"
     description = """
     Compute the hydration free energy of a small molecule with YANK.
 
@@ -540,7 +538,7 @@ class YankSolvationCube(ParallelOEMolComputeCube):
     # Override defaults for some parameters
     parameter_overrides = {
         "prefetch_count": {"default": 1},  # 1 molecule at a time
-        "item_timeout": {"default": 3600},  # Default 1 hour limit (units are seconds)
+        "item_timeout": {"default": 43200},  # Default 12 hour limit (units are seconds)
         "item_count": {"default": 1}  # 1 molecule at a time
     }
 
@@ -576,7 +574,7 @@ class YankSolvationCube(ParallelOEMolComputeCube):
 
     verbose = parameter.BooleanParameter(
         'verbose',
-        default=True,
+        default=False,
         help_text="Print verbose YANK logging output")
 
     @staticmethod
@@ -657,13 +655,21 @@ class YankSolvationCube(ParallelOEMolComputeCube):
                 solute.SetTitle(solvated_system.GetTitle())
 
                 solvated_omm_sys = solvated_structure.createSystem(nonbondedMethod=app.PME,
-                                                                   nonbondedCutoff=10.0*unit.angstroms,
+                                                                   nonbondedCutoff=8.0*unit.angstroms,
                                                                    constraints=app.HBonds,
                                                                    removeCMMotion=False)
 
                 solute_omm_sys = solute_structure.createSystem(nonbondedMethod=app.NoCutoff,
                                                                constraints=app.HBonds,
                                                                removeCMMotion=False)
+
+                # This is a note from:
+                # https://github.com/MobleyLab/SMIRNOFF_paper_code/blob/e5012c8fdc4570ca0ec750f7ab81dd7102e813b9/scripts/create_input_files.py#L114
+                # Fix switching function.
+                for force in solvated_omm_sys.getForces():
+                    if isinstance(force, openmm.NonbondedForce):
+                        force.setUseSwitchingFunction(True)
+                        force.setSwitchingDistance(0.7 * unit.nanometer)
 
                 solvated_omm_sys_serialized = XmlSerializer.serialize(solvated_omm_sys)
                 solvated_omm_sys_serialized_fn = os.path.join(output_directory, "solvated.xml")

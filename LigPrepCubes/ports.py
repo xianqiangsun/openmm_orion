@@ -172,4 +172,3 @@ class LigandReader(SourceCube):
                 count += 1
                 if max_idx is not None and count == max_idx:
                     break
-

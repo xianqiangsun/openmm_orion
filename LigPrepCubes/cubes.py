@@ -5,6 +5,7 @@ from LigPrepCubes import ff_utils
 from floe.api import OEMolComputeCube, ParallelOEMolComputeCube, parameter
 from oeommtools import utils as oeommutils
 
+
 class LigChargeCube(ParallelOEMolComputeCube):
     title = "Ligand Charge Cube"
     version = "0.0.0"
@@ -34,6 +35,11 @@ class LigChargeCube(ParallelOEMolComputeCube):
         default=800,
         help_text="Max number of ligand conformers")
 
+    charge_ligands = parameter.BooleanParameter(
+        'charge_ligands',
+        default=True,
+        description='Flag used to set if charge the ligands or not')
+
     def begin(self):
         self.opt = vars(self.args)
         self.opt['Logger'] = self.log
@@ -41,20 +47,18 @@ class LigChargeCube(ParallelOEMolComputeCube):
     def process(self, ligand, port):
 
         try:
-            charged_ligand = None
-
             # Ligand sanitation
             ligand = oeommutils.sanitizeOEMolecule(ligand)
 
-            if not oechem.OEHasPartialCharges(ligand):
-                # Charge the ligand
+            # Charge the ligand
+            if self.opt['charge_ligands']:
+                self.log.info("ELF10 Charges applied to the ligand")
                 charged_ligand = ff_utils.assignELF10charges(ligand,
                                                              self.opt['max_conformers'],
-                                                             strictStereo=True)
+                                                             strictStereo=False)
 
-            # If the ligand has been charged then transfer the computed
-            # charges to the starting ligand
-            if charged_ligand:
+                # If the ligand has been charged then transfer the computed
+                # charges to the starting ligand
                 map_charges = {at.GetIdx(): at.GetPartialCharge() for at in charged_ligand.GetAtoms()}
                 for at in ligand.GetAtoms():
                     at.SetPartialCharge(map_charges[at.GetIdx()])

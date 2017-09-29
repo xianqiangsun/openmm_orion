@@ -3,7 +3,7 @@ from floe.api import WorkFloe, OEMolOStreamCube
 from ComplexPrepCubes.cubes import SolvationCube, ForceFieldPrep
 from LigPrepCubes.cubes import LigChargeCube
 from LigPrepCubes.ports import LigandReader
-from YankCubes.cubes import YankSolvationCube
+from YankCubes.cubes import YankSolvationFECube
 from OpenMMCubes.cubes import OpenMMminimizeCube, OpenMMnvtCube, OpenMMnptCube
 
 job = WorkFloe("SolvationFreeEnergy")
@@ -44,12 +44,16 @@ solvate.promote_parameter("molar_fractions", promoted_name="molar_fractions",
                           title="Molar fractions",
                           default='1.0, 0.0, 0.0, 0.0',
                           description="Comma separated strings of solvent molar fractions")
-solvate.promote_parameter("padding_distance", promoted_name="padding_distance", default=12,
+solvate.promote_parameter('distance_between_atoms', promoted_name='distance_between_atoms', default=2.5)
+solvate.promote_parameter("padding_distance", promoted_name="padding_distance", default=10,
                           description="The largest dimension (in A) of the solute (along the x, y, or z axis) "
                                       "is determined, and a cubic box of size "
                                       "(largest dimension)+2*padding is used")
 
+
+
 ff = ForceFieldPrep("ForceField")
+# ff.promote_parameter('ligand_forcefield', promoted_name='ligand_forcefield', default='SMIRNOFF')
 
 # Minimization
 minimize = OpenMMminimizeCube("Minimize")
@@ -72,6 +76,7 @@ warmup.promote_parameter('reporter_interval', promoted_name='w_reporter_interval
                          description='Reporter saving interval')
 warmup.promote_parameter('outfname', promoted_name='w_outfname', default='warmup',
                          description='Equilibration suffix name')
+warmup.promote_parameter('center', promoted_name='center', default=True)
 
 # NPT Equilibration stage
 equil = OpenMMnptCube('equil', title='equil')
@@ -88,7 +93,7 @@ equil.promote_parameter('reporter_interval', promoted_name='eq_reporter_interval
 equil.promote_parameter('outfname', promoted_name='eq_outfname', default='equil',
                         description='Equilibration suffix name')
 
-solvationfe = YankSolvationCube("SovationFE")
+solvationfe = YankSolvationFECube("SovationFE")
 solvationfe.promote_parameter('iterations', promoted_name='iterations', default=1000)
 
 ofs = OEMolOStreamCube('ofs', title='OFS-Success')
