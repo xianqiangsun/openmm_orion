@@ -634,8 +634,8 @@ class YankSolvationFECube(ParallelOEMolComputeCube):
 
     def process(self, solvated_system, port):
 
-        with TemporaryDirectory() as output_directory:
-            try:
+        try:
+            with TemporaryDirectory() as output_directory:
                 self.opt['Logger'].info("Output Directory {}".format(output_directory))
                 # Split the complex in components in order to apply the FF
                 protein, solute, water, excipients = oeommutils.split(solvated_system, ligand_res_name='LIG')
@@ -703,21 +703,21 @@ class YankSolvationFECube(ParallelOEMolComputeCube):
 
                 exp_dir = os.path.join(output_directory, "experiments")
 
-                # Calculate hydration free energy, solvation Enthalpy and their errors
-                DeltaG_hydration, dDeltaG_hydration, DeltaH, dDeltaH = self.__class__.analyze_directory(exp_dir)
+                # Calculate solvation free energy, solvation Enthalpy and their errors
+                DeltaG_solvation, dDeltaG_solvation, DeltaH, dDeltaH = self.__class__.analyze_directory(exp_dir)
 
-                # Add result to original molecule
-                oechem.OESetSDData(solute, 'DeltaG_yank_hydration', str(DeltaG_hydration * unit.kilocalories_per_mole))
-                oechem.OESetSDData(solute, 'dDeltaG_yank_hydration', str(dDeltaG_hydration * unit.kilocalories_per_mole))
+                # Add result to the original molecule in kcal/mol
+                oechem.OESetSDData(solute, 'DG_yank_solv', str(DeltaG_solvation))
+                oechem.OESetSDData(solute, 'dG_yank_solv', str(dDeltaG_solvation))
 
-                # Emit the ligand
-                self.success.emit(solute)
+            # Emit the ligand
+            self.success.emit(solute)
 
-            except Exception as e:
-                # Attach an error message to the molecule that failed
-                self.log.error(traceback.format_exc())
-                solvated_system.SetData('error', str(e))
-                # Return failed mol
-                self.failure.emit(solvated_system)
+        except Exception as e:
+            # Attach an error message to the molecule that failed
+            self.log.error(traceback.format_exc())
+            solvated_system.SetData('error', str(e))
+            # Return failed mol
+            self.failure.emit(solvated_system)
 
         return

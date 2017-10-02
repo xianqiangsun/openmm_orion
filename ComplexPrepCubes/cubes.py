@@ -158,8 +158,6 @@ class SolvationCube(ParallelOEMolComputeCube):
             sol_system = oesolvate(solute, **self.opt)
             self.log.info("Solvated System atom number {}".format(sol_system.NumAtoms()))
             sol_system.SetTitle(solute.GetTitle())
-            ofs = oechem.oemolostream("gac.oeb")
-            oechem.OEWriteConstMolecule(ofs, sol_system)
             self.success.emit(sol_system)
         except Exception as e:
             # Attach error message to the molecule that failed
