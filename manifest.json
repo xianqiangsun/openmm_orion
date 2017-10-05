@@ -8,5 +8,5 @@
                            "alchemy==1.2.3", "yank==0.17.0", "oeommtools",
 			   "pymbar==3.0.3", "packmol=*17.221"],
  "name": "Orion OpenMM package",
- "version": "0.2.0"
+ "version": "0.2.1"
 }

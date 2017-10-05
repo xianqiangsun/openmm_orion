@@ -154,8 +154,23 @@ class SolvationCube(ParallelOEMolComputeCube):
     def process(self, solute, port):
 
         try:
+            opt = dict(self.opt)
+            # Update cube simulation parameters with the eventually molecule SD tags
+            new_args = {dp.GetTag(): dp.GetValue() for dp in oechem.OEGetSDDataPairs(solute) if dp.GetTag() in
+                        ["solvents", "molar_fractions", "density"]}
+            if new_args:
+                for k in new_args:
+                    if k == 'molar_fractions':
+                        continue
+                    try:
+                        new_args[k] = float(new_args[k])
+                    except:
+                        pass
+                self.log.info("Updating parameters for molecule: {}\n{}".format(solute.GetTitle(), new_args))
+                opt.update(new_args)
+
             # Solvate the system
-            sol_system = oesolvate(solute, **self.opt)
+            sol_system = oesolvate(solute, **opt)
             self.log.info("Solvated System atom number {}".format(sol_system.NumAtoms()))
             sol_system.SetTitle(solute.GetTitle())
             self.success.emit(sol_system)
@@ -189,6 +204,11 @@ class ComplexPrep(OEMolComputeCube):
         oechem.OEMCMol - Emits the complex molecule
         """
 
+    remove_explicit_solvent = parameter.BooleanParameter(
+        'remove_explicit_solvent',
+        default=False,
+        description='If True/Checked removes water and ion molecules from the system')
+
     system_port = MoleculeInputPort("system_port")
 
     def begin(self):
@@ -201,6 +221,11 @@ class ComplexPrep(OEMolComputeCube):
     def process(self, mol, port):
         try:
             if port == 'system_port':
+
+                # Remove from solution water and ions
+                if self.opt['remove_explicit_solvent']:
+                    mol = oeommutils.strip_water_ions(mol)
+
                 self.system = mol
                 self.check_system = True
                 return
@@ -332,10 +357,12 @@ class ForceFieldPrep(ParallelOEMolComputeCube):
             # Split the complex in components in order to apply the FF
             protein, ligand, water, excipients = oeommutils.split(mol, ligand_res_name=self.opt['ligand_res_name'])
 
-            self.log.warn("Protein = {}".format(protein.NumAtoms()))
-            self.log.warn("ligand = {}".format(ligand.NumAtoms()))
-            self.log.warn("water = {}".format(water.NumAtoms()))
-            self.log.warn("excipients = {}".format(excipients.NumAtoms()))
+            self.log.info("\nComplex name: {}\nProtein atom numbers = {}\nLigand atom numbers = {}\n"
+                          "Water atom numbers = {}\nExcipients atom numbers = {}".format(mol.GetTitle(),
+                                                                                         protein.NumAtoms(),
+                                                                                         ligand.NumAtoms(),
+                                                                                         water.NumAtoms(),
+                                                                                         excipients.NumAtoms()))
 
             # Unique prefix name used to output parametrization files
             self.opt['prefix_name'] = mol.GetTitle()

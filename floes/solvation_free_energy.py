@@ -45,7 +45,7 @@ solvate.promote_parameter("molar_fractions", promoted_name="molar_fractions",
                           default='1.0, 0.0, 0.0, 0.0',
                           description="Comma separated strings of solvent molar fractions")
 solvate.promote_parameter('distance_between_atoms', promoted_name='distance_between_atoms', default=2.5)
-solvate.promote_parameter("padding_distance", promoted_name="padding_distance", default=10,
+solvate.promote_parameter("padding_distance", promoted_name="padding_distance", default=11.0,
                           description="The largest dimension (in A) of the solute (along the x, y, or z axis) "
                                       "is determined, and a cubic box of size "
                                       "(largest dimension)+2*padding is used")
@@ -95,6 +95,7 @@ equil.promote_parameter('outfname', promoted_name='eq_outfname', default='equil'
 
 solvationfe = YankSolvationFECube("SovationFE")
 solvationfe.promote_parameter('iterations', promoted_name='iterations', default=1000)
+solvationfe.promote_parameter('nonbondedCutoff', promoted_name='nonbondedCutoff', default=10.0)
 
 ofs = OEMolOStreamCube('ofs', title='OFS-Success')
 ofs.set_parameters(backend='s3')

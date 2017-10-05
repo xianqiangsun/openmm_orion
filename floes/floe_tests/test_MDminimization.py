@@ -13,7 +13,7 @@ class MinimizationTestCase(TestCase):
         complex_path = utils.get_data_filename('examples', 'data/pbace_lcat13a_complex.oeb.gz')
 
         run_args = [
-            '--complex', complex_path,
+            '--system', complex_path,
             '--ofs-data_out', 'success.oeb',
             '--fail-data_out', 'fail.oeb',
             '--steps', '30000',

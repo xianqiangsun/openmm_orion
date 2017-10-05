@@ -1,8 +1,8 @@
 import traceback
-
 import OpenMMCubes.simtools as simtools
 import OpenMMCubes.utils as utils
 from floe.api import ParallelOEMolComputeCube, parameter
+from openeye import oechem
 
 
 class OpenMMminimizeCube(ParallelOEMolComputeCube):
@@ -108,7 +108,7 @@ class OpenMMminimizeCube(ParallelOEMolComputeCube):
         help_text='Select the CUDA or OpenCL precision')
 
     def begin(self):
-        self.opt = vars( self.args)
+        self.opt = vars(self.args)
         self.opt['Logger'] = self.log
         self.opt['SimType'] = 'min'
 
@@ -120,6 +120,19 @@ class OpenMMminimizeCube(ParallelOEMolComputeCube):
             # is necessary to avoid filename collisions due to
             # the parallel cube processes
             opt = dict(self.opt)
+
+            # Update cube simulation parameters with the eventually molecule SD tags
+            new_args = {dp.GetTag(): dp.GetValue() for dp in oechem.OEGetSDDataPairs(mol) if dp.GetTag() in
+                        ["temperature"]}
+            if new_args:
+                for k in new_args:
+                    try:
+                        new_args[k] = float(new_args[k])
+                    except:
+                        pass
+                self.log.info("Updating parameters for molecule: {}\n{}".format(mol.GetTitle(), new_args))
+                opt.update(new_args)
+
             if utils.PackageOEMol.checkTags(mol, ['Structure']):
                 gd = utils.PackageOEMol.unpack(mol)
                 opt['outfname'] = '{}-{}'.format(gd['IDTag'], self.opt['outfname'])
@@ -286,6 +299,19 @@ class OpenMMnvtCube(ParallelOEMolComputeCube):
             # is necessary to avoid filename collisions due to
             # the parallel cube processes
             opt = dict(self.opt)
+
+            # Update cube simulation parameters with the eventually molecule SD tags
+            new_args = {dp.GetTag(): dp.GetValue() for dp in oechem.OEGetSDDataPairs(mol) if dp.GetTag() in
+                        ["temperature"]}
+            if new_args:
+                for k in new_args:
+                    try:
+                        new_args[k] = float(new_args[k])
+                    except:
+                        pass
+                self.log.info("Updating parameters for molecule: {}\n{}".format(mol.GetTitle(), new_args))
+                opt.update(new_args)
+
             if utils.PackageOEMol.checkTags(mol, ['Structure']):
                 gd = utils.PackageOEMol.unpack(mol)
                 opt['outfname'] = '{}-{}'.format(gd['IDTag'], self.opt['outfname'])
@@ -295,6 +321,7 @@ class OpenMMnvtCube(ParallelOEMolComputeCube):
             opt['molecule'] = mol
 
             self.log.info('START NVT SIMULATION: %s' % gd['IDTag'])
+
             simtools.simulation(mdData, **opt)
                 
             packedmol = mdData.packMDData(mol)
@@ -458,6 +485,21 @@ class OpenMMnptCube(ParallelOEMolComputeCube):
             # is necessary to avoid filename collisions due to
             # the parallel cube processes
             opt = dict(self.opt)
+
+            # Update cube simulation parameters with the eventually molecule SD tags
+            new_args = {dp.GetTag(): dp.GetValue() for dp in oechem.OEGetSDDataPairs(mol) if dp.GetTag() in
+                        ["temperature", "pressure"]}
+
+            if new_args:
+                for k in new_args:
+                    try:
+                        new_args[k] = float(new_args[k])
+                    except:
+                        pass
+                self.log.info("Updating parameters for molecule: {}\n{}".format(mol.GetTitle(), new_args))
+
+                opt.update(new_args)
+
             if utils.PackageOEMol.checkTags(mol, ['Structure']):
                 gd = utils.PackageOEMol.unpack(mol)
                 opt['outfname'] = '{}-{}'.format(gd['IDTag'], self.opt['outfname'])

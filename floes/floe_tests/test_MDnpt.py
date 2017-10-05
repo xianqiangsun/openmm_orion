@@ -12,7 +12,7 @@ class NptTestCase(TestCase):
 
         complex_path = utils.get_data_filename('examples', 'data/pP38_lp38a_2x_complex.oeb.gz')
         run_args = [
-            '--complex', complex_path,
+            '--system', complex_path,
             '--picosec', '10',
             '--temperature', '300',
             '--pressure', '1',
