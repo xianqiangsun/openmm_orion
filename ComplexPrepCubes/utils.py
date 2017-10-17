@@ -347,8 +347,11 @@ def hydrate(system, opt):
         bb = np.array([min_coord, max_coord])
         return bb
 
+    # Create a system copy
+    sol_system = system.CreateCopy()
+
     # Calculate system BoundingBox (Angstrom units)
-    BB = BoundingBox(system)
+    BB = BoundingBox(sol_system)
 
     # Estimation of the box cube length in A
     box_edge = 2.0 * opt['solvent_padding'] + np.max(BB[1] - BB[0])
@@ -360,16 +363,16 @@ def hydrate(system, opt):
 
     delta = np.array([box_edge/2., box_edge/2., box_edge/2.]) - np.array([xc, yc, zc])
 
-    sys_coord_dic = {k: (v+delta) for k, v in system.GetCoords().items()}
+    sys_coord_dic = {k: (v+delta) for k, v in sol_system.GetCoords().items()}
 
-    system.SetCoords(sys_coord_dic)
+    sol_system.SetCoords(sys_coord_dic)
 
     # Load a fake system to initialize PDBfixer
     filename = resource_filename('pdbfixer', 'tests/data/test.pdb')
     fixer = PDBFixer(filename=filename)
 
     # Convert between OE and OpenMM topology
-    omm_top, omm_pos = oeommutils.oemol_to_openmmTop(system)
+    omm_top, omm_pos = oeommutils.oemol_to_openmmTop(sol_system)
 
     chain_names = []
 
@@ -422,188 +425,10 @@ def hydrate(system, opt):
     box_vectors = utils.PackageOEMol.encodePyObj(omm_box_vectors)
     oe_mol.SetData(oechem.OEGetTag('box_vectors'), box_vectors)
 
-    oechem.OEAddMols(oe_mol, system)
+    oechem.OEAddMols(oe_mol, sol_system)
 
     return oe_mol
 
-
-
-
-
-# def hydrate(system, opt):
-#     """
-#     This function solvates the system by using PDBFixer
-#
-#     Parameters:
-#     -----------
-#     system: OEMol molecule
-#         The system to solvate
-#     opt: python dictionary
-#         The parameters used to solvate the system
-#
-#     Return:
-#     -------
-#     oe_mol: OEMol
-#         The solvated system
-#     """
-#
-#     def BoundingBox(molecule):
-#         """
-#         This function calculates the Bounding Box of the passed
-#         molecule
-#
-#         molecule: OEMol
-#
-#         return: bb (numpy array)
-#             the calculated bounding box is returned as numpy array:
-#             [(xmin,ymin,zmin), (xmax,ymax,zmax)]
-#         """
-#         coords = [v for k, v in molecule.GetCoords().items()]
-#         np_coords = np.array(coords)
-#         min_coord = np_coords.min(axis=0)
-#         max_coord = np_coords.max(axis=0)
-#         bb = np.array([min_coord, max_coord])
-#         return bb
-#
-#     def wrapping(coords, BB, omm_box_vectors):
-#
-#         def ceil(x):
-#             if int(x) < x:
-#                 return math.ceil(x)
-#             else:
-#                 return int(x)+1
-#
-#         xmin = BB[0][0]
-#         ymin = BB[0][1]
-#         zmin = BB[0][2]
-#
-#         xmax = BB[1][0]
-#         ymax = BB[1][1]
-#         zmax = BB[1][2]
-#
-#         Lx = omm_box_vectors[0][0].in_units_of(unit.angstrom)/unit.angstrom
-#         kx = ceil(xmax / Lx)
-#
-#         Ly = omm_box_vectors[1][1].in_units_of(unit.angstrom)/unit.angstrom
-#         ky = ceil(ymax / Ly)
-#
-#         Lz = omm_box_vectors[2][2].in_units_of(unit.angstrom)/unit.angstrom
-#         kz = ceil(zmax / Lz)
-#
-#         new_coords = []
-#
-#         for coord in coords:
-#
-#             x = coord[0].in_units_of(unit.angstrom)/unit.angstrom
-#             y = coord[1].in_units_of(unit.angstrom)/unit.angstrom
-#             z = coord[2].in_units_of(unit.angstrom)/unit.angstrom
-#
-#             if ceil(xmin/Lx) == ceil(xmax/Lx):
-#                 xp = x + (kx - 1) * Lx
-#             else:
-#                 if x < Lx / 2.0:
-#                     xp = x + kx * Lx
-#                 else:
-#                     xp = x + (kx - 1) * Lx
-#
-#             if ceil(ymin / Ly) == ceil(ymax / Ly):
-#                 yp = y + (ky - 1) * Ly
-#             else:
-#                 if y < Ly / 2.0:
-#                     yp = y + ky * Ly
-#                 else:
-#                     yp = y + (ky - 1) * Ly
-#
-#             if ceil(zmin / Lz) == ceil(zmax / Lz):
-#                 zp = z + (kz - 1) * Lz
-#             else:
-#                 if z < Lz / 2.0:
-#                     zp = z + kz * Lz
-#                 else:
-#                     zp = z + (kz - 1) * Lz
-#
-#             coord_p = Vec3(xp, yp, zp)
-#
-#             new_coords.append(coord_p)
-#
-#         return new_coords * unit.angstrom
-#
-#     # Load a fake system to initialize PDBfixer
-#     filename = resource_filename('pdbfixer', 'tests/data/test.pdb')
-#     fixer = PDBFixer(filename=filename)
-#
-#     # Convert between OE and OpenMM topology
-#     omm_top, omm_pos = oeommutils.oemol_to_openmmTop(system)
-#
-#     chain_names = []
-#
-#     for chain in omm_top.chains():
-#         chain_names.append(chain.id)
-#
-#     # Set the correct topology to the fake system
-#     fixer.topology = omm_top
-#     fixer.positions = omm_pos
-#
-#     # Solvate the system
-#     fixer.addSolvent(padding=unit.Quantity(opt['solvent_padding'], unit.angstroms),
-#                      ionicStrength=unit.Quantity(opt['salt_concentration'], unit.millimolar))
-#
-#     # The OpenMM topology produced by the solvation fixer has missing bond
-#     # orders and aromaticity. The following section is creating a new openmm
-#     # topology made of just water molecules and ions. The new topology is then
-#     # converted in an OEMol and added to the passed molecule to produce the
-#     # solvated system
-#
-#     wat_ion_top = app.Topology()
-#
-#     # Atom dictionary between the the PDBfixer topology and the water_ion topology
-#     fixer_atom_to_wat_ion_atom = {}
-#
-#     for chain in fixer.topology.chains():
-#         if chain.id not in chain_names:
-#             n_chain = wat_ion_top.addChain(chain.id)
-#             for res in chain.residues():
-#                 n_res = wat_ion_top.addResidue(res.name, n_chain)
-#                 for at in res.atoms():
-#                     n_at = wat_ion_top.addAtom(at.name, at.element, n_res)
-#                     fixer_atom_to_wat_ion_atom[at] = n_at
-#
-#     for bond in fixer.topology.bonds():
-#         at0 = bond[0]
-#         at1 = bond[1]
-#         try:
-#             wat_ion_top.addBond(fixer_atom_to_wat_ion_atom[at0],
-#                                 fixer_atom_to_wat_ion_atom[at1], type=None, order=1)
-#         except:
-#             pass
-#     # Water and ions positions
-#     wat_ion_pos = fixer.positions[len(omm_pos):]
-#
-#     print(wat_ion_pos)
-#
-#     # Calculate system BoundingBox (Angstrom units)
-#     BB = BoundingBox(system)
-#
-#     # Setting the box vectors
-#     omm_box_vectors = fixer.topology.getPeriodicBoxVectors()
-#     box_vectors = utils.PackageOEMol.encodePyObj(omm_box_vectors)
-#
-#     print(omm_box_vectors)
-#     print(BB)
-#
-#     #wat_ion_pos = wrapping(wat_ion_pos, BB, omm_box_vectors)
-#
-#
-#
-#     oe_mol = oeommutils.openmmTop_to_oemol(wat_ion_top, wat_ion_pos)
-#     oe_mol.SetData(oechem.OEGetTag('box_vectors'), box_vectors)
-#
-#     oechem.OEAddMols(oe_mol, system)
-#
-#     ofs = oechem.oemolostream("test.pdb")
-#     oechem.OEWriteConstMolecule(ofs, oe_mol)
-#
-#     return oe_mol
 
 def order_check(mol, fname):
     """

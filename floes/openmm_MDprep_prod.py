@@ -60,12 +60,22 @@ ff.promote_parameter('solvent_forcefield', promoted_name='solvent_ff', default='
 ff.promote_parameter('ligand_forcefield', promoted_name='ligand_ff', default='GAFF2')
 ff.promote_parameter('other_forcefield', promoted_name='other_ff', default='GAFF2')
 
+# Output the prepared systems
+complex_prep_ofs = OEMolOStreamCube('complex_prep_ofs', title='ComplexSetUpOut')
+complex_prep_ofs.set_parameters(backend='s3')
+complex_prep_ofs.set_parameters(data_out=iprot.promoted_parameters['protein_prefix']['default']+'_SetUp.oeb.gz')
+
 # Minimization
 minComplex = OpenMMminimizeCube('minComplex', title='Minimize')
 minComplex.promote_parameter('restraints', promoted_name='m_restraints', default="noh (ligand or protein)",
                              description='Select mask to apply restarints')
 minComplex.promote_parameter('restraintWt', promoted_name='m_restraintWt', default=5.0,
                              description='Restraint weight')
+
+# Output the minimized systems
+minimization_ofs = OEMolOStreamCube('minimization_ofs', title='MinimizationOut')
+minimization_ofs.set_parameters(backend='s3')
+minimization_ofs.set_parameters(data_out=iprot.promoted_parameters['protein_prefix']['default']+'_Minimization.oeb.gz')
 
 # NVT simulation. Here the assembled system is warmed up to the final selected temperature
 warmup = OpenMMnvtCube('warmup', title='warmup')
@@ -130,6 +140,11 @@ equil3.promote_parameter('reporter_interval', promoted_name='eq3_reporter_interv
 equil3.promote_parameter('outfname', promoted_name='eq3_outfname', default='equil3',
                          description='Equilibration suffix name')
 
+# Output the equilibrated systems
+equilibration_ofs = OEMolOStreamCube("equilibration_ofs", title='EquilibrationOut')
+equilibration_ofs.set_parameters(backend='s3')
+equilibration_ofs.set_parameters(data_out=iprot.promoted_parameters['protein_prefix']['default']+'_Equilibration.oeb.gz')
+
 prod = OpenMMnptCube("Production")
 prod.promote_parameter('time', promoted_name='prod_psec', default=2000.0,
                        description='Length of MD run in picoseconds')
@@ -141,22 +156,15 @@ prod.promote_parameter('reporter_interval', promoted_name='prod_reporter_interva
 prod.promote_parameter('outfname', promoted_name='prod_outfname', default='prod',
                        description='Equilibration suffix name')
 
-
 ofs = OEMolOStreamCube('ofs', title='OFS-Success')
 ofs.set_parameters(backend='s3')
-
-complex_prep_ofs = OEMolOStreamCube('complex_prep_ofs', title='ComplexPrep_OFS')
-complex_prep_ofs.set_parameters(backend='s3')
-
-minimization_ofs = OEMolOStreamCube('minimization_ofs', title='Minimization_OFS')
-minimization_ofs.set_parameters(backend='s3')
 
 fail = OEMolOStreamCube('fail', title='OFS-Failure')
 fail.set_parameters(backend='s3')
 fail.set_parameters(data_out='fail.oeb.gz')
 
 job.add_cubes(iprot, iligs, chargelig, complx, solvate, ff, complex_prep_ofs,
-              minComplex, minimization_ofs, warmup, equil1, equil2, equil3, prod, ofs, fail)
+              minComplex, minimization_ofs, warmup, equil1, equil2, equil3, equilibration_ofs, prod, ofs, fail)
 
 iprot.success.connect(complx.system_port)
 iligs.success.connect(chargelig.intake)
@@ -171,9 +179,9 @@ warmup.success.connect(equil1.intake)
 equil1.success.connect(equil2.intake)
 equil2.success.connect(equil3.intake)
 equil3.success.connect(prod.intake)
+equil3.success.connect(equilibration_ofs.intake)
 prod.success.connect(ofs.intake)
 prod.failure.connect(fail.intake)
-
 
 if __name__ == "__main__":
     job.run()

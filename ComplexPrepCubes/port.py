@@ -1,6 +1,8 @@
-from floe.api import (parameter, MoleculeOutputPort, SourceCube)
-from floe.api.orion import StreamingDataset, config_from_env
+from floe.api import (parameter, MoleculeOutputPort, SourceCube, OEMolOStreamCube)
+from floe.api.orion import StreamingDataset, config_from_env, MultipartDatasetUploader
 from openeye import oechem
+# from floe.api.ports import BinaryMoleculeInputPort, MoleculeSerializerMixin
+# from floe.api.parameter import DataSetOutputParameter
 
 
 class ProteinReader(SourceCube):
@@ -70,3 +72,47 @@ class ProteinReader(SourceCube):
                 count += 1
                 if max_idx is not None and count == max_idx:
                     break
+
+
+# class SimOutputCube(OEMolOStreamCube):
+#     """
+#     A sink cube that writes molecules to a file
+#     """
+#     classification = [["Output"]]
+#     title = "Output Writer"
+#
+#     intake = BinaryMoleculeInputPort('intake')
+#     data_out = DataSetOutputParameter('data_out',
+#                                       required=True,
+#                                       title='Name of Dataset to create',
+#                                       description='The dataset to output')
+#     backend = DataSetOutputParameter(
+#         'backend',
+#         default="auto",
+#         choices=["db", "s3", "auto"],
+#         description="The Orion storage backend to use")
+#
+#     def begin(self):
+#         self.in_orion = config_from_env() is not None
+#         self.decoder = MoleculeSerializerMixin()
+#         self.need_decode = not self.args.data_out.endswith(".oeb.gz")
+#         if self.in_orion:
+#             self.ofs = MultipartDatasetUploader(self.args.data_out,
+#                                                 tags=[self.name],
+#                                                 backend=self.args.backend)
+#         elif self.need_decode:
+#             self.ofs = oechem.oemolostream(str(self.args.data_out))
+#         else:
+#             self.ofs = open(str(self.args.data_out), 'wb')
+#
+#     def write(self, mol, port):
+#         if self.in_orion or not self.need_decode:
+#             self.ofs.write(mol)
+#         else:
+#             oechem.OEWriteMolecule(self.ofs, self.decoder.decode(mol))
+#
+#     def end(self):
+#         if self.in_orion:
+#             self.ofs.complete()
+#         else:
+#             self.ofs.close()

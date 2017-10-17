@@ -54,6 +54,8 @@ class HydrationCube(ParallelOEMolComputeCube):
             # Solvate the system
             sol_system = utils.hydrate(system, self.opt)
             sol_system.SetTitle(system.GetTitle())
+            # Attached the original complex to the solvated system
+            sol_system.SetData(oechem.OEGetTag("RefComplex"), system)
             self.success.emit(sol_system)
         except Exception as e:
             # Attach error message to the molecule that failed
