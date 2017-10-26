@@ -44,6 +44,11 @@ class HydrationCube(ParallelOEMolComputeCube):
         default=50.0,
         help_text="Salt concentration (millimolar)")
 
+    ref_structure = parameter.BooleanParameter(
+        'ref_structure',
+        default=True,
+        help_text="If Checked/True the molecule before solvation is attached to the solvated one")
+
     def begin(self):
         self.opt = vars(self.args)
         self.opt['Logger'] = self.log
@@ -54,8 +59,9 @@ class HydrationCube(ParallelOEMolComputeCube):
             # Solvate the system
             sol_system = utils.hydrate(system, self.opt)
             sol_system.SetTitle(system.GetTitle())
-            # Attached the original complex to the solvated system
-            sol_system.SetData(oechem.OEGetTag("RefComplex"), system)
+            # Attached the original system to the solvated one
+            if self.opt['ref_structure']:
+                sol_system.SetData(oechem.OEGetTag("RefStructure"), system)
             self.success.emit(sol_system)
         except Exception as e:
             # Attach error message to the molecule that failed

@@ -83,7 +83,7 @@ equil = OpenMMnptCube('equil', title='equil')
 equil.promote_parameter('time', promoted_name='eq_psec', default=20.0,
                         description='Length of MD run in picoseconds')
 equil.promote_parameter('restraints', promoted_name='eq_restraints', default="noh ligand",
-                        description='Select mask to apply restarints')
+                        description='Select mask to apply restraints')
 equil.promote_parameter('restraintWt', promoted_name='eq_restraintWt', default=0.1,
                         description='Restraint weight in kcal/(mol A^2')
 equil.promote_parameter('trajectory_interval', promoted_name='eq_trajectory_interval', default=0,

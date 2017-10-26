@@ -2,7 +2,8 @@ import traceback
 from openeye import oechem
 import netCDF4 as netcdf
 from tempfile import TemporaryDirectory
-from floe.api import parameter, ParallelOEMolComputeCube
+from floe.api import (parameter, ParallelOEMolComputeCube, OEMolComputeCube, MoleculeInputPort,
+                      BatchMoleculeOutputPort, BatchMoleculeInputPort)
 from LigPrepCubes.ports import CustomMoleculeInputPort, CustomMoleculeOutputPort
 from YankCubes.utils import molecule_is_charged, download_dataset_to_file
 from yank.experiment import ExperimentBuilder
@@ -11,9 +12,9 @@ from oeommtools import data_utils
 from simtk.openmm import app, unit, XmlSerializer, openmm
 import os
 import numpy as np
-import yaml
-from yank.analyze import get_analyzer
-from YankCubes.yank_templates import yank_solvation_template
+from YankCubes import utils as yankutils
+from YankCubes.yank_templates import yank_solvation_template, yank_binding_template
+import itertools
 
 ################################################################################
 # Hydration free energy calculations
@@ -542,57 +543,57 @@ class YankSolvationFECube(ParallelOEMolComputeCube):
         'verbose',
         default=False,
         help_text="Print verbose YANK logging output")
-
-    @staticmethod
-    def analyze_directory(source_directory):
-        """
-        This Function has been copied and adapted from the Yank ver 0.17.0 source code
-        (yank.analyse.analyze_directory)
-
-        Analyze contents of store files to compute free energy differences.
-
-        This function is needed to preserve the old auto-analysis style of YANK. What it exactly does can be refined
-        when more analyzers and simulations are made available. For now this function exposes the API.
-
-        Parameters
-        ----------
-        source_directory : string
-           The location of the simulation storage files.
-
-        """
-        analysis_script_path = os.path.join(source_directory, 'analysis.yaml')
-        if not os.path.isfile(analysis_script_path):
-            err_msg = 'Cannot find analysis.yaml script in {}'.format(source_directory)
-            raise RuntimeError(err_msg)
-        with open(analysis_script_path, 'r') as f:
-            analysis = yaml.load(f)
-
-        data = dict()
-        for phase_name, sign in analysis:
-            phase_path = os.path.join(source_directory, phase_name + '.nc')
-            phase = get_analyzer(phase_path)
-            data[phase_name] = phase.analyze_phase()
-            kT = phase.kT
-
-        # Compute free energy and enthalpy
-        DeltaF = 0.0
-        dDeltaF = 0.0
-        DeltaH = 0.0
-        dDeltaH = 0.0
-        for phase_name, sign in analysis:
-            DeltaF -= sign * (data[phase_name]['DeltaF'] + data[phase_name]['DeltaF_standard_state_correction'])
-            dDeltaF += data[phase_name]['dDeltaF'] ** 2
-            DeltaH -= sign * (data[phase_name]['DeltaH'] + data[phase_name]['DeltaF_standard_state_correction'])
-            dDeltaH += data[phase_name]['dDeltaH'] ** 2
-        dDeltaF = np.sqrt(dDeltaF)
-        dDeltaH = np.sqrt(dDeltaH)
-
-        DeltaF = DeltaF * kT / unit.kilocalories_per_mole
-        dDeltaF = dDeltaF * kT / unit.kilocalories_per_mole
-        DeltaH = DeltaH * kT / unit.kilocalories_per_mole
-        dDeltaH = dDeltaH * kT / unit.kilocalories_per_mole
-
-        return DeltaF, dDeltaF, DeltaH, dDeltaH
+    #
+    # @staticmethod
+    # def analyze_directory(source_directory):
+    #     """
+    #     This Function has been copied and adapted from the Yank ver 0.17.0 source code
+    #     (yank.analyse.analyze_directory)
+    #
+    #     Analyze contents of store files to compute free energy differences.
+    #
+    #     This function is needed to preserve the old auto-analysis style of YANK. What it exactly does can be refined
+    #     when more analyzers and simulations are made available. For now this function exposes the API.
+    #
+    #     Parameters
+    #     ----------
+    #     source_directory : string
+    #        The location of the simulation storage files.
+    #
+    #     """
+    #     analysis_script_path = os.path.join(source_directory, 'analysis.yaml')
+    #     if not os.path.isfile(analysis_script_path):
+    #         err_msg = 'Cannot find analysis.yaml script in {}'.format(source_directory)
+    #         raise RuntimeError(err_msg)
+    #     with open(analysis_script_path, 'r') as f:
+    #         analysis = yaml.load(f)
+    #
+    #     data = dict()
+    #     for phase_name, sign in analysis:
+    #         phase_path = os.path.join(source_directory, phase_name + '.nc')
+    #         phase = get_analyzer(phase_path)
+    #         data[phase_name] = phase.analyze_phase()
+    #         kT = phase.kT
+    #
+    #     # Compute free energy and enthalpy
+    #     DeltaF = 0.0
+    #     dDeltaF = 0.0
+    #     DeltaH = 0.0
+    #     dDeltaH = 0.0
+    #     for phase_name, sign in analysis:
+    #         DeltaF -= sign * (data[phase_name]['DeltaF'] + data[phase_name]['DeltaF_standard_state_correction'])
+    #         dDeltaF += data[phase_name]['dDeltaF'] ** 2
+    #         DeltaH -= sign * (data[phase_name]['DeltaH'] + data[phase_name]['DeltaF_standard_state_correction'])
+    #         dDeltaH += data[phase_name]['dDeltaH'] ** 2
+    #     dDeltaF = np.sqrt(dDeltaF)
+    #     dDeltaH = np.sqrt(dDeltaH)
+    #
+    #     DeltaF = DeltaF * kT / unit.kilocalories_per_mole
+    #     dDeltaF = dDeltaF * kT / unit.kilocalories_per_mole
+    #     DeltaH = DeltaH * kT / unit.kilocalories_per_mole
+    #     dDeltaH = dDeltaH * kT / unit.kilocalories_per_mole
+    #
+    #     return DeltaF, dDeltaF, DeltaH, dDeltaH
 
     def begin(self):
         self.opt = vars(self.args)
@@ -695,7 +696,7 @@ class YankSolvationFECube(ParallelOEMolComputeCube):
                 exp_dir = os.path.join(output_directory, "experiments")
 
                 # Calculate solvation free energy, solvation Enthalpy and their errors
-                DeltaG_solvation, dDeltaG_solvation, DeltaH, dDeltaH = self.__class__.analyze_directory(exp_dir)
+                DeltaG_solvation, dDeltaG_solvation, DeltaH, dDeltaH = yankutils.analyze_directory(exp_dir)
 
                 # # Add result to the original molecule in kcal/mol
                 oechem.OESetSDData(solute, 'DG_yank_solv', str(DeltaG_solvation))
@@ -710,5 +711,224 @@ class YankSolvationFECube(ParallelOEMolComputeCube):
             solvated_system.SetData('error', str(e))
             # Return failed mol
             self.failure.emit(solvated_system)
+
+        return
+
+
+class SyncBindingFECube(OEMolComputeCube):
+    version = "0.0.0"
+    title = "SyncSolvationFECube"
+    description = """
+    This cube is used to synchronize the solvated ligands and the related
+    solvated complexes 
+    """
+    classification = ["Synchronization Cube"]
+    tags = [tag for lists in classification for tag in lists]
+
+    solvated_ligand_in_port = MoleculeInputPort("solvated_ligand_in_port")
+
+    # Define a molecule batch port to stream out the solvated ligand and complex
+    solvated_lig_complex_out_port = BatchMoleculeOutputPort("solvated_lig_complex_out_port")
+
+    def begin(self):
+        self.opt = vars(self.args)
+        self.opt['Logger'] = self.log
+        self.solvated_ligand_list = []
+        self.solvated_complex_list = []
+
+    def process(self, solvated_system, port):
+
+        try:
+            if port == 'solvated_ligand_in_port':
+                self.solvated_ligand_list.append(solvated_system)
+            else:
+                self.solvated_complex_list.append(solvated_system)
+
+        except Exception as e:
+            # Attach an error message to the molecule that failed
+            self.log.error(traceback.format_exc())
+            solvated_system.SetData('error', str(e))
+            # Return failed mol
+            self.failure.emit(solvated_system)
+
+        return
+
+    def end(self):
+        solvated_complex_lig_list = [(i, j) for i, j in
+                                     itertools.product(self.solvated_ligand_list, self.solvated_complex_list)
+                                     if i.GetData("IDTag") in j.GetData("IDTag")]
+
+        for pair in solvated_complex_lig_list:
+            print(pair[0].GetData("IDTag"), pair[1].GetData("IDTag"))
+            self.solvated_lig_complex_out_port.emit([pair[0], pair[1]])
+
+        return
+
+
+class YankBindingFECube(ParallelOEMolComputeCube):
+    version = "0.0.0"
+    title = "YankSolvationFECube"
+    description = """
+    Compute the hydration free energy of a small molecule with YANK.
+
+    This cube uses the YANK alchemical free energy code to compute the
+    transfer free energy of one or more small molecules from gas phase
+    to the selected solvent.
+
+    See http://getyank.org for more information about YANK.
+    """
+    classification = ["Alchemical free energy calculations"]
+    tags = [tag for lists in classification for tag in lists]
+
+    # The intake port is re-defined as batch port
+    intake = BatchMoleculeInputPort("intake")
+
+    # Override defaults for some parameters
+    parameter_overrides = {
+        "prefetch_count": {"default": 1},  # 1 molecule at a time
+        "item_timeout": {"default": 43200},  # Default 12 hour limit (units are seconds)
+        "item_count": {"default": 1}  # 1 molecule at a time
+    }
+
+    temperature = parameter.DecimalParameter(
+        'temperature',
+        default=300.0,
+        help_text="Temperature (Kelvin)")
+
+    pressure = parameter.DecimalParameter(
+        'pressure',
+        default=1.0,
+        help_text="Pressure (atm)")
+
+    minimize = parameter.BooleanParameter(
+        'minimize',
+        default=False,
+        help_text="Minimize input system")
+
+    iterations = parameter.IntegerParameter(
+        'iterations',
+        default=1000,
+        help_text="Number of iterations")
+
+    nsteps_per_iteration = parameter.IntegerParameter(
+        'nsteps_per_iteration',
+        default=500,
+        help_text="Number of steps per iteration")
+
+    timestep = parameter.DecimalParameter(
+        'timestep',
+        default=2.0,
+        help_text="Timestep (fs)")
+
+    nonbondedCutoff = parameter.DecimalParameter(
+        'nonbondedCutoff',
+        default=10.0,
+        help_text="The non-bonded cutoff in angstroms")
+
+    restraints = parameter.StringParameter(
+        'restraints',
+        default='Harmonic',
+        choices=['FlatBottom', 'Harmonic', 'Boresch'],
+        help_text='Select the restraint types')
+
+    ligand_resname = parameter.StringParameter(
+        'ligand_resname',
+        default='LIG',
+        help_text='The decoupling ligand residue name'
+    )
+
+    verbose = parameter.BooleanParameter(
+        'verbose',
+        default=True,
+        help_text="Print verbose YANK logging output")
+
+    def begin(self):
+        self.opt = vars(self.args)
+        self.opt['Logger'] = self.log
+
+    def process(self, solvated_system, port):
+
+        try:
+            opt = dict(self.opt)
+
+            # Extract the solvated ligand and the solvated complex
+            solvated_ligand = solvated_system[0]
+            solvated_complex = solvated_system[1]
+
+            # # Extract the MD data
+            # mdData_ligand = data_utils.MDData(solvated_ligand)
+            # solvated_ligand_structure = mdData_ligand.structure
+            #
+            # mdData_complex = data_utils.MDData(solvated_complex)
+            # solvated_complex_structure = mdData_complex.structure
+            #
+            # # Create the solvated OpenMM systems
+            # solvated_complex_omm_sys = solvated_complex_structure.createSystem(nonbondedMethod=app.PME,
+            #                                                                    nonbondedCutoff=opt['nonbondedCutoff'] * unit.angstroms,
+            #                                                                    constraints=app.HBonds,
+            #                                                                    removeCMMotion=False)
+            #
+            # solvated_ligand_omm_sys = solvated_ligand_structure.createSystem(nonbondedMethod=app.PME,
+            #                                                                  nonbondedCutoff=opt['nonbondedCutoff'] * unit.angstroms,
+            #                                                                  constraints=app.HBonds,
+            #                                                                  removeCMMotion=False)
+            #
+            #
+            # # INSERIRE DIR
+            #
+            # solvated_complex_structure_fn = "complex.pdb"
+            # solvated_complex_structure.save(solvated_complex_structure_fn, overwrite=True)
+            #
+            # solvated_ligand_structure_fn = "solvent.pdb"
+            # solvated_ligand_structure.save(solvated_ligand_structure_fn, overwrite=True)
+            #
+            # solvated_complex_omm_serialized = XmlSerializer.serialize(solvated_complex_omm_sys)
+            # solvated_complex_omm_serialized_fn = "complex.xml"
+            # solvated_complex_f = open(solvated_complex_omm_serialized_fn, 'w')
+            # solvated_complex_f.write(solvated_complex_omm_serialized)
+            # solvated_complex_f.close()
+            #
+            # solvated_ligand_omm_serialized = XmlSerializer.serialize(solvated_ligand_omm_sys)
+            # solvated_ligand_omm_serialized_fn = "solvent.xml"
+            # solvated_ligand_f = open(solvated_ligand_omm_serialized_fn, 'w')
+            # solvated_ligand_f.write(solvated_ligand_omm_serialized)
+            # solvated_ligand_f.close()
+            #
+            # # Build the Yank Experiment
+            # yaml_builder = ExperimentBuilder(yank_binding_template.format(
+            #     verbose='yes' if opt['verbose'] else 'no',
+            #     minimize='yes' if opt['minimize'] else 'no',
+            #     output_directory="./",
+            #     timestep=opt['timestep'],
+            #     nsteps_per_iteration=opt['nsteps_per_iteration'],
+            #     number_iterations=opt['iterations'],
+            #     temperature=opt['temperature'],
+            #     pressure=opt['pressure'],
+            #     complex_pdb_fn=solvated_complex_structure_fn,
+            #     complex_xml_fn=solvated_complex_omm_serialized_fn,
+            #     solvent_pdb_fn=solvated_ligand_structure_fn,
+            #     solvent_xml_fn=solvated_ligand_omm_serialized_fn,
+            #     restraints=opt['restraints'],
+            #     ligand_resname=opt['ligand_resname']))
+            #
+            # # Run Yank
+            # yaml_builder.run_experiments()
+
+            DeltaG_binding, dDeltaG_binding, DeltaH, dDeltaH = yankutils.analyze_directory("experiments")
+
+            protein, ligand, water, excipients = oeommutils.split(solvated_ligand,
+                                                                  ligand_res_name=opt['ligand_resname'])
+            # Add result to the extracted ligand in kcal/mol
+            oechem.OESetSDData(ligand, 'DG_yank_binding', str(DeltaG_binding))
+            oechem.OESetSDData(ligand, 'dG_yank_binding', str(dDeltaG_binding))
+
+            self.success.emit(ligand)
+
+        except Exception as e:
+            # Attach an error message to the molecule that failed
+            self.log.error(traceback.format_exc())
+            solvated_system[1].SetData('error', str(e))
+            # Return failed mol
+            self.failure.emit(solvated_system[1])
 
         return

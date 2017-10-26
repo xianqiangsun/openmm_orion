@@ -149,7 +149,7 @@ class LigandReader(SourceCube):
                         oechem.OEAtomSetResidue(at, residue)
 
                     if self.opt['IDTag']:
-                        mol.SetData(oechem.OEGetTag('IDTag'), 'l_' + mol.GetTitle()[0:12] + str(count))
+                        mol.SetData(oechem.OEGetTag('IDTag'), 'l' + mol.GetTitle()[0:12] + '_' + str(count))
                     yield mol
                     count += 1
                     if max_idx is not None and count == max_idx:
@@ -167,7 +167,7 @@ class LigandReader(SourceCube):
                     oechem.OEAtomSetResidue(at, residue)
 
                 if self.opt['IDTag']:
-                    mol.SetData(oechem.OEGetTag('IDTag'), 'l_' + mol.GetTitle()[0:12] + str(count))
+                    mol.SetData(oechem.OEGetTag('IDTag'), 'l' + mol.GetTitle()[0:12] + '_'+str(count))
                 yield mol
                 count += 1
                 if max_idx is not None and count == max_idx:
