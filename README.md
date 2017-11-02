@@ -50,7 +50,7 @@ source activate dev
 #Install the OpenEye-floe package and toolkits
 pip install -i https://pypi.anaconda.org/OpenEye/simple OpenEye-toolkits
 pip install --pre --extra-index-url https://pypi.anaconda.org/OpenEye/channel/beta/simple OpenEye-oenotebook
-pip install OpenEye-floe-0.2.166.tar.gz
+pip install OpenEye-floe-0.2.181.tar.gz
 
 #Install the main OpenMM Orion Floes
 python setup.py develop
