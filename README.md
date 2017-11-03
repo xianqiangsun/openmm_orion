@@ -50,8 +50,8 @@ git clone git@github.com:oess/openmm_orion.git
 cd openmm_orion
 
 #Create a new local conda environment and install dependencies
-conda create -n openmm_orion python=3.5
-source activate openmm_orion
+conda create -n openmmorion python=3.5
+source activate openmmorion
 conda install -c omnia -c omnia/label/dev -c mobleylab -c OpenEye/label/Orion -c conda-forge openmm==7.1.1 openmoltools==0.8.1 ambermini==16.16.0 parmed==2.7.3 pdbfixer==1.4 openforcefield==0.0.2 smirff99frosst==1.0.5 alchemy==1.2.3 yank==0.18.0 oeommtools pymbar==3.0.3 networkx==1.11 
 
 #Install the OpenEye-floe package and toolkits
