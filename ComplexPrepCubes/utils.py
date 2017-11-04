@@ -10,7 +10,7 @@ from pdbfixer import PDBFixer
 from pkg_resources import resource_filename
 from simtk import unit
 from simtk.openmm import Vec3
-import math
+
 
 proteinResidues = ['ALA', 'ASN', 'CYS', 'GLU', 'HIS',
                    'LEU', 'MET', 'PRO', 'THR', 'TYR',

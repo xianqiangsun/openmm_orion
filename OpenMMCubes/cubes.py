@@ -90,6 +90,11 @@ class OpenMMminimizeCube(ParallelOEMolComputeCube):
         default='min',
         help_text='Filename suffix for output simulation files')
 
+    center = parameter.BooleanParameter(
+        'center',
+        default=False,
+        description='Center the system to the OpenMM unit cell')
+
     verbose = parameter.BooleanParameter(
         'verbose',
         default=True,

@@ -1,7 +1,7 @@
 from __future__ import unicode_literals
 from floe.api import WorkFloe, OEMolOStreamCube
 from OpenMMCubes.cubes import OpenMMminimizeCube, OpenMMnvtCube, OpenMMnptCube
-from ComplexPrepCubes.cubes import HydrationCube, ComplexPrep, ForceFieldPrep
+from ComplexPrepCubes.cubes import HydrationCube, ComplexPrep, ForceFieldPrep, SolvationCube
 from ComplexPrepCubes.port import ProteinReader
 from LigPrepCubes.ports import LigandReader
 from LigPrepCubes.cubes import LigChargeCube
@@ -51,7 +51,15 @@ iprot.promote_parameter("protein_prefix", promoted_name="protein_prefix",
 complx = ComplexPrep("Complex")
 
 # The solvation cube is used to solvate the system and define the ionic strength of the solution
-solvate = HydrationCube("Hydration")
+# solvate = HydrationCube("Hydration")
+
+solvate = SolvationCube("Hydration")
+solvate.promote_parameter('density', promoted_name='density', default=1.25,
+                          description="Solution density in g/ml")
+solvate.promote_parameter('close_solvent', promoted_name='close_solvent', default=True,
+                          description='The solvent molecules will be placed very close to the solute')
+solvate.promote_parameter('salt_concentration', promoted_name='salt_concentration', default=50.0,
+                          description='Salt concentration (Na+, Cl-) in millimolar')
 
 # Force Field Application
 ff = ForceFieldPrep("ForceField")
@@ -71,6 +79,8 @@ minComplex.promote_parameter('restraints', promoted_name='m_restraints', default
                              description='Select mask to apply restarints')
 minComplex.promote_parameter('restraintWt', promoted_name='m_restraintWt', default=5.0,
                              description='Restraint weight')
+minComplex.promote_parameter('steps', promoted_name='steps', default=20000)
+minComplex.promote_parameter('center', promoted_name='center', default=True)
 
 # Output the minimized systems
 minimization_ofs = OEMolOStreamCube('minimization_ofs', title='MinimizationOut')

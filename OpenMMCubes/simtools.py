@@ -37,23 +37,22 @@ def simulation(mdData, **opt):
     # Time step in ps
     stepLen = 0.002 * unit.picoseconds
 
-    if opt['SimType'] in ['nvt', 'npt'] and box is not None:
-        # Centering the system to the OpenMM Unit Cell
-        if opt['center']:
-            opt['Logger'].info("Centering is On")
-            # Numpy array in A
-            coords = structure.coordinates
-            # System Center of Geometry
-            cog = np.mean(coords, axis=0)
-            # System box vectors
-            box_v = structure.box_vectors.in_units_of(unit.angstrom)/unit.angstrom
-            box_v = np.array([box_v[0][0], box_v[1][1], box_v[2][2]])
-            # Translation vector
-            delta = box_v/2 - cog
-            # New Coordinates
-            new_coords = coords + delta
-            structure.coordinates = new_coords
-            positions = structure.positions
+    # Centering the system to the OpenMM Unit Cell
+    if opt['center'] and box is not None:
+        opt['Logger'].info("Centering is On")
+        # Numpy array in A
+        coords = structure.coordinates
+        # System Center of Geometry
+        cog = np.mean(coords, axis=0)
+        # System box vectors
+        box_v = structure.box_vectors.in_units_of(unit.angstrom)/unit.angstrom
+        box_v = np.array([box_v[0][0], box_v[1][1], box_v[2][2]])
+        # Translation vector
+        delta = box_v/2 - cog
+        # New Coordinates
+        new_coords = coords + delta
+        structure.coordinates = new_coords
+        positions = structure.positions
 
     # OpenMM system
     if box is not None:
